@@ -1,10 +1,10 @@
 name: Mandate program
 on:
   pull_request:
-    paths: ["programs/mandate/**", ".github/workflows/mandate.yml"]
+    paths: ["programs/mandate/**", "Cargo.toml", "Cargo.lock", ".github/workflows/mandate.yml"]
   push:
     branches: [main]
-    paths: ["programs/mandate/**", ".github/workflows/mandate.yml"]
+    paths: ["programs/mandate/**", "Cargo.toml", "Cargo.lock", ".github/workflows/mandate.yml"]
   schedule:
     - cron: "17 4 * * *"
   workflow_dispatch:
