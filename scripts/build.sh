@@ -4,6 +4,8 @@
 #   scripts/build.sh            fail on a stale pin, then build
 #   scripts/build.sh --check    only check the pins and the locks
 #   scripts/build.sh --update   rewrite stale pins and Cargo.lock, then build
+#   scripts/build.sh --update <repo>...
+#                               rewrite only the pins of the named repositories
 #
 # [workspace.metadata.allowit.track] says which revision each git repository
 # must be pinned to. Keys are repository names:
@@ -18,13 +20,18 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+usage="usage: scripts/build.sh [--check | --update [repo...]]"
 mode=build
 case "${1-}" in
   "") ;;
   --check) mode=check ;;
   --update) mode=update ;;
-  *) echo "usage: scripts/build.sh [--check | --update]" >&2; exit 2 ;;
+  *) echo "$usage" >&2; exit 2 ;;
 esac
+[ $# -gt 0 ] && shift
+# Repositories named after --update. Empty means every repository.
+names=$(printf '%s\n' "$@" | sed '/^$/d')
+if [ -n "$names" ] && [ "$mode" != update ]; then echo "$usage" >&2; exit 2; fi
 
 # Tracked and new manifests, so an unstaged workspace is checked too.
 manifests=$(git ls-files --cached --others --exclude-standard -- '*Cargo.toml' \
@@ -66,6 +73,13 @@ if [ -n "$clashes" ]; then
   exit 1
 fi
 
+for name in $names; do
+  if ! grep -qxF "$name" < <(for url in $urls; do basename "$url" .git; done); then
+    echo "$name: no git dependency on this repository" >&2
+    exit 2
+  fi
+done
+
 failed=0
 stale=""
 for url in $urls; do
@@ -88,7 +102,7 @@ for url in $urls; do
   while IFS=$'\t' read -r _ rev name; do
     [ "$rev" = "$want" ] && continue
     echo "$name: $repo $spec is $want, pinned ${rev/#-/no rev}" >&2
-    if [ "$rev" = - ]; then failed=1; else stale="$stale $rev:$want"; fi
+    if [ "$rev" = - ]; then failed=1; else stale="$stale $repo:$rev:$want"; fi
   done < <(awk -F'\t' -v u="$url" '$1 == u' <<<"$pins")
 done
 [ "$failed" = 0 ] || exit 1
@@ -98,12 +112,23 @@ if [ -n "$stale" ]; then
     echo "stale pins: run scripts/build.sh --update" >&2
     exit 1
   fi
+  moves=""
+  for entry in $stale; do
+    repo=${entry%%:*}
+    if [ -z "$names" ] || grep -qxF "$repo" <<<"$names"; then
+      moves="$moves ${entry#*:}"
+    else
+      echo "$repo: stale pin left in place" >&2
+      failed=1
+    fi
+  done
   for manifest in $manifests; do
-    for pair in $stale; do
+    for pair in $moves; do
       sed -i.orig "s/${pair%%:*}/${pair##*:}/g" "$manifest" && rm "$manifest.orig"
     done
   done
-  for m in $workspaces; do cargo update --workspace --manifest-path "$m"; done
+  # Only packages whose requirements changed move in the locks.
+  [ -z "$moves" ] || for m in $workspaces; do cargo update --workspace --manifest-path "$m"; done
 fi
 
 # Each lock holds one copy of every git package, so an update that moves
@@ -116,11 +141,16 @@ for m in $workspaces; do
     echo "$lock: more than one copy of git package $dups" >&2
     failed=1
   fi
+  if ! cargo metadata --locked --format-version 1 --manifest-path "$m" >/dev/null; then
+    echo "$lock: does not match $m" >&2
+    failed=1
+  fi
 done
 [ "$failed" = 0 ] || exit 1
 [ "$mode" = check ] && exit 0
 
 cargo build --workspace --all-targets --locked
+cargo build --manifest-path programs/mandate/Cargo.toml --all-targets --locked
 cargo build-sbf --manifest-path programs/mandate/Cargo.toml --tools-version v1.57 -- --locked
 for program in paysh policy vault; do
   cargo build-sbf --manifest-path "programs/$program/Cargo.toml" --arch v3 --optimize-size --tools-version v1.57 -- --locked
