@@ -1,0 +1,9 @@
+# Extends the default rules. The PaySH golden fixture holds MPP headers signed
+# with fixed disposable test keys (see crates/paysh-stock/src/lib.rs), not
+# credentials.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "PaySH golden MPP test vectors"
+paths = ['''^crates/paysh-stock/tests/fixtures/official-mpp-google-v0\.json$''']

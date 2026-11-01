@@ -1,0 +1,10 @@
+[package]
+name = "allowit-solana-service-rpc"
+version.workspace = true
+edition = "2024"
+license = "LicenseRef-Proprietary"
+publish = false
+
+[dependencies]
+allowit-sdk = { workspace = true, features = ["service", "transport"] }
+serde_json = "1.0.150"

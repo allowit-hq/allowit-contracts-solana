@@ -18,7 +18,7 @@
 
 ## What is this?
 
-Three native Rust programs and one shared policy source. The host crates that talk to them live in the [Allowit SDK](https://github.com/allowit-hq/allowit-sdk/tree/main/rails/solana).
+Three native Rust programs, one shared policy source, and the host crates that talk to them.
 
 | Piece | What it does | Where |
 | --- | --- | --- |
@@ -27,6 +27,7 @@ Three native Rust programs and one shared policy source. The host crates that ta
 | **PaySH** | A separate, upgradeable profile for paying services in USDC or swapping SOL to USDC, each request signed by an evaluator and bounded by owner budgets. | [`programs/paysh`](programs/paysh/src/lib.rs), [docs](docs/paysh.md) |
 | **Portable policy** | The `require_approval` + `enforce_daily_limit` rule, shared byte-for-byte with the [Stellar contracts](https://github.com/allowit-hq/allowit-contracts-stellar) and hashed into both builds. | [`policy/`](policy/policy.rs) |
 | **ABI crates** | Borsh layouts for the vault ([ABI 2](crates/interface/src/lib.rs)) and the PaySH request protocol ([v2](crates/paysh-interface/src/lib.rs)). | [`crates/interface`](crates/interface), [`crates/paysh-interface`](crates/paysh-interface) |
+| **Host crates** | Off-chain adapters for the Allowit SDK: PaySH reconciliation, service providers, x402 packets, RPC request builders. | [`crates/solana-vendor`](crates/solana-vendor/README.md), [service packages](docs/services.md) |
 
 ### Why a custody program?
 
@@ -91,7 +92,7 @@ SBF_OUT_DIR="$PWD/target/deploy" cargo test --manifest-path sbf-tests/Cargo.toml
 The PaySH swap tests also need a Whirlpool program. `bash scripts/build-whirlpool-test.sh` downloads a pinned Orca source archive, checks its SHA-256 and builds it into `target/whirlpool-fixture/`. Then add `--test paysh_whirlpool` to step 4, or drop the `--test` flags to run every suite. If you move the fixture with `WHIRLPOOL_FIXTURE_DIR`, point the tests at the built program with `WHIRLPOOL_SBF_PATH=<dir>/target/deploy/whirlpool.so`.
 
 > [!TIP]
-> Every crate and program is a member of the root Cargo workspace. Test one with `cargo test --locked -p <package>`.
+> Every crate and program is a member of the root Cargo workspace. Test one with `cargo test --locked -p <package>`. See [Host service packages](docs/services.md).
 
 ## Using the vault
 
@@ -135,7 +136,7 @@ Pin both hashes together with the chain, ABI, program IDs and authorities when y
 
 ### Recovering an uncertain transaction
 
-Save the signed transaction bytes before you broadcast. If the result is unknown, look the original up before you sign a replacement; the vault's nonce makes a duplicate fail, but only if you resend the same request. The SDK's [vendor crate](https://github.com/allowit-hq/allowit-sdk/tree/main/rails/solana/solana-vendor) does this reconciliation for PaySH operations.
+Save the signed transaction bytes before you broadcast. If the result is unknown, look the original up before you sign a replacement; the vault's nonce makes a duplicate fail, but only if you resend the same request. The [vendor crate](crates/solana-vendor/README.md) does this reconciliation for PaySH operations.
 
 ## Deploy to Devnet
 
@@ -193,41 +194,51 @@ The [`Solana runtime smoke`](.github/workflows/integration-runtime.yml) workflow
 │   ├── paysh/              Upgradeable PaySH execution profile
 │   └── mandate/            Mandate allowance program (allowit-solana) and its Mollusk tests
 ├── crates/
+│   ├── native/             Native Solana Rust SDK (allowit-native)
 │   ├── interface/          Vault ABI 2 (Borsh)
-│   └── paysh-interface/    PaySH v2 request protocol and service allowlist
+│   ├── paysh-interface/    PaySH v2 request protocol and service allowlist
+│   ├── solana-vendor/      SDK host adapters and PaySH reconciliation
+│   ├── service-upstreams/  Picks the configured service provider
+│   ├── provider-*/         Air-quality providers (Google, Open-Meteo)
+│   ├── paysh-catalog/      Operator discovery catalog
+│   ├── paysh-stock/        Stock MPP challenge and payment protocol
+│   ├── paysh-cooperating/  Cooperating-gateway HTTP protocol
+│   ├── delegated-x402/     Solana x402 packet builder and checker
+│   └── service-rpc/        Typed Solana RPC request builders
 ├── native/                 @allowit/native: JavaScript native vault lifecycle
 ├── sbf-tests/              Mollusk tests against the compiled programs
 ├── scripts/                build.sh, check-policy.py, policy-smoke.rs, Whirlpool fixture
-└── docs/                   Architecture, PaySH profile, native vault v2
+└── docs/                   Architecture, PaySH profile, host service packages, native vault v2
 ```
 
 - [`programs/mandate/`](programs/mandate/README.md) is the owner-approved mandate allowance program. It evaluates compiled policy IR with SDK core and spends through SPL Token `transfer_checked`. Its Mollusk harness `programs/mandate/sbf-tests/` keeps its own Cargo lockfile.
-- [`native/`](native/README.md) is the JavaScript native SDK for the vault v2 lifecycle. Its Rust counterpart `allowit-native` is in the SDK's [`rails/solana/native/`](https://github.com/allowit-hq/allowit-sdk/tree/main/rails/solana/native).
+- [`crates/native/`](crates/native/) is the Rust native SDK for the vault v2 lifecycle. [`native/`](native/README.md) is its JavaScript counterpart.
 - [`docs/native-vault-v2.md`](docs/native-vault-v2.md) describes the native vault v2 protocol.
 
 ## Part of Allowit
 
 - [allowit.xyz](https://allowit.xyz): what Allowit is and how owners use it.
-- [allowit-sdk](https://github.com/allowit-hq/allowit-sdk): the policy language, runtime, compiler and CLI that drive these programs, and the Solana host crates under `rails/solana/`. This repository depends on the SDK; the SDK does not depend on this repository.
+- [allowit-core](https://github.com/allowit-hq/allowit-core): the policy compiler, evaluator and shared types (package `allowit-sdk`). The programs and the host crates depend on it.
+- [allowit-sdk](https://github.com/allowit-hq/allowit-sdk): the `allowit` CLI and the engine. They depend on the host crates here and on allowit-core. Pins point one way: allowit-sdk depends on this repository, and this repository depends only on allowit-core.
 - [allowit-contracts-stellar](https://github.com/allowit-hq/allowit-contracts-stellar): the same policy and owner-control principle on Soroban. `check-policy.py --peer` keeps the two in lockstep.
-- The Allowit engine is the off-chain evaluator that signs requests. The SDK's Solana service packages were extracted from it.
+- The Allowit engine is the off-chain evaluator that signs requests. The service packages under `crates/` were extracted from it.
 
 ## Contributing
 
-Pull requests run the portable policy checks and `scripts/build.sh` ([`contracts.yml`](.github/workflows/contracts.yml)) and, when touched, the Node native SDK ([`native.yml`](.github/workflows/native.yml)) and the mandate program ([`mandate.yml`](.github/workflows/mandate.yml)). The compiled-program suites run nightly and on demand. Before you open a PR:
+Pull requests run the portable policy checks and `scripts/build.sh` ([`contracts.yml`](.github/workflows/contracts.yml)) and, when touched, the service package matrix ([`service-packages.yml`](.github/workflows/service-packages.yml)), the native SDKs ([`native.yml`](.github/workflows/native.yml)) and the mandate program ([`mandate.yml`](.github/workflows/mandate.yml)). The compiled-program suites run nightly and on demand. Before you open a PR:
 
 ```sh
-ALLOWIT_SOLANA_NETWORK=devnet scripts/build.sh   # fail on a stale allowit-sdk pin, then build the workspace and the SBF programs
+ALLOWIT_SOLANA_NETWORK=devnet scripts/build.sh   # fail on a stale allowit-core pin, then build the workspace and the SBF programs
 python3 scripts/check-policy.py
 cargo fmt --all --check
 cargo fmt --manifest-path sbf-tests/Cargo.toml --check
 cargo test --workspace --locked
 ```
 
-`allowit-sdk` is the only git dependency. `[workspace.metadata.allowit.track]` in the root `Cargo.toml` says which commit it must be pinned to: `"head"` (the default branch tip), `{ branch = "name" }` or `{ version = "1.2.3" }` (tag `v1.2.3`). `scripts/build.sh --update` moves a stale pin and refreshes the locks. The script needs `git`, `cargo` and `jq`.
+Allowit core (package `allowit-sdk`, repository allowit-core) is the only git dependency. `[workspace.metadata.allowit.track]` in the root `Cargo.toml` says which commit it must be pinned to: `"head"` (the default branch tip), `{ branch = "name" }` or `{ version = "1.2.3" }` (tag `v1.2.3`). `scripts/build.sh --update` moves a stale pin and refreshes the locks. The script needs `git`, `cargo` and `jq`.
 
 If you edit `policy/policy.rs` or `policy/policy_api.rs`, regenerate `source_hash.rs` with `--write` and make the identical change in the Stellar repository. [`AGENTS.md`](AGENTS.md) describes what belongs in this repository and what does not.
 
 ## License
 
-Licensing is per package. `allowit-paysh-interface`, `@allowit/native` and the mandate program `allowit-solana` are MIT (see [`LICENSE`](LICENSE)). The other programs and the vault interface are `UNLICENSED`. Each `Cargo.toml` states its own terms.
+Licensing is per crate. `allowit-paysh-interface`, `allowit-solana-vendor`, `allowit-native`, `@allowit/native` and the mandate program `allowit-solana` are MIT (see [`LICENSE`](LICENSE)). The other programs and the vault interface are `UNLICENSED`; the host service packages extracted from the Allowit engine are `LicenseRef-Proprietary`. Each `Cargo.toml` states its own terms.

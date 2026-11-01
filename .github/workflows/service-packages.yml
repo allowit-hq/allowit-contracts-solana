@@ -1,0 +1,27 @@
+name: Host service packages
+on:
+  pull_request:
+    paths: ["crates/service-*/**", "crates/provider-*/**", "crates/paysh-catalog/**", "crates/delegated-x402/**", "crates/paysh-stock/**", "crates/paysh-cooperating/**", ".github/workflows/service-packages.yml"]
+  push:
+    paths: ["crates/service-*/**", "crates/provider-*/**", "crates/paysh-catalog/**", "crates/delegated-x402/**", "crates/paysh-stock/**", "crates/paysh-cooperating/**", ".github/workflows/service-packages.yml"]
+permissions:
+  contents: read
+env:
+  PACKAGES: >-
+    -p allowit-solana-service-upstreams -p allowit-solana-service-rpc
+    -p allowit-vendor-google-air-quality -p allowit-vendor-open-meteo
+    -p allowit-vendor-paysh-catalog -p allowit-solana-delegated-x402
+    -p allowit-vendor-paysh-stock -p allowit-solana-paysh-cooperating
+jobs:
+  service-packages:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.98.0
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all --check
+      - run: cargo clippy --locked $PACKAGES --all-targets -- -D warnings
+      - run: cargo test --locked $PACKAGES

@@ -1,0 +1,15 @@
+[package]
+name = "allowit-vendor-paysh-stock"
+version.workspace = true
+edition = "2024"
+rust-version = "1.98"
+license = "LicenseRef-Proprietary"
+publish = false
+
+[dependencies]
+allowit-sdk = { workspace = true, features = ["service", "transport"] }
+allowit-native.workspace = true
+base64 = "0.22"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["arbitrary_precision"] }
+chrono = { version = "0.4", features = ["serde"] }

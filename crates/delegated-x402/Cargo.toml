@@ -1,0 +1,16 @@
+[package]
+name = "allowit-solana-delegated-x402"
+version.workspace = true
+edition = "2024"
+rust-version = "1.98"
+license = "LicenseRef-Proprietary"
+publish = false
+
+[dependencies]
+allowit-sdk = { workspace = true, features = ["service"] }
+allowit-native.workspace = true
+base64 = "0.22"
+bs58 = "0.5"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["arbitrary_precision"] }
+reqwest = { version = "=0.12.28", default-features = false, features = ["blocking", "json", "rustls-tls"] }

@@ -1,10 +1,10 @@
 name: Native Solana SDK
 on:
   pull_request:
-    paths: ["native/**", ".github/workflows/native.yml"]
+    paths: ["crates/native/**", "native/**", ".github/workflows/native.yml"]
   push:
     branches: [main]
-    paths: ["native/**", ".github/workflows/native.yml"]
+    paths: ["crates/native/**", "native/**", ".github/workflows/native.yml"]
   schedule:
     - cron: "17 4 * * *"
   workflow_dispatch:
@@ -14,6 +14,20 @@ concurrency:
   group: native-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  native-rust:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.98.0
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --manifest-path crates/native/Cargo.toml --check
+      - run: cargo test --manifest-path crates/native/Cargo.toml --locked
+      - run: cargo test --manifest-path crates/native/Cargo.toml --locked --features serde_json/preserve_order
+      - run: cargo clippy --manifest-path crates/native/Cargo.toml --locked --all-targets -- -D warnings
+
   native-sdk:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
