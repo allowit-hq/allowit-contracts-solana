@@ -76,7 +76,7 @@ dependencies = [
 [[package]]
 name = "allowit-sdk"
 version = "0.1.0"
-source = "git+https://github.com/allowit-hq/allowit-core.git?rev=897b1b4c16f3e5a4e8e7c5de082b41d2d600ff6e#897b1b4c16f3e5a4e8e7c5de082b41d2d600ff6e"
+source = "git+https://github.com/allowit-hq/allowit-core.git?rev=6aa00597a0796acf6f6fa911a86c0fe57c055b67#6aa00597a0796acf6f6fa911a86c0fe57c055b67"
 dependencies = [
  "libc",
  "reqwest",

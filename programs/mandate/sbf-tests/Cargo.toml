@@ -7,7 +7,7 @@ license = "MIT"
 [workspace]
 
 [dev-dependencies]
-allowit-sdk = { git = "https://github.com/allowit-hq/allowit-core.git", rev = "897b1b4c16f3e5a4e8e7c5de082b41d2d600ff6e", features = ["compiler", "contract"] }
+allowit-sdk = { git = "https://github.com/allowit-hq/allowit-core.git", rev = "6aa00597a0796acf6f6fa911a86c0fe57c055b67", features = ["compiler", "contract"] }
 allowit-solana = { path = "..", features = ["no-entrypoint"] }
 borsh = "=1.6.0"
 bincode = "=1.3.3"

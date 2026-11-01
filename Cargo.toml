@@ -30,13 +30,11 @@ version = "0.1.0"
 # The revision each git repository must be pinned to. scripts/build.sh checks
 # every git dependency below against this table and fails on a stale pin.
 [workspace.metadata.allowit.track]
-# allowit-core cli-settings-overrides carries the core part of allowit-sdk#44.
-# After it merges, track "head" and run scripts/build.sh --update allowit-core.
-allowit-core = { branch = "cli-settings-overrides" }
+allowit-core = "head"
 
 [workspace.dependencies]
 # Allowit core (package allowit-sdk) is the only git dependency.
-allowit-sdk = { git = "https://github.com/allowit-hq/allowit-core.git", rev = "897b1b4c16f3e5a4e8e7c5de082b41d2d600ff6e", default-features = false }
+allowit-sdk = { git = "https://github.com/allowit-hq/allowit-core.git", rev = "6aa00597a0796acf6f6fa911a86c0fe57c055b67", default-features = false }
 allowit-interface = { path = "crates/interface" }
 allowit-native = { path = "crates/native" }
 solana-program = "=2.3.0"
