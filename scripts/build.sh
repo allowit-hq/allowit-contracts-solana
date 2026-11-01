@@ -34,7 +34,8 @@ names=$(printf '%s\n' "$@" | sed '/^$/d')
 if [ -n "$names" ] && [ "$mode" != update ]; then echo "$usage" >&2; exit 2; fi
 
 # Tracked and new manifests, so an unstaged workspace is checked too.
-manifests=$(git ls-files --cached --others --exclude-standard -- '*Cargo.toml' \
+# verification/ holds hash-bound historical inputs; never check or update them.
+manifests=$(git ls-files --cached --others --exclude-standard -- '*Cargo.toml' ':!verification/**' \
   | while read -r m; do if [ -f "$m" ]; then echo "$m"; fi; done)
 workspaces=$(for m in $manifests; do
   if grep -q '^\[workspace\]' "$m"; then echo "$m"; fi
@@ -127,15 +128,22 @@ if [ -n "$stale" ]; then
       sed -i.orig "s/${pair%%:*}/${pair##*:}/g" "$manifest" && rm "$manifest.orig"
     done
   done
-  # Only packages whose requirements changed move in the locks.
-  [ -z "$moves" ] || for m in $workspaces; do cargo update --workspace --manifest-path "$m"; done
+fi
+# Refresh every lock, also after an interrupted update whose pins already
+# moved. Only packages whose requirements changed move in the locks.
+if [ "$mode" = update ]; then
+  for m in $workspaces; do cargo update --workspace --manifest-path "$m"; done
 fi
 
 # Each lock holds one copy of every git package, so an update that moves
 # allowit-core ahead of a pinned dependency cannot add a second allowit-core.
 for m in $workspaces; do
   lock=$(dirname "$m")/Cargo.lock
-  [ -f "$lock" ] || continue
+  if [ ! -f "$lock" ]; then
+    echo "$lock: missing" >&2
+    failed=1
+    continue
+  fi
   dups=$(awk '/^name = /{n=$3} /^source = "git\+/{print n}' "$lock" | sort | uniq -d | tr -d '"' | xargs)
   if [ -n "$dups" ]; then
     echo "$lock: more than one copy of git package $dups" >&2
