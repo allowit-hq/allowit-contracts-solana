@@ -2,7 +2,7 @@
 # Check cross-repository pins, then build.
 #
 #   scripts/build.sh            fail on a stale pin, then build
-#   scripts/build.sh --check    only check the pins
+#   scripts/build.sh --check    only check the pins and the locks
 #   scripts/build.sh --update   rewrite stale pins and Cargo.lock, then build
 #
 # [workspace.metadata.allowit.track] says which revision each git repository
@@ -105,6 +105,19 @@ if [ -n "$stale" ]; then
   done
   for m in $workspaces; do cargo update --workspace --manifest-path "$m"; done
 fi
+
+# Each lock holds one copy of every git package, so an update that moves
+# allowit-core ahead of a pinned dependency cannot add a second allowit-core.
+for m in $workspaces; do
+  lock=$(dirname "$m")/Cargo.lock
+  [ -f "$lock" ] || continue
+  dups=$(awk '/^name = /{n=$3} /^source = "git\+/{print n}' "$lock" | sort | uniq -d | tr -d '"' | xargs)
+  if [ -n "$dups" ]; then
+    echo "$lock: more than one copy of git package $dups" >&2
+    failed=1
+  fi
+done
+[ "$failed" = 0 ] || exit 1
 [ "$mode" = check ] && exit 0
 
 cargo build --workspace --all-targets --locked
