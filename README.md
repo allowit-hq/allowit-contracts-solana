@@ -92,7 +92,7 @@ SBF_OUT_DIR="$PWD/target/deploy" cargo test --manifest-path sbf-tests/Cargo.toml
 The PaySH swap tests also need a Whirlpool program. `bash scripts/build-whirlpool-test.sh` downloads a pinned Orca source archive, checks its SHA-256 and builds it into `target/whirlpool-fixture/`. Then add `--test paysh_whirlpool` to step 4, or drop the `--test` flags to run every suite. If you move the fixture with `WHIRLPOOL_FIXTURE_DIR`, point the tests at the built program with `WHIRLPOOL_SBF_PATH=<dir>/target/deploy/whirlpool.so`.
 
 > [!TIP]
-> Every crate and program is a member of the root Cargo workspace. Test one with `cargo test --locked -p <package>`. See [Host service packages](docs/services.md).
+> Every crate and program except the mandate program is a member of the root Cargo workspace. Test one with `cargo test --locked -p <package>`. See [Host service packages](docs/services.md).
 
 ## Using the vault
 
@@ -212,7 +212,7 @@ The [`Solana runtime smoke`](.github/workflows/integration-runtime.yml) workflow
 └── docs/                   Architecture, PaySH profile, host service packages, native vault v2
 ```
 
-- [`programs/mandate/`](programs/mandate/README.md) is the owner-approved mandate allowance program. It evaluates compiled policy IR with SDK core and spends through SPL Token `transfer_checked`. Its Mollusk harness `programs/mandate/sbf-tests/` keeps its own Cargo lockfile.
+- [`programs/mandate/`](programs/mandate/README.md) is the owner-approved mandate allowance program. It evaluates compiled policy IR with Allowit core and spends through SPL Token `transfer_checked`. It and its Mollusk harness `programs/mandate/sbf-tests/` each keep their own Cargo lockfile.
 - [`crates/native/`](crates/native/) is the Rust native SDK for the vault v2 lifecycle. [`native/`](native/README.md) is its JavaScript counterpart.
 - [`verification/`](verification/README.md) holds the Solana verification set: the native and published policy correspondence checks, the obligation ledger, and the refinement, adapter, trace, refusal, isolation and runtime evidence. allowit-core keeps only the core Lean model. The inputs are hash-bound: run `python3 -m unittest discover -s verification/tests`.
 - [`docs/native-vault-v2.md`](docs/native-vault-v2.md) describes the native vault v2 protocol.
@@ -237,10 +237,10 @@ cargo fmt --manifest-path sbf-tests/Cargo.toml --check
 cargo test --workspace --locked
 ```
 
-Allowit core (package `allowit-sdk`, repository allowit-core) is the only git dependency. `[workspace.metadata.allowit.track]` in the root `Cargo.toml` says which commit it must be pinned to: `"head"` (the default branch tip), `{ branch = "name" }` or `{ version = "1.2.3" }` (tag `v1.2.3`). `scripts/build.sh --update` moves a stale pin and refreshes the locks. The script needs `git`, `cargo` and `jq`.
+Allowit core (package `allowit-sdk`, repository allowit-core) is the only git dependency. `[workspace.metadata.allowit.track]` in the root `Cargo.toml` says which commit it must be pinned to: `"head"` (the default branch tip), `{ branch = "name" }` or `{ version = "1.2.3" }` (tag `v1.2.3`). `scripts/build.sh --update` moves a stale pin and refreshes the locks; `scripts/build.sh --update allowit-core` moves only that repository's pins. The script needs `git`, `cargo` and `jq`.
 
 If you edit `policy/policy.rs` or `policy/policy_api.rs`, regenerate `source_hash.rs` with `--write` and make the identical change in the Stellar repository. [`AGENTS.md`](AGENTS.md) describes what belongs in this repository and what does not.
 
 ## License
 
-Licensing is per crate. `allowit-paysh-interface`, `allowit-solana-vendor`, `allowit-native`, `@allowit/native` and the mandate program `allowit-solana` are MIT (see [`LICENSE`](LICENSE)). The other programs and the vault interface are `UNLICENSED`; the host service packages extracted from the Allowit engine are `LicenseRef-Proprietary`. Each `Cargo.toml` states its own terms.
+Licensing is per crate. `allowit-paysh-interface`, `allowit-solana-vendor`, `allowit-native`, `@allowit/native` and the mandate program `allowit-solana` are MIT (see [`crates/solana-vendor/LICENSE`](crates/solana-vendor/LICENSE)). The other programs and the vault interface are `UNLICENSED`; the host service packages extracted from the Allowit engine are `LicenseRef-Proprietary`. Each `Cargo.toml` states its own terms.

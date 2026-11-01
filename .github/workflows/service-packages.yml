@@ -1,9 +1,9 @@
 name: Host service packages
 on:
   pull_request:
-    paths: ["crates/service-*/**", "crates/provider-*/**", "crates/paysh-catalog/**", "crates/delegated-x402/**", "crates/paysh-stock/**", "crates/paysh-cooperating/**", "Cargo.toml", "Cargo.lock", ".github/workflows/service-packages.yml"]
+    paths: ["crates/service-*/**", "crates/provider-*/**", "crates/paysh-catalog/**", "crates/delegated-x402/**", "crates/paysh-stock/**", "crates/paysh-cooperating/**", "crates/native/**", "Cargo.toml", "Cargo.lock", ".github/workflows/service-packages.yml"]
   push:
-    paths: ["crates/service-*/**", "crates/provider-*/**", "crates/paysh-catalog/**", "crates/delegated-x402/**", "crates/paysh-stock/**", "crates/paysh-cooperating/**", "Cargo.toml", "Cargo.lock", ".github/workflows/service-packages.yml"]
+    paths: ["crates/service-*/**", "crates/provider-*/**", "crates/paysh-catalog/**", "crates/delegated-x402/**", "crates/paysh-stock/**", "crates/paysh-cooperating/**", "crates/native/**", "Cargo.toml", "Cargo.lock", ".github/workflows/service-packages.yml"]
 permissions:
   contents: read
 env:

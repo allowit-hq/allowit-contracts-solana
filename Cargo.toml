@@ -12,14 +12,15 @@ members = [
     "crates/service-rpc",
     "crates/service-upstreams",
     "crates/solana-vendor",
-    "programs/mandate",
     "programs/paysh",
     "programs/policy",
     "programs/vault",
 ]
 # The SBF test harnesses pin the Mollusk crate family exactly. Those pins would
 # change the programs' own dependencies, so each harness keeps its own lock.
-exclude = ["sbf-tests", "programs/mandate/sbf-tests"]
+# The mandate program keeps its own lock too: it resolves serde, cc, libc and
+# lazy_static to older versions than the other programs.
+exclude = ["sbf-tests", "programs/mandate"]
 resolver = "2"
 
 # Every package in this repository builds at this version.

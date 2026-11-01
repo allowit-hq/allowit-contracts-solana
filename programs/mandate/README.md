@@ -10,7 +10,7 @@ An owner approves a policy once. These adapters make sure that is the policy tha
 - This package, [`allowit-solana`](src/lib.rs), is a native Rust program that spends through classic SPL Token `transfer_checked`.
 - [`sbf-tests/`](sbf-tests/) runs the built SBF program against the real SPL Token processor.
 
-The program is a member of the root Cargo workspace. `sbf-tests/` keeps its own Cargo lockfile, because its exact Mollusk pins would change the program's dependencies. Stellar custody lives in [allowit-contracts-stellar](https://github.com/allowit-hq/allowit-contracts-stellar); see [Stellar custody](#stellar-custody) below.
+Each package has its own Cargo lockfile and build root. Stellar custody lives in [allowit-contracts-stellar](https://github.com/allowit-hq/allowit-contracts-stellar); see [Stellar custody](#stellar-custody) below.
 
 The rest of this page is the reference for the mandate model and the Solana program API.
 
