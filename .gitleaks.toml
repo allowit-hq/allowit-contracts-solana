@@ -1,9 +1,33 @@
-# Extends the default rules. The PaySH golden fixture holds MPP headers signed
-# with fixed disposable test keys (see crates/paysh-stock/src/lib.rs), not
-# credentials.
+# Extends the default rules. The allowlisted values are public data, not
+# credentials. The hash-bound verification set holds SHA-256 digests of policy
+# sources and SBF files, and Solana account addresses in the recorded test
+# vectors; the verification files cannot change without breaking their locks.
+# The PaySH golden fixture holds MPP headers signed with fixed disposable test
+# keys (see crates/paysh-stock/src/lib.rs).
 [extend]
 useDefault = true
 
 [[allowlists]]
 description = "PaySH golden MPP test vectors"
 paths = ['''^crates/paysh-stock/tests/fixtures/official-mpp-google-v0\.json$''']
+
+[[allowlists]]
+description = "Hash-bound digests and account addresses in verification/"
+paths = ['''^verification/''']
+regexes = [
+  '''^70b783aac1a7d7016ea967cc6d873a91917f6ce3f38b030551f4658923b7793d$''',
+  '''^7b44674b9704fa7640fbebfac68389f338b500b8c2bc29175c27ed66838b5a3c$''',
+  '''^9b2602210007ec1a8f94aea978d63f2d5fffdb1943084c2f7e8181d6b1907d5a$''',
+  '''^06ddf6e1d765a193d9cbe146ceeb79ac1cb485ed5f5b37913a8cf5857eff00a9$''',
+  '''^52c7b8b745e52dc5dbd8b8bd8c344535556049de6c8251ff0f3d923e43f71454$''',
+  '''^5cvUxsFFJD17zQMhaRNM3M57yrurPRbhGnCNkMhM36rF$''',
+  '''^25hjHpTATmkdET17ynDhf1MCuYNDn1z7wXfVw5iaxLAK$''',
+  '''^29d2S7vB453rNYFdR5Ycwt7y9haRT5fwVwL9zTmBhfV2$''',
+  '''^ws91DX9HBAAxGW77BZs5FogRDwpRtcUpiLBpKdPTfWu$''',
+  '''^21nS9Wz9sUTQ6MkcYUtnN8aSfPA26xJJP7zqshfzCzqc$''',
+  '''^gBxS1f6uyyGPuW5MzGBukidSb71jdsCb5fZaoSzULE5$''',
+  '''^k7FaK87WHGVXzkaoHb7CdVPgkKDQhZ29VLDeBVbDfYn$''',
+  '''^6a94puVWKBk9TeShzARFGvNzj9NjdkrJx8BnWPa2DXoZ$''',
+  '''^BAudUD1ESiZUrng178AsG2SRLM4DqUExojbsgAwnn6Sj$''',
+]
+condition = "AND"

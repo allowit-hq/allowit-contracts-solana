@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "files": {
+    "../check_native.py": "fe91107cc7ca466eee47761be55a3957aa9019d1b34f1ec98072043c3867f9da",
+    "../check_published.py": "0247922a9916e904bcb9e345971c16687b7d658b6f00d2f7376250530e752c42",
+    "../lean/NativeDaily.lean": "79fc03055aafe0c14ee1a998dcbb18c7429f47b1bd07365b8d24a4a2401184fb",
+    "../published-source-lock.json": "810bd6a8756473c69a958eaf47ea48d98892928ed75ccf8bc37c930c07c24a5d",
+    "State.lean": "3eed9fd07b540dfb2645114f7c5f952fd1d32e30a1ae85149acdf38464d14259",
+    "check.py": "0653840b0746005e7241110f38059f8ea013ba11b1b41d759b1e52a83ef262b6",
+    "inventory.json": "c7fb7ef97b6df0f52659e8609bd633f14c4f9cf31f1a591f0754255308443820"
+  },
+  "sources": {
+    "solana": {
+      "crates/interface/src/lib.rs": "62710f4afc6dce63a3720c4b1e3f482c8315de6cb7261a21cd79cd16c90d9d6e",
+      "programs/policy/src/lib.rs": "93e36ccd7f30611ba24ad10095b450acfe1ff67fc799099e6a52c203ca3f8d54",
+      "programs/vault/src/lib.rs": "049c9e030d5450e92335ae601ec0ea21817ea3957b07959315c9d04b1b8964fd",
+      "sbf-tests/tests/vault.rs": "c65cc40ac7139c947b0404e59a824bd6d773a194319feb9b3c98253fe0a012ef",
+      "sbf-tests/Cargo.toml": "e5b82043aea3d14d7baa885eb8cad1b7bccc117b0c039c7b0c9e7ea05721349b",
+      "sbf-tests/Cargo.lock": "c61a6108dee9192290ad720f0ad62822af9e60378f6d55d21370ab091275510e"
+    },
+    "stellar": {
+      "crates/policy/src/lib.rs": "942ceb6feff61499915123c11b0c19adc00250e9dc7a2e2dc0a1715980e3ec65",
+      "crates/vault/src/lib.rs": "6f4c03c7b3a17ff62b95452a6a55358751fcc8764d9251f817bf34bf6501517b",
+      "crates/factory/src/lib.rs": "fd1e7175a30b72ec39ffec762808d76950ff49a71eb2cbdcf33cc161cab9a51b"
+    }
+  },
+  "lean": {
+    "executable": "lean-4.31.0-darwin_aarch64/bin/lean",
+    "sha256": "1b370cfcbf44e80d1b004ab1b1ab9a4c73951f9f7c242140bcff9bc577576554",
+    "libraries": "lean-4.31.0-darwin_aarch64/lib",
+    "library_identity": [
+      "cbe00504c509d17d0cbf014465078e9320f4524760cd377e821a8bb87447289c",
+      12121
+    ],
+    "version": "Lean (version 4.31.0, arm64-apple-darwin24.6.0, commit 68218e876d2a38b1985b8590fff244a83c321783, Release)"
+  },
+  "vm": {
+    "executable": "sbf-tests/target/debug/deps/vault-5321a7b588513c8d",
+    "sha256": "9e4801fecfe648621443062d241ff7cabb74ae5c485e30647b63a56ce401744f",
+    "tests": [
+      "forged_actor_and_policy_cannot_spend",
+      "initialize_creates_factory_pda_and_policy_change_keeps_counters",
+      "minimal_native_adapter_matches_borsh_requests_and_every_kernel_decision",
+      "policy_artifact_and_immutability_are_enforced_and_recovery_is_independent",
+      "real_cpi_transfer_daily_limits_nonce_and_day_rollover",
+      "tuning_revocation_recovery_and_placeholders",
+      "wrong_mint_and_vault_owned_destinations_are_rejected"
+    ]
+  }
+}

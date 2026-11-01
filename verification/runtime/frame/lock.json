@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "files": {
+    "../../adapter/State.lean": "3eed9fd07b540dfb2645114f7c5f952fd1d32e30a1ae85149acdf38464d14259",
+    "../../adapter/lock.json": "9b9bd11e17b2f484d2704d13bb57771424b15378d74538dd9905447b6cfd6345",
+    "../../lean/NativeDaily.lean": "79fc03055aafe0c14ee1a998dcbb18c7429f47b1bd07365b8d24a4a2401184fb",
+    "../../tests/test_failure_boundary.py": "71f6a295d1c1fed89e7bb71c1be338cbc4a67672f4ce59b6b718d9b5682f91fb",
+    "../../tests/test_frame.py": "869b0546d3e7dc9a320b45dcb37b853c38e3af281bca1879513ceba04cf9a050",
+    "../../tests/test_transaction.py": "2bd0e687fd33b2d8d13bc52a24042151276f63c984b273374d8a2c713c9336bf",
+    "../failure-boundary/Cargo.lock": "408f5dd2f37e102501de5e8da61b615dbf16d4aa1573ba70031e0aded8de4734",
+    "../failure-boundary/Cargo.toml": "cec67c708f38d12297d369963b5441e3986d65b9455f34969b432d676de60581",
+    "../failure-boundary/README.md": "6a0ae5c465dec0821c867d2c8d7ac7e6aa941667ba87a952660b0a396e8514be",
+    "../failure-boundary/bindings.json": "68f8b15a6e8561457a7085740972f0fa7e53f83d119e83abdf6399d5df19a0b1",
+    "../failure-boundary/build-attempt-link.txt": "05c7470ba79b127c3c91d4fc4b3c8e4b58640ff80da6c63d4874dd7d3812dbb8",
+    "../failure-boundary/build-attempt-new-target.txt": "8a2fc189af049e671f70924fe333519a5eb0ec65d6ef9ff1665c84ceb5f5d22c",
+    "../failure-boundary/build.txt": "c471816a0b647d46cf62b461713c223a3209e0b0712b8e75e08b24980e2e9d1a",
+    "../failure-boundary/main.rs": "1b550d57b21f09b7cde66c2a49e41d94f15b8ab5fb62d7723b9c10e98b23ec6e",
+    "../failure-boundary/manifest.json": "36340489a43ac5e70130afc55646360cdcdada83d8bf9b87dccad673375010af",
+    "../failure-boundary/observation.json": "2ee3a9d1c86d2c91c6f116567eb651767bb949d5d77d1e56129c61538b940a3c",
+    "../failure-boundary/replay.jsonl": "3a3f36c38f17671a53312b00ac47bad74659d290991d5767107e40de44b2e01d",
+    "../failure-boundary/status.json": "0b17a8afd414932c026dd8696709ee93be4ec671062e83683a4b4767a455a66d",
+    "../failure-boundary/validate.py": "0ba5b4128287154fb46a9071a3255b4410b626fce73bf6a749678627c9479038",
+    "../failure-boundary/validation.json": "648c6416a43b6520542225262ca65f5fac25e4911b9a922fd535693d57794abd",
+    "../failure-boundary/vectors.jsonl": "808205e8409cb76428cbc14ad276ffca28fa4aa3c683347f8b1c6e9f9854f631",
+    "../transaction/Cargo.lock": "408f5dd2f37e102501de5e8da61b615dbf16d4aa1573ba70031e0aded8de4734",
+    "../transaction/Cargo.toml": "cec67c708f38d12297d369963b5441e3986d65b9455f34969b432d676de60581",
+    "../transaction/README.md": "8f34556f86ac3ddcc070f8733218e452a23eb43f181239fbd119d462307a7fd7",
+    "../transaction/bindings.json": "68f8b15a6e8561457a7085740972f0fa7e53f83d119e83abdf6399d5df19a0b1",
+    "../transaction/build.txt": "29db26069e10cfe47f6c5c48b4690947b7b798cc9a5c2aeb985aaf22deb03561",
+    "../transaction/main.rs": "a53bb1b0aad14cc2cd4662c0ec4878c7e794faa17253c729cca549d767909d67",
+    "../transaction/observation.json": "42ba6b0844f81d48d3cc72fa9c1de273b475f6463954ebd96411cb2fefd49138",
+    "../transaction/replay.jsonl": "966fc8c481e6f18aaf3aadccd0c96d9cc044d1fbc4b17ba6e01db6f557ce47e0",
+    "../transaction/validate.py": "69fb1127a503987030dcba22f46551e1c639f9c1eab0afba37e20cdc2f6d9dfc",
+    "../transaction/validation.json": "f211387bd0cbe6510159dfe98f9943425e85af573331ef53e12adbd2dd3d3f46",
+    "../transaction/vectors.jsonl": "18e3766a76806bc9b6f1ac3b376114791a2a1bc7569a77064f32f5203b6a8b80",
+    "Corpus.lean": "acbbb8b7bb71bf567453b27d40b693fd7f85e6c02094d26e3fe21fae6f512add",
+    "Frame.lean": "54883aeea41b0a1a472d9c6d2b56889ed11786de40ce7ed3862abb37172918b2",
+    "README.md": "0ab82a7d416e02ff60b3b36ad559ca969ee3c4b88128ab600fd8279a792411a6",
+    "certificates.py": "9d835b515b86438ce321803257fe890e40ed6a4175178d587674fb1e9ea4fe65",
+    "check.py": "66d7b30f250d5afac64058388fbbd4655d02e048346a1fea0e4513086ff402f7"
+  },
+  "lean": {
+    "executable": "lean-4.31.0-darwin_aarch64/bin/lean",
+    "sha256": "1b370cfcbf44e80d1b004ab1b1ab9a4c73951f9f7c242140bcff9bc577576554",
+    "libraries": "lean-4.31.0-darwin_aarch64/lib",
+    "library_identity": [
+      "cbe00504c509d17d0cbf014465078e9320f4524760cd377e821a8bb87447289c",
+      12121
+    ],
+    "version": "Lean (version 4.31.0, arm64-apple-darwin24.6.0, commit 68218e876d2a38b1985b8590fff244a83c321783, Release)"
+  },
+  "sources": [
+    {
+      "repository": "../../../AllowIt-contracts-solana",
+      "revision": "e0fc5a19985a7c1d1d184754dba98ddbc98e2841",
+      "files": {
+        "programs/vault/src/lib.rs": "049c9e030d5450e92335ae601ec0ea21817ea3957b07959315c9d04b1b8964fd",
+        "crates/interface/src/lib.rs": "62710f4afc6dce63a3720c4b1e3f482c8315de6cb7261a21cd79cd16c90d9d6e",
+        "artifacts/manifest.json": "36340489a43ac5e70130afc55646360cdcdada83d8bf9b87dccad673375010af",
+        "policy/policy.rs": "e07e148b2403a43e3080d043db7fcd49e505cb661adbb8e40c0f2ae4aeb6978b",
+        "policy/policy_api.rs": "70b783aac1a7d7016ea967cc6d873a91917f6ce3f38b030551f4658923b7793d"
+      }
+    }
+  ]
+}

@@ -1,0 +1,714 @@
+{
+  "version": 1,
+  "owner": "policy/Lean verification task",
+  "assessment": "native integration completeness unassessed",
+  "profiles": {
+    "native_solana": {
+      "description": "Immediate native execution integration demonstration",
+      "required_base_profile_any_of": []
+    },
+    "native_stellar": {
+      "description": "Same literal Rust policy with a separately validated Stellar adapter",
+      "required_base_profile_any_of": []
+    },
+    "semantic_policy": {
+      "description": "Conditional extension: policies that enforce semantic restrictions",
+      "required_base_profile_any_of": [
+        "native_solana",
+        "native_stellar"
+      ]
+    },
+    "paid_api": {
+      "description": "Deferred extension: payment settlement plus service delivery",
+      "required_base_profile_any_of": [
+        "native_solana",
+        "native_stellar"
+      ]
+    }
+  },
+  "evidence_levels": [
+    "specified",
+    "model_checked",
+    "tested_correspondence",
+    "implementation_proved",
+    "adapter_tested",
+    "client_tested",
+    "deployed_identity_checked",
+    "external_assumption",
+    "source_identity_checked",
+    "harness_checked",
+    "extracted_model_refinement"
+  ],
+  "scope_decisions_pending": [
+    "delivered exhaustive native ABI",
+    "delivered ABI confirmation of tuning authority, independently enforced ceiling, state revision and standing approval semantics",
+    "delivered ABI confirmation of module-switch and replacement-activation authority retirement",
+    "pending-operation behavior on tuning and upgrades",
+    "reservation day/expiry rules if reservations convey authority",
+    "supported native client methods and result schema"
+  ],
+  "obligations": [
+    {
+      "id": "V01",
+      "profiles": [
+        "native_solana",
+        "native_stellar",
+        "semantic_policy",
+        "paid_api"
+      ],
+      "components": [
+        "specification"
+      ],
+      "statement": "Every owner requirement has an independently reviewed obligation or explicit scope exclusion; unresolved intent remains explicit.",
+      "status": "open",
+      "evidence": []
+    },
+    {
+      "id": "V02",
+      "profiles": [
+        "native_solana",
+        "native_stellar",
+        "semantic_policy",
+        "paid_api"
+      ],
+      "components": [
+        "contracts",
+        "sdk",
+        "gateway",
+        "cli",
+        "frontend",
+        "skills"
+      ],
+      "statement": "Delivered inventories exhaustively cover methods, schemas, errors, outcomes, primitives, authorities and protected state effects; every interface maps to support or explicit refusal.",
+      "status": "open",
+      "evidence": []
+    },
+    {
+      "id": "V03",
+      "profiles": [
+        "native_solana",
+        "native_stellar"
+      ],
+      "components": [
+        "contracts",
+        "sdk",
+        "builds"
+      ],
+      "statement": "Both native builds use identical literal Rust policy bytes and bind the reviewed source/API, configuration, dependencies, toolchains and compiled/deployed artifacts. Portable source identity is separate from each chain artifact identity. Bind custody separately from policy executable identity; Solana policy loader/ProgramData association, immutability and code identity require reviewed ABI evidence.",
+      "status": "open",
+      "evidence": [
+        {
+          "receipt": "native-correspondence.json",
+          "policy_sha256": "eceb1d4f55c93ef7921f47f3ca0d35bc589c3c6a1b0f29ae63f5fb9f9ff37da8",
+          "api_sha256": "70b783aac1a7d7016ea967cc6d873a91917f6ce3f38b030551f4658923b7793d",
+          "model_sha256": "79fc03055aafe0c14ee1a998dcbb18c7429f47b1bd07365b8d24a4a2401184fb",
+          "corpus_sha256": "b5a7c358a6368ab3f7eacae921bff63935437c5e43bf040a6c4512fb78552f53",
+          "proof_log_sha256": "fc4de8270ec89c995dc89bbbb186a72990522d212072bc4380c5bef33e67a172",
+          "lean": "Lean (version 4.11.0, arm64-apple-darwin23.6.0, commit ec3042d94bd1, Release)",
+          "rustc": "rustc 1.98.0 (88d9e12ae 2026-08-18)",
+          "level": "source_identity_checked",
+          "scope": "Both inspected policy/API copies match the locked bytes; embedded SOURCE_HASH matches. No target build, adapter or deployment binding is established.",
+          "receipt_sha256": "4ecd71b85f2b16bc55b34462e93ad7ce8cc651facf30be115de909b25ef8c2a9",
+          "checked_at": "2026-10-05T00:42:45Z",
+          "host": "arm64 macOS, host execution only",
+          "reviewer": "Independent Claude Code claude-opus-5-5, session 587479fb-6529-4904-9964-1eabba8af668; see ../docs/reviews/2026-10-04-completeness.md",
+          "producer": "Codex verification task; local proof checker and host replay harness",
+          "independent_reproduction": {
+            "model": "claude-opus-5-5",
+            "session": "587479fb-6529-4904-9964-1eabba8af668",
+            "record": "../docs/reviews/2026-10-04-completeness.md"
+          }
+        }
+      ]
+    },
+    {
+      "id": "V04",
+      "profiles": [
+        "native_solana",
+        "native_stellar"
+      ],
+      "components": [
+        "policy",
+        "lean"
+      ],
+      "statement": "For every u64 context/result, native kernel success is equivalent to the independently specified permission predicate and returns exactly effectiveSpent+amount; preserve ordered errors and a successful witness.",
+      "status": "open",
+      "evidence": [
+        {
+          "receipt": "native-correspondence.json",
+          "policy_sha256": "eceb1d4f55c93ef7921f47f3ca0d35bc589c3c6a1b0f29ae63f5fb9f9ff37da8",
+          "api_sha256": "70b783aac1a7d7016ea967cc6d873a91917f6ce3f38b030551f4658923b7793d",
+          "model_sha256": "79fc03055aafe0c14ee1a998dcbb18c7429f47b1bd07365b8d24a4a2401184fb",
+          "corpus_sha256": "b5a7c358a6368ab3f7eacae921bff63935437c5e43bf040a6c4512fb78552f53",
+          "proof_log_sha256": "fc4de8270ec89c995dc89bbbb186a72990522d212072bc4380c5bef33e67a172",
+          "lean": "Lean (version 4.11.0, arm64-apple-darwin23.6.0, commit ec3042d94bd1, Release)",
+          "rustc": "rustc 1.98.0 (88d9e12ae 2026-08-18)",
+          "level": "model_checked",
+          "scope": "15 universal theorems plus one concrete success witness for AllowIt.NativeDaily, over Fin(2^64) inputs; only standard logical axioms. Not a Rust refinement.",
+          "receipt_sha256": "4ecd71b85f2b16bc55b34462e93ad7ce8cc651facf30be115de909b25ef8c2a9",
+          "checked_at": "2026-10-05T00:42:45Z",
+          "host": "arm64 macOS, host execution only",
+          "reviewer": "Independent Claude Code claude-opus-5-5, session 587479fb-6529-4904-9964-1eabba8af668; see ../docs/reviews/2026-10-04-completeness.md",
+          "producer": "Codex verification task; local proof checker and host replay harness",
+          "independent_reproduction": {
+            "model": "claude-opus-5-5",
+            "session": "587479fb-6529-4904-9964-1eabba8af668",
+            "record": "../docs/reviews/2026-10-04-completeness.md"
+          }
+        },
+        {
+          "receipt": "native-correspondence.json",
+          "policy_sha256": "eceb1d4f55c93ef7921f47f3ca0d35bc589c3c6a1b0f29ae63f5fb9f9ff37da8",
+          "api_sha256": "70b783aac1a7d7016ea967cc6d873a91917f6ce3f38b030551f4658923b7793d",
+          "model_sha256": "79fc03055aafe0c14ee1a998dcbb18c7429f47b1bd07365b8d24a4a2401184fb",
+          "corpus_sha256": "b5a7c358a6368ab3f7eacae921bff63935437c5e43bf040a6c4512fb78552f53",
+          "proof_log_sha256": "fc4de8270ec89c995dc89bbbb186a72990522d212072bc4380c5bef33e67a172",
+          "lean": "Lean (version 4.11.0, arm64-apple-darwin23.6.0, commit ec3042d94bd1, Release)",
+          "rustc": "rustc 1.98.0 (88d9e12ae 2026-08-18)",
+          "level": "tested_correspondence",
+          "scope": "2907 host Rust/Lean/specification vectors across both source copies and nine caught kernel mutations; finite correspondence only.",
+          "receipt_sha256": "4ecd71b85f2b16bc55b34462e93ad7ce8cc651facf30be115de909b25ef8c2a9",
+          "checked_at": "2026-10-05T00:42:45Z",
+          "host": "arm64 macOS, host execution only",
+          "reviewer": "Independent Claude Code claude-opus-5-5, session 587479fb-6529-4904-9964-1eabba8af668; see ../docs/reviews/2026-10-04-completeness.md",
+          "producer": "Codex verification task; local proof checker and host replay harness",
+          "independent_reproduction": {
+            "model": "claude-opus-5-5",
+            "session": "587479fb-6529-4904-9964-1eabba8af668",
+            "record": "../docs/reviews/2026-10-04-completeness.md"
+          }
+        },
+        {
+          "receipt": "refinement/receipt.json",
+          "receipt_sha256": "5779896547f6092ea78eacfbb0e565694a0791c0750b267c3117fffcf65f360c",
+          "level": "extracted_model_refinement",
+          "partial": true,
+          "scope": "Universal equality and permission equivalence for unchanged published pure kernel; conditional on translator/compiler fidelity and trusted cached upstream Lean libraries. No compiled adapter/client/deployment refinement.",
+          "checked_at": "2026-10-05T02:49:00Z",
+          "host": "arm64 macOS; unchanged kernel extraction and separate Lean4.31 proof",
+          "producer": "Codex verification task; pinned Charon/Aeneas extraction and Lean checker",
+          "reviewer": "Independent Claude Code claude-opus-5-5, session bb015211-6675-4462-957a-c8781830934f; no remaining material findings after repairs; see ../docs/reviews/2026-10-04-kernel-refinement.md",
+          "independent_reproduction": {
+            "model": "claude-opus-5-5",
+            "session": "bb015211-6675-4462-957a-c8781830934f",
+            "record": "../docs/reviews/2026-10-04-kernel-refinement.md"
+          }
+        }
+      ]
+    },
+    {
+      "id": "V05",
+      "profiles": [
+        "native_solana",
+        "native_stellar",
+        "paid_api"
+      ],
+      "components": [
+        "contracts",
+        "sdk",
+        "gateway",
+        "cli",
+        "frontend"
+      ],
+      "statement": "Amounts and limits use exact specified integer units with checked decimal conversion, precision, overflow and target-asset representability. Signed-to-unsigned chain-clock conversion is checked; negative timestamps cannot wrap.",
+      "status": "open",
+      "evidence": []
+    },
+    {
+      "id": "V06",
+      "profiles": [
+        "native_solana",
+        "native_stellar",
+        "semantic_policy"
+      ],
+      "components": [
+        "contracts",
+        "gateway"
+      ],
+      "statement": "Approval, executor, revision, parameters, spending/day and time come from authenticated current state; stale, revoked, foreign or caller-forged authority cannot execute. Separate editor/server revision, on-chain state/parameter revision and standing module approval; none substitutes for another.",
+      "status": "open",
+      "evidence": []
+    },
+    {
+      "id": "V07",
+      "profiles": [
+        "native_solana",
+        "native_stellar"
+      ],
+      "components": [
+        "contracts"
+      ],
+      "statement": "A successful operation transfers exactly the bound asset, amount and recipient from the intended vault and commits spending/replay atomically; rejection leaves protected state unchanged.",
+      "status": "open",
+      "evidence": [],
+      "pending_mutation_checks": [
+        "failed-transfer accounting or custody mutation"
+      ]
+    },
+    {
+      "id": "V08",
+      "profiles": [
+        "native_solana",
+        "native_stellar"
+      ],
+      "components": [
+        "contracts",
+        "gateway"
+      ],
+      "statement": "Each accepted transfer records the authenticated execution day and exact effective spending within that execution's limit; only legitimate day advancement supplies a fresh allowance, with no skipped-day accumulation. Adapter day/reset arithmetic must agree with kernel DAY_SECONDS and returned next spending; persist that day and result without a divergent second definition.",
+      "status": "open",
+      "evidence": []
+    },
+    {
+      "id": "V09",
+      "profiles": [
+        "native_solana",
+        "native_stellar"
+      ],
+      "components": [
+        "contracts",
+        "gateway",
+        "frontend"
+      ],
+      "statement": "Deposit/top-up changes only declared custody effects and never approval, code/parameter revision, limit, spending/day or replay identity.",
+      "status": "open",
+      "evidence": [],
+      "pending_mutation_checks": [
+        "reset on deposit"
+      ]
+    },
+    {
+      "id": "V10",
+      "profiles": [
+        "native_solana",
+        "native_stellar"
+      ],
+      "components": [
+        "contracts",
+        "sdk",
+        "frontend"
+      ],
+      "statement": "Authorized tuning changes only the declared daily-limit parameter within compiled bounds; it preserves accounting/replay and handles a limit below already-spent without reset. Source authoring does not introduce extra mutable native parameters. Under the announced native handoff, owner-authorized bounded tuning preserves standing module approval and counters, advances state/parameter revision and invalidates old unsigned request revisions; the ceiling is independently anchored in custody state or the verified artifact, not merely reported by a candidate module.",
+      "status": "open",
+      "evidence": [],
+      "pending_mutation_checks": [
+        "reset on tuning"
+      ]
+    },
+    {
+      "id": "V11",
+      "profiles": [
+        "native_solana",
+        "native_stellar"
+      ],
+      "components": [
+        "contracts",
+        "builds"
+      ],
+      "statement": "Approved code/revision transitions preserve custody/accounting identity, balances, spending/day and replay under an explicit migration relation; old requests cannot silently gain new authority. In-place module switching withdraws standing approval and preserves counters. MVP enforcement-code replacement is a new reviewed activation: retire old standing execution authority before authorizing the replacement, retain old funds/counters/recovery identities, and disclose the replacement vault's separate daily allowance.",
+      "status": "open",
+      "evidence": []
+    },
+    {
+      "id": "V12",
+      "profiles": [
+        "native_solana",
+        "native_stellar",
+        "paid_api"
+      ],
+      "components": [
+        "contracts",
+        "gateway"
+      ],
+      "statement": "Concurrent operations serialize against authoritative state; duplicate/retried identities cannot transfer twice, including across day/configuration changes and restart.",
+      "status": "open",
+      "evidence": []
+    },
+    {
+      "id": "V13",
+      "profiles": [
+        "native_solana",
+        "native_stellar"
+      ],
+      "components": [
+        "contracts",
+        "sdk",
+        "gateway",
+        "cli",
+        "frontend",
+        "skills"
+      ],
+      "statement": "Unsupported valid methods return an explicit unsupported-method error; malformed ABI input has a specified decode error; neither path mutates protected state or falls back to transfer.",
+      "status": "open",
+      "evidence": [],
+      "pending_mutation_checks": [
+        "unsupported-method fallback"
+      ]
+    },
+    {
+      "id": "V14",
+      "profiles": [
+        "native_solana",
+        "native_stellar"
+      ],
+      "components": [
+        "sdk",
+        "gateway",
+        "cli",
+        "frontend"
+      ],
+      "statement": "Preview/eval/read/status do not transfer, reserve funds, consume replay identity, change daily accounting or approve authority; projections accurately identify their observed state.",
+      "status": "open",
+      "evidence": []
+    },
+    {
+      "id": "V15",
+      "profiles": [
+        "native_solana",
+        "native_stellar",
+        "paid_api"
+      ],
+      "components": [
+        "gateway",
+        "cli"
+      ],
+      "statement": "Stable operation identity and signed proof persist before broadcast; uncertain outcomes remain unresolved; reconciliation discovers the first outcome without automatically initiating another payment. Tuning does not establish failure of an already signed request; retain its identity and uncertainty until reliable finalized or expiry/absence evidence resolves it.",
+      "status": "open",
+      "evidence": []
+    },
+    {
+      "id": "V16",
+      "profiles": [
+        "native_solana",
+        "native_stellar",
+        "paid_api"
+      ],
+      "components": [
+        "sdk",
+        "gateway",
+        "cli",
+        "frontend"
+      ],
+      "statement": "Every client encodes the same supported ABI/units/bindings and maps preview, refusal, required input/signature, submission, uncertainty and finalized execution without conflating them.",
+      "status": "open",
+      "evidence": [],
+      "pending_mutation_checks": [
+        "submitted or unknown reported as executed"
+      ]
+    },
+    {
+      "id": "V17",
+      "profiles": [
+        "native_solana",
+        "native_stellar",
+        "semantic_policy"
+      ],
+      "components": [
+        "frontend",
+        "sdk"
+      ],
+      "statement": "Every visible policy field maps to its exact enforced meaning or an explicit unsupported/separate profile; total budget, monetary review, reserve and source edits are not silently mapped to daily tuning.",
+      "status": "open",
+      "evidence": []
+    },
+    {
+      "id": "V18",
+      "profiles": [
+        "native_solana",
+        "native_stellar",
+        "semantic_policy"
+      ],
+      "components": [
+        "sdk",
+        "gateway",
+        "skills"
+      ],
+      "statement": "Requirement extraction and descriptor/fragment closure cover supported operations/providers; unknown dependencies refuse issuance; context provenance and caller capabilities are explicit and permission is not inferred from metadata.",
+      "status": "open",
+      "evidence": []
+    },
+    {
+      "id": "V19",
+      "profiles": [
+        "semantic_policy"
+      ],
+      "components": [
+        "sdk",
+        "frontend",
+        "lean"
+      ],
+      "statement": "Selected score/toggle AST edits preserve unrelated source/normalized structure, validate ranges, reject stale/unsupported selections and refresh bindings without model regeneration.",
+      "status": "open",
+      "evidence": []
+    },
+    {
+      "id": "V20",
+      "profiles": [
+        "semantic_policy"
+      ],
+      "components": [
+        "semantic_provider",
+        "gateway",
+        "contracts",
+        "lean"
+      ],
+      "statement": "Every semantic restriction uses the customer's Jev predicate and bound authentic evidence; missing/stale/malformed/wrong-request evidence cannot permit; inclusive configured thresholds preserve hard rules and unresolved outcomes.",
+      "status": "open",
+      "evidence": []
+    },
+    {
+      "id": "V21",
+      "profiles": [
+        "semantic_policy"
+      ],
+      "components": [
+        "semantic_provider",
+        "specification"
+      ],
+      "statement": "Any statistical interval/calibration claim identifies labeled domain, method, risk and assumptions; otherwise explicitly report a point score and decision thresholds without a statistical guarantee.",
+      "status": "open",
+      "evidence": []
+    },
+    {
+      "id": "V22",
+      "profiles": [
+        "paid_api"
+      ],
+      "components": [
+        "gateway",
+        "provider",
+        "cli",
+        "frontend"
+      ],
+      "statement": "Payment settlement and request-bound service delivery are separate outcomes; failed/retried delivery cannot authorize a second charge and provider compatibility is evidenced independently.",
+      "status": "open",
+      "evidence": []
+    },
+    {
+      "id": "V23",
+      "profiles": [
+        "native_solana",
+        "native_stellar",
+        "semantic_policy",
+        "paid_api"
+      ],
+      "components": [
+        "verification",
+        "builds"
+      ],
+      "statement": "Proof/test receipts identify their exact statement, supported domain, assumptions, implementation connection and artifacts; affected evidence becomes stale on changes and unsupported/timeouts remain unknown. Keep host, compiled-VM, local-RPC integration and public Devnet acceptance as separate evidence domains; one cannot stand in for another.",
+      "status": "open",
+      "evidence": [
+        {
+          "receipt": "native-correspondence.json",
+          "policy_sha256": "eceb1d4f55c93ef7921f47f3ca0d35bc589c3c6a1b0f29ae63f5fb9f9ff37da8",
+          "api_sha256": "70b783aac1a7d7016ea967cc6d873a91917f6ce3f38b030551f4658923b7793d",
+          "model_sha256": "79fc03055aafe0c14ee1a998dcbb18c7429f47b1bd07365b8d24a4a2401184fb",
+          "corpus_sha256": "b5a7c358a6368ab3f7eacae921bff63935437c5e43bf040a6c4512fb78552f53",
+          "proof_log_sha256": "fc4de8270ec89c995dc89bbbb186a72990522d212072bc4380c5bef33e67a172",
+          "lean": "Lean (version 4.11.0, arm64-apple-darwin23.6.0, commit ec3042d94bd1, Release)",
+          "rustc": "rustc 1.98.0 (88d9e12ae 2026-08-18)",
+          "level": "harness_checked",
+          "scope": "Source/API/embedded hash and verifier dependencies checked before/after replay; stale source/API and embedded hash refusal unit tests pass. Release manifests, adapters, clients and deployments remain unbound.",
+          "receipt_sha256": "4ecd71b85f2b16bc55b34462e93ad7ce8cc651facf30be115de909b25ef8c2a9",
+          "checked_at": "2026-10-05T00:42:45Z",
+          "host": "arm64 macOS, host execution only",
+          "reviewer": "Independent Claude Code claude-opus-5-5, session 587479fb-6529-4904-9964-1eabba8af668; see ../docs/reviews/2026-10-04-completeness.md",
+          "producer": "Codex verification task; local proof checker and host replay harness",
+          "independent_reproduction": {
+            "model": "claude-opus-5-5",
+            "session": "587479fb-6529-4904-9964-1eabba8af668",
+            "record": "../docs/reviews/2026-10-04-completeness.md"
+          }
+        },
+        {
+          "receipt": "refinement/receipt.json",
+          "receipt_sha256": "5779896547f6092ea78eacfbb0e565694a0791c0750b267c3117fffcf65f360c",
+          "level": "extracted_model_refinement",
+          "partial": true,
+          "scope": "Universal equality and permission equivalence for unchanged published pure kernel; conditional on translator/compiler fidelity and trusted cached upstream Lean libraries. No compiled adapter/client/deployment refinement.",
+          "checked_at": "2026-10-05T02:49:00Z",
+          "host": "arm64 macOS; unchanged kernel extraction and separate Lean4.31 proof",
+          "producer": "Codex verification task; pinned Charon/Aeneas extraction and Lean checker",
+          "reviewer": "Independent Claude Code claude-opus-5-5, session bb015211-6675-4462-957a-c8781830934f; no remaining material findings after repairs; see ../docs/reviews/2026-10-04-kernel-refinement.md",
+          "independent_reproduction": {
+            "model": "claude-opus-5-5",
+            "session": "bb015211-6675-4462-957a-c8781830934f",
+            "record": "../docs/reviews/2026-10-04-kernel-refinement.md"
+          }
+        }
+      ]
+    },
+    {
+      "id": "V24",
+      "profiles": [
+        "native_solana",
+        "native_stellar"
+      ],
+      "components": [
+        "contracts",
+        "gateway",
+        "sdk",
+        "cli",
+        "frontend"
+      ],
+      "statement": "If exposed by the delivered ABI, withdrawal uses the declared owner authority and exact asset, amount and recipient, has explicit daily-limit applicability, and cannot reset approval, revisions, limit, spending/day or replay identity. Otherwise record an ABI-backed scope exclusion.",
+      "status": "open",
+      "evidence": []
+    }
+  ],
+  "profile_composition": "An extension assessment selects at least one declared base profile and includes all of its obligations recursively. A standalone extension assessment is invalid; scopes may exclude an operation only with explicit owner requirements and ABI evidence.",
+  "design_inputs": [
+    {
+      "repository": "AllowIt-app",
+      "revision": "3a0ae62bd6b454217d75bf666fd83e5c6eb9ef22",
+      "path": "docs/solana-mvp-integration-plan.md",
+      "sha256": "876ece399344db4fbcba9166a9c87ecd133f10573c3d45bca21eecfd03cca2b6",
+      "scope": "Reviewed integration-plan handoff only; not delivered ABI, build, adapter or deployment evidence."
+    }
+  ],
+  "published_intake": {
+    "receipt": "published-correspondence.json",
+    "receipt_sha256": "91d597d5880518a4c9a788a07858626d5b06436ee086776f05db6cac56c3e01e",
+    "status": "tested_correspondence_only",
+    "scope": "Committed current kernels agree on the host corpus; local artifact bytes match manifests. No source refinement, rebuilt provenance, adapter execution, deployed identity or native client completeness is established.",
+    "review": "../docs/reviews/2026-10-04-published-intake.md"
+  },
+  "refinement_intake": {
+    "receipt": "refinement/receipt.json",
+    "receipt_sha256": "5779896547f6092ea78eacfbb0e565694a0791c0750b267c3117fffcf65f360c",
+    "level": "extracted_model_refinement",
+    "partial": true,
+    "scope": "Universal equality and permission equivalence for unchanged published pure kernel; conditional on translator/compiler fidelity and trusted cached upstream Lean libraries. No compiled adapter/client/deployment refinement.",
+    "checked_at": "2026-10-05T02:49:00Z",
+    "host": "arm64 macOS; unchanged kernel extraction and separate Lean4.31 proof",
+    "producer": "Codex verification task; pinned Charon/Aeneas extraction and Lean checker",
+    "reviewer": "Independent Claude Code claude-opus-5-5, session bb015211-6675-4462-957a-c8781830934f; no remaining material findings after repairs; see ../docs/reviews/2026-10-04-kernel-refinement.md",
+    "review": "../docs/reviews/2026-10-04-kernel-refinement.md"
+  },
+  "adapter_preparation": {
+    "receipt": "adapter/receipt.json",
+    "receipt_sha256": "44d176e3793bcaa1e92d71fd89b49e3b32ff7903f1aa18f9dee5c8babf1dc44e",
+    "level": "model_checked",
+    "partial": true,
+    "obligations": [
+      "V02",
+      "V06",
+      "V07",
+      "V08",
+      "V09",
+      "V10",
+      "V11",
+      "V12",
+      "V13",
+      "V23",
+      "V24"
+    ],
+    "scope": "Independent successful-transition specification: 21 model statements, separate replay of seven pinned cached Solana VM tests. No extracted adapter/refinement, trace-to-model correspondence, rebuilt provenance, clients or deployment proof. All obligations remain open. Each copied ELF dependency is tested by removal and invalid ELF magic; no proof of universal byte consumption is claimed.",
+    "review": "../docs/reviews/2026-10-04-adapter-state.md",
+    "reviewer": "Independent Claude Code claude-opus-5-5, session 7cec5bdb-bb84-4883-9b3f-51a466044e26; tools-disabled supplied-text closure, no remaining material problems. Runtime reproduction by verification producer only."
+  },
+  "trace_intake": {
+    "receipt": "traces/receipt.json",
+    "receipt_sha256": "76024d2c39ab05f9ee35a3a409d1c4feda080c91ab6fda0ef4d881bb4eda4fcf",
+    "level": "finite_compiled_adapter_projection_correspondence",
+    "partial": true,
+    "obligations": [
+      "V05",
+      "V06",
+      "V07",
+      "V08",
+      "V09",
+      "V10",
+      "V11",
+      "V12",
+      "V13",
+      "V23",
+      "V24"
+    ],
+    "scope": "Fresh task-authored host Rust harness executes pinned Solana SBF through trusted cached Mollusk dependencies. 26 ordinary cases, one invalid-supply exact-wrap diagnostic and 32 Lean certificates, with independent raw-state decoding and account frames. Rejection equality reflects Mollusk explicitly returning input accounts on failure, not adapter rollback. Readiness instantiated True; model refusal, real signatures, universal adapter refinement, program build provenance, clients and deployment remain unproved. All 24 obligations remain open.",
+    "review": "../docs/reviews/2026-10-04-custody-traces.md",
+    "reviewer": "Independent verified Claude Code claude-opus-5-5, final session de6b1eb0-b6cd-4c3d-a626-0b387c266e34: no blocking soundness or claim-scope issue. Tools-disabled supplied-text review; production source/runtime not independently rerun. Remaining low findings retained; producer reproduces acceptance."
+  },
+  "refusal_intake": {
+    "receipt": "refusal/receipt.json",
+    "receipt_sha256": "34151b4434f313d870ff3ad43fa793dd9cf814a1d8f7180866d232324b612ecd",
+    "level": "finite_model_nonpermission_correspondence",
+    "partial": true,
+    "obligations": [
+      "V06",
+      "V07",
+      "V08",
+      "V10",
+      "V11",
+      "V12",
+      "V13",
+      "V23"
+    ],
+    "scope": "Twelve captured non-environment program refusals admit no successful model transition for any readiness predicate or post-state; universal tuning-capacity helper and positive budget case total 14 statements. Prior compiled trace acceptance reruns. Finite nonpermission only; exact error layer, failed cause and precedence unproved. Harness clock trusted. no single-fault revocation, platform readiness, universal adapter refinement, signature authentication, rollback, build provenance, clients or deployment proof. All 24 release obligations remain open.",
+    "review": "../docs/reviews/2026-10-05-refusals.md",
+    "reviewer": "Independent explicitly verified Claude Code claude-opus-5-5, closure session 1ab9f44d-d944-454c-a5fd-f0d835cd4e07: no material soundness/scope issue conditional on producer reproduction. Tools disabled; no production inspection/runtime rerun. Closure hardening applied without expanding claims."
+  },
+  "isolation_intake": {
+    "receipt": "isolation/receipt.json",
+    "level": "finite_single_fault_model_and_vm_witnesses",
+    "partial": true,
+    "obligations": [
+      "V06",
+      "V07",
+      "V08",
+      "V11",
+      "V12",
+      "V13",
+      "V23"
+    ],
+    "scope": "Separate 12-execution Solana VM corpus with seven successes and five refusals. Complete Boolean vectors of 11 non-environment model transfer prerequisites isolate one failing condition; five arbitrary-readiness/post-state refusals and positive ready=True model counterfactuals, successful-state certificates and arithmetic transcriptions plus two generic vector/model-completeness links total 28 statements. Observed raw continuity is checked from a constructed fixture, not initialization refinement. No real signatures, platform readiness, exact intervention correspondence, error cause/precedence, rollback, universal adapter refinement, program build provenance, clients or deployment. All 24 obligations stay open.",
+    "review": "../docs/reviews/2026-10-05-isolation.md",
+    "receipt_sha256": "a6aca312b76cd8805adc5c76610298793e3aae59842f1cf680ea40085d694000"
+  },
+  "transaction_intake": {
+    "observation": "runtime/transaction/observation.json",
+    "observation_sha256": "42ba6b0844f81d48d3cc72fa9c1de273b475f6463954ebd96411cb2fefd49138",
+    "level": "producer_observed_finite_signed_transaction_store_correspondence",
+    "partial": true,
+    "obligations": [
+      "V06",
+      "V07",
+      "V08",
+      "V12",
+      "V23"
+    ],
+    "scope": "Seven local LiteSVM submissions: four successes, a successful transfer prefix followed by unsupported-request failure, invalid blockhash and executor-signature controls. Complete protected-store fingerprints and selected raw bytes support finite transaction-abort/fee-frame correspondence and nonce reuse. Independent strict wire/account/ELF/role validation, retained normalized replay and targeted decoder controls. Constructed approved fixture; Clock/syscall and compiler/cache/runtime fidelity trusted. No Lean transaction proof, same-custody-instruction failure, universal readiness/refinement, build provenance, clients or deployment; all24 obligations open.",
+    "review": "../docs/reviews/2026-10-05-transactions.md"
+  },
+  "failure_boundary_intake": {
+    "observation": "runtime/failure-boundary/observation.json",
+    "observation_sha256": "2ee3a9d1c86d2c91c6f116567eb651767bb949d5d77d1e56129c61538b940a3c",
+    "level": "producer_observed_finite_same_instruction_resource_failure_store_correspondence",
+    "partial": true,
+    "obligations": [
+      "V06",
+      "V07",
+      "V08",
+      "V12",
+      "V23"
+    ],
+    "scope": "Two finite execution resource failures: token CPI exhausts compute; token CPI succeeds then the same custody instruction exhausts compute. Each preserves protected persistent store and has immediately successful transfer-instruction nonce reuse with a changed budget/signed transaction. No intermediate account image, universal rollback or deployed runtime proof. Constructed approved fixture; compiler/cache/runtime, observation, cryptography and Clock-cache fidelity trusted. No new Lean theorem, universal readiness/refinement, program build provenance, clients or deployment. All 24 obligations open.",
+    "review": "../docs/reviews/2026-10-05-failure-boundaries.md",
+    "reviewer": "Independent explicitly verified Claude Code claude-opus-5-5 final session 66517061-c2ca-44c9-9458-5d08a555ebe6: close conditional on producer factual checks, now checked. Tools disabled; no production/runtime inspection or reproduction."
+  },
+  "frame_intake": {
+    "receipt": "runtime/frame/receipt.json",
+    "receipt_sha256": "269e2bc211bc28d12ebd6df8e9f3f3b7ddd7d72eba0e4d4cff8c3ed8ff2b44d7",
+    "level": "retained_corpus_finite_frame_and_reuse_certificates",
+    "partial": true,
+    "obligations": [
+      "V07",
+      "V08",
+      "V12",
+      "V23"
+    ],
+    "scope": "Ten generic handwritten finite-store fee/failure statements,16 finite retained-corpus certificates and three derived nonce corollaries: seven failure frames/three custody preservation/three identical-action state-nonce/revision bindings/three arbitrary-readiness reuse successes with explicit environment hypotheses/three derived nonce advances. Fresh Lean4.31 source compilation and axiom audit; restored official core identities match historical pins. Strict old Python validators replay retained data only; no fresh VM execution. Opaque digest identities and observer/decoder/runtime/standard-library fidelity trusted. No adapter extraction/refinement, universal readiness/rollback, program build provenance, clients or deployment. All24 obligations open.",
+    "review": "../docs/reviews/2026-10-05-transaction-frames.md"
+  }
+}

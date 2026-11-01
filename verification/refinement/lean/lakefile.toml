@@ -1,0 +1,18 @@
+name = "allowit_refinement"
+version = "0.1.0"
+defaultTargets = ["Refinement"]
+
+[[lean_lib]]
+name = "Refinement"
+
+[[lean_lib]]
+name = "AllowitKernel"
+
+[[lean_lib]]
+name = "NativeDaily"
+
+[[require]]
+name = "aeneas"
+git = "https://github.com/AeneasVerif/aeneas"
+rev = "557eff83ecef5083b98a52a94ca7fae63d6c1dab"
+subDir = "backends/lean"

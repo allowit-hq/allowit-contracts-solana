@@ -1,0 +1,43 @@
+{
+  "evidence": "finite_signed_transaction_store_checks",
+  "cases": [
+    {
+      "name": "invalid_blockhash",
+      "fee": 0,
+      "protectedStoreFrame": true
+    },
+    {
+      "name": "token_failure",
+      "fee": 10000,
+      "protectedStoreFrame": true
+    },
+    {
+      "name": "token_reuse",
+      "fee": 10000,
+      "protectedStoreFrame": false
+    },
+    {
+      "name": "post_cpi_failure",
+      "fee": 10000,
+      "protectedStoreFrame": true
+    },
+    {
+      "name": "post_cpi_reuse",
+      "fee": 10000,
+      "protectedStoreFrame": false
+    },
+    {
+      "name": "invalid_signature",
+      "fee": 0,
+      "protectedStoreFrame": true
+    },
+    {
+      "name": "original",
+      "fee": 10000,
+      "protectedStoreFrame": false
+    }
+  ],
+  "cryptographicVerification": "trusted LiteSVM; Python decoder does not verify Ed25519",
+  "rollbackScope": "finite token CPI budget failure and same-custody-instruction failure after token success; trusted runtime observations",
+  "leanProof": false
+}

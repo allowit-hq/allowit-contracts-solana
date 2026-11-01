@@ -1,0 +1,43 @@
+{
+  "evidence": "finite_signed_transaction_store_checks",
+  "cases": [
+    {
+      "name": "invalid_blockhash",
+      "fee": 0,
+      "protectedStoreFrame": true
+    },
+    {
+      "name": "single",
+      "fee": 10000,
+      "protectedStoreFrame": false
+    },
+    {
+      "name": "double",
+      "fee": 10000,
+      "protectedStoreFrame": false
+    },
+    {
+      "name": "abort",
+      "fee": 10000,
+      "protectedStoreFrame": true
+    },
+    {
+      "name": "reuse",
+      "fee": 10000,
+      "protectedStoreFrame": false
+    },
+    {
+      "name": "invalid_signature",
+      "fee": 0,
+      "protectedStoreFrame": true
+    },
+    {
+      "name": "original",
+      "fee": 10000,
+      "protectedStoreFrame": false
+    }
+  ],
+  "cryptographicVerification": "trusted LiteSVM; Python decoder does not verify Ed25519",
+  "rollbackScope": "three-instruction transaction abort (budget, transfer, unsupported); not failure within the custody transfer",
+  "leanProof": false
+}

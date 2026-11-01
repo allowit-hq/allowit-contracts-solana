@@ -1,0 +1,112 @@
+{
+  "evidence": "finite_single_fault_model_and_vm_witnesses",
+  "lockSha256": "28c2a05a8818e0b53f3393457a6383f18c558f9567e45159481285fa48ca1fda",
+  "dependencies": {
+    "../adapter/State.lean": "3eed9fd07b540dfb2645114f7c5f952fd1d32e30a1ae85149acdf38464d14259",
+    "../check_native.py": "fe91107cc7ca466eee47761be55a3957aa9019d1b34f1ec98072043c3867f9da",
+    "../check_published.py": "0247922a9916e904bcb9e345971c16687b7d658b6f00d2f7376250530e752c42",
+    "../lean/NativeDaily.lean": "79fc03055aafe0c14ee1a998dcbb18c7429f47b1bd07365b8d24a4a2401184fb",
+    "../traces/certificates.py": "1c2df729bd5d6d127b93e6dcbbdd976e7bb4a5c46849f6be5f243eafd05c8d6e",
+    "../traces/check.py": "c42db6e19aa250743b5e73db03a51df8ba3ee4c4886ce27d3fc60d013acfd5ed",
+    "../traces/lock.json": "47473e4f03f10fca5352ca130f4ed78486b575dc225d1df87c16c6d083bbed7b",
+    "../traces/receipt.json": "76024d2c39ab05f9ee35a3a409d1c4feda080c91ab6fda0ef4d881bb4eda4fcf",
+    "../traces/trace.rs": "df07509b1e9f94e6c539af2f04d31594b855ec3aa386168dcf845ac5573a2484",
+    "check.py": "29b529b87ea84dde259545dc2f935fd4b8657939374c4aea25aadfceb6a6e137",
+    "trace.rs": "9b1104d3446601ea41e0bffc9b5c6071af21bfb52c3a2afeeaba715adf697cad",
+    "witnesses.py": "6de6df348c8c77b128af038dc8fd59668437568e8155828d3e021fec6e1637d5"
+  },
+  "historicalTraceReceiptSha256": "76024d2c39ab05f9ee35a3a409d1c4feda080c91ab6fda0ef4d881bb4eda4fcf",
+  "contractRevisions": {
+    "solana": "e0fc5a19985a7c1d1d184754dba98ddbc98e2841",
+    "stellar": "8eb495e0a2abd923ae01c81d46f1f5aad1da4114"
+  },
+  "artifacts": [
+    {
+      "name": "allowit_policy.so",
+      "bytes": 1696,
+      "sha256": "8a7312e81e680a54648c2ad7fc23b77f6cddf70a8c2c733b92076563fd3a19f4"
+    },
+    {
+      "name": "allowit_vault.so",
+      "bytes": 100280,
+      "sha256": "b7359562591dcef60a43115f7441be00b8205752af3393c4adbb089c8500cb6f"
+    }
+  ],
+  "harnessExecutableSha256": "a77778889f32d522ae7dac0fdc128915caa04cee20b03b2025f00b458e737384",
+  "cases": [
+    "deposit",
+    "approve",
+    "spend",
+    "switch",
+    "revoked",
+    "reapprove",
+    "valid",
+    "wrong_executor",
+    "unsigned_executor",
+    "stale_revision",
+    "replay",
+    "valid_after_refusals"
+  ],
+  "faults": {
+    "revoked": "approved",
+    "wrong_executor": "executor",
+    "unsigned_executor": "signed",
+    "stale_revision": "revision",
+    "replay": "nonce"
+  },
+  "certificates": [
+    "checks_spec",
+    "checks_complete",
+    "success_0",
+    "asset_0",
+    "success_1",
+    "success_2",
+    "asset_2",
+    "success_3",
+    "fault_4",
+    "refuses_4",
+    "repair_permits_4",
+    "success_5",
+    "success_6",
+    "asset_6",
+    "fault_7",
+    "refuses_7",
+    "repair_permits_7",
+    "fault_8",
+    "refuses_8",
+    "repair_permits_8",
+    "fault_9",
+    "refuses_9",
+    "repair_permits_9",
+    "fault_10",
+    "refuses_10",
+    "repair_permits_10",
+    "success_11",
+    "asset_11"
+  ],
+  "outputs": {
+    "vectors.jsonl": "1c0dac0257703cee02dcac0a376dc3fcb5e7e95e1d834474a0b49813e7f3e9c4",
+    "events.txt": "7ea6fc24deb159843160aca24e64164c257d5cd418cd068afe5c05b62ef74339",
+    "Isolation.lean": "a7244ae1d062169932cdc6268eb60a13e62f697ff6a679b870444dddabdf393a",
+    "proof-check.txt": "e4858373adf25441eeaed516d0756300af80732ed29d1237b0a09d1af3a2e105"
+  },
+  "cachedDependencyBuildFidelityTrusted": true,
+  "listedPythonDependenciesLoadedFromVerifiedBytes": true,
+  "transitivePythonImportClosureEnforced": false,
+  "tokenAccountBindingFormallyProved": false,
+  "assetEvidenceScope": "four Lean-rechecked arithmetic transcriptions of Python-decoded balance deltas; account identity and supply checks are Python-only",
+  "sameModuleRebind": true,
+  "refusalLogsHaveNoTokenCpi": true,
+  "observedProjectionContinuityChecked": true,
+  "fixtureThreeAccountSupplyChecked": true,
+  "singleFaultDomain": "11 non-environment transfer model conditions; excludes readiness and exact-next existential construction",
+  "repairWitnessScope": "model counterfactuals with readiness=True; separate actual successes are recorded without claiming exact intervention correspondence",
+  "realSignaturesProved": false,
+  "platformReadinessProved": false,
+  "rollbackProved": false,
+  "universalAdapterRefinement": false,
+  "errorCauseOrPrecedenceProved": false,
+  "compiledProgramBuildProvenanceProved": false,
+  "clientExecution": false,
+  "deploymentChecked": false
+}

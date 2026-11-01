@@ -1,0 +1,381 @@
+{
+  "aeneas_version": "nightly-2026.10.04-557eff8",
+  "charon_version": "0.1.279",
+  "crate": "allowit_kernel",
+  "functions": [
+    {
+      "def_id": 20,
+      "lean_name": "allowit_kernel.policy.validate_daily_limit",
+      "lean_file": "AllowitKernel.lean",
+      "rust_name": "allowit_kernel::policy::validate_daily_limit",
+      "is_local": true,
+      "source": { "file": "src/policy.rs", "begin_line": 8, "end_line": 13 },
+      "is_opaque": false,
+      "can_fail": true,
+      "can_diverge": false,
+      "is_rec": false,
+      "reducible": false
+    },
+    {
+      "def_id": 21,
+      "lean_name": "allowit_kernel.policy.evaluate",
+      "lean_file": "AllowitKernel.lean",
+      "rust_name": "allowit_kernel::policy::evaluate",
+      "is_local": true,
+      "source": { "file": "src/policy.rs", "begin_line": 15, "end_line": 33 },
+      "is_opaque": false,
+      "can_fail": true,
+      "can_diverge": false,
+      "is_rec": false,
+      "reducible": false
+    },
+    {
+      "def_id": 28,
+      "lean_name": "allowit_kernel.policy_api.Context.Insts.CoreCloneClone.clone",
+      "lean_file": "AllowitKernel.lean",
+      "rust_name": "allowit_kernel::policy_api::{impl core::clone::Clone for allowit_kernel::policy_api::Context}::clone",
+      "is_local": true,
+      "source": {
+        "file": "src/policy_api.rs",
+        "begin_line": 2,
+        "end_line": 2
+      },
+      "is_opaque": false,
+      "can_fail": true,
+      "can_diverge": false,
+      "is_rec": false,
+      "reducible": false
+    },
+    {
+      "def_id": 29,
+      "lean_name": "allowit_kernel.policy_api.Context.Insts.CoreFmtDebug.fmt",
+      "lean_file": "AllowitKernel.lean",
+      "rust_name": "allowit_kernel::policy_api::{impl core::fmt::Debug for allowit_kernel::policy_api::Context}::fmt",
+      "is_local": true,
+      "source": {
+        "file": "src/policy_api.rs",
+        "begin_line": 2,
+        "end_line": 2
+      },
+      "is_opaque": false,
+      "can_fail": true,
+      "can_diverge": false,
+      "is_rec": false,
+      "reducible": false
+    },
+    {
+      "def_id": 30,
+      "lean_name": "allowit_kernel.policy_api.Context.Insts.CoreCmpPartialEqContext.eq",
+      "lean_file": "AllowitKernel.lean",
+      "rust_name": "allowit_kernel::policy_api::{impl core::cmp::PartialEq<allowit_kernel::policy_api::Context> for allowit_kernel::policy_api::Context}::eq",
+      "is_local": true,
+      "source": {
+        "file": "src/policy_api.rs",
+        "begin_line": 2,
+        "end_line": 2
+      },
+      "is_opaque": false,
+      "can_fail": true,
+      "can_diverge": false,
+      "is_rec": false,
+      "reducible": false
+    },
+    {
+      "def_id": 34,
+      "lean_name": "allowit_kernel.policy_api.Context.Insts.CoreCmpEq.assert_fields_are_eq",
+      "lean_file": "AllowitKernel.lean",
+      "rust_name": "allowit_kernel::policy_api::{impl core::cmp::Eq for allowit_kernel::policy_api::Context}::assert_fields_are_eq",
+      "is_local": true,
+      "source": {
+        "file": "src/policy_api.rs",
+        "begin_line": 2,
+        "end_line": 2
+      },
+      "is_opaque": false,
+      "can_fail": true,
+      "can_diverge": false,
+      "is_rec": false,
+      "reducible": false
+    },
+    {
+      "def_id": 35,
+      "lean_name": "allowit_kernel.policy_api.PolicyError.Insts.CoreCloneClone.clone",
+      "lean_file": "AllowitKernel.lean",
+      "rust_name": "allowit_kernel::policy_api::{impl core::clone::Clone for allowit_kernel::policy_api::PolicyError}::clone",
+      "is_local": true,
+      "source": {
+        "file": "src/policy_api.rs",
+        "begin_line": 13,
+        "end_line": 13
+      },
+      "is_opaque": false,
+      "can_fail": true,
+      "can_diverge": false,
+      "is_rec": false,
+      "reducible": false
+    },
+    {
+      "def_id": 36,
+      "lean_name": "allowit_kernel.policy_api.PolicyError.Insts.CoreFmtDebug.fmt",
+      "lean_file": "AllowitKernel.lean",
+      "rust_name": "allowit_kernel::policy_api::{impl core::fmt::Debug for allowit_kernel::policy_api::PolicyError}::fmt",
+      "is_local": true,
+      "source": {
+        "file": "src/policy_api.rs",
+        "begin_line": 13,
+        "end_line": 13
+      },
+      "is_opaque": false,
+      "can_fail": true,
+      "can_diverge": false,
+      "is_rec": false,
+      "reducible": false
+    },
+    {
+      "def_id": 37,
+      "lean_name": "allowit_kernel.policy_api.PolicyError.Insts.CoreCmpPartialEqPolicyError.eq",
+      "lean_file": "AllowitKernel.lean",
+      "rust_name": "allowit_kernel::policy_api::{impl core::cmp::PartialEq<allowit_kernel::policy_api::PolicyError> for allowit_kernel::policy_api::PolicyError}::eq",
+      "is_local": true,
+      "source": {
+        "file": "src/policy_api.rs",
+        "begin_line": 13,
+        "end_line": 13
+      },
+      "is_opaque": false,
+      "can_fail": true,
+      "can_diverge": false,
+      "is_rec": false,
+      "reducible": false
+    }
+  ],
+  "types": [
+    {
+      "def_id": 7,
+      "lean_name": "allowit_kernel.policy_api.PolicyError",
+      "lean_file": "AllowitKernel.lean",
+      "rust_name": "allowit_kernel::policy_api::PolicyError",
+      "is_local": true,
+      "source": {
+        "file": "src/policy_api.rs",
+        "begin_line": 15,
+        "end_line": 22
+      }
+    },
+    {
+      "def_id": 6,
+      "lean_name": "allowit_kernel.policy_api.Context",
+      "lean_file": "AllowitKernel.lean",
+      "rust_name": "allowit_kernel::policy_api::Context",
+      "is_local": true,
+      "source": {
+        "file": "src/policy_api.rs",
+        "begin_line": 3,
+        "end_line": 10
+      }
+    }
+  ],
+  "globals": [
+    {
+      "def_id": 6,
+      "lean_name": "allowit_kernel.policy.MAX_DAILY_LIMIT",
+      "lean_file": "AllowitKernel.lean",
+      "rust_name": "allowit_kernel::policy::MAX_DAILY_LIMIT",
+      "is_local": true,
+      "source": { "file": "src/policy.rs", "begin_line": 5, "end_line": 5 },
+      "can_fail": false
+    },
+    {
+      "def_id": 7,
+      "lean_name": "allowit_kernel.policy.DAY_SECONDS",
+      "lean_file": "AllowitKernel.lean",
+      "rust_name": "allowit_kernel::policy::DAY_SECONDS",
+      "is_local": true,
+      "source": { "file": "src/policy.rs", "begin_line": 6, "end_line": 6 },
+      "can_fail": false
+    }
+  ],
+  "trait_decls": [],
+  "trait_impls": [
+    {
+      "def_id": 7,
+      "lean_name": "allowit_kernel.policy_api.Context.Insts.CoreCloneClone",
+      "lean_file": "AllowitKernel.lean",
+      "rust_name": "allowit_kernel::policy_api::{impl core::clone::Clone for allowit_kernel::policy_api::Context}",
+      "is_local": true,
+      "source": {
+        "file": "src/policy_api.rs",
+        "begin_line": 2,
+        "end_line": 2
+      },
+      "impl_trait_def_id": 0,
+      "impl_trait_rust_name": "core::clone::Clone",
+      "impl_trait_is_builtin": true
+    },
+    {
+      "def_id": 8,
+      "lean_name": "allowit_kernel.policy_api.Context.Insts.CoreMarkerCopy",
+      "lean_file": "AllowitKernel.lean",
+      "rust_name": "allowit_kernel::policy_api::{impl core::marker::Copy for allowit_kernel::policy_api::Context}",
+      "is_local": true,
+      "source": {
+        "file": "src/policy_api.rs",
+        "begin_line": 2,
+        "end_line": 2
+      },
+      "impl_trait_def_id": 7,
+      "impl_trait_rust_name": "core::marker::Copy",
+      "impl_trait_is_builtin": true
+    },
+    {
+      "def_id": 9,
+      "lean_name": "allowit_kernel.policy_api.Context.Insts.CoreFmtDebug",
+      "lean_file": "AllowitKernel.lean",
+      "rust_name": "allowit_kernel::policy_api::{impl core::fmt::Debug for allowit_kernel::policy_api::Context}",
+      "is_local": true,
+      "source": {
+        "file": "src/policy_api.rs",
+        "begin_line": 2,
+        "end_line": 2
+      },
+      "impl_trait_def_id": 8,
+      "impl_trait_rust_name": "core::fmt::Debug",
+      "impl_trait_is_builtin": true
+    },
+    {
+      "def_id": 10,
+      "lean_name": "allowit_kernel.policy_api.Context.Insts.CoreMarkerStructuralPartialEq",
+      "lean_file": "AllowitKernel.lean",
+      "rust_name": "allowit_kernel::policy_api::{impl core::marker::StructuralPartialEq for allowit_kernel::policy_api::Context}",
+      "is_local": true,
+      "source": {
+        "file": "src/policy_api.rs",
+        "begin_line": 2,
+        "end_line": 2
+      },
+      "impl_trait_def_id": 9,
+      "impl_trait_rust_name": "core::marker::StructuralPartialEq",
+      "impl_trait_is_builtin": true
+    },
+    {
+      "def_id": 11,
+      "lean_name": "allowit_kernel.policy_api.Context.Insts.CoreCmpPartialEqContext",
+      "lean_file": "AllowitKernel.lean",
+      "rust_name": "allowit_kernel::policy_api::{impl core::cmp::PartialEq<allowit_kernel::policy_api::Context> for allowit_kernel::policy_api::Context}",
+      "is_local": true,
+      "source": {
+        "file": "src/policy_api.rs",
+        "begin_line": 2,
+        "end_line": 2
+      },
+      "impl_trait_def_id": 10,
+      "impl_trait_rust_name": "core::cmp::PartialEq",
+      "impl_trait_is_builtin": true
+    },
+    {
+      "def_id": 12,
+      "lean_name": "allowit_kernel.policy_api.Context.Insts.CoreCmpEq",
+      "lean_file": "AllowitKernel.lean",
+      "rust_name": "allowit_kernel::policy_api::{impl core::cmp::Eq for allowit_kernel::policy_api::Context}",
+      "is_local": true,
+      "source": {
+        "file": "src/policy_api.rs",
+        "begin_line": 2,
+        "end_line": 2
+      },
+      "impl_trait_def_id": 11,
+      "impl_trait_rust_name": "core::cmp::Eq",
+      "impl_trait_is_builtin": true
+    },
+    {
+      "def_id": 14,
+      "lean_name": "allowit_kernel.policy_api.PolicyError.Insts.CoreCloneClone",
+      "lean_file": "AllowitKernel.lean",
+      "rust_name": "allowit_kernel::policy_api::{impl core::clone::Clone for allowit_kernel::policy_api::PolicyError}",
+      "is_local": true,
+      "source": {
+        "file": "src/policy_api.rs",
+        "begin_line": 13,
+        "end_line": 13
+      },
+      "impl_trait_def_id": 0,
+      "impl_trait_rust_name": "core::clone::Clone",
+      "impl_trait_is_builtin": true
+    },
+    {
+      "def_id": 15,
+      "lean_name": "allowit_kernel.policy_api.PolicyError.Insts.CoreMarkerCopy",
+      "lean_file": "AllowitKernel.lean",
+      "rust_name": "allowit_kernel::policy_api::{impl core::marker::Copy for allowit_kernel::policy_api::PolicyError}",
+      "is_local": true,
+      "source": {
+        "file": "src/policy_api.rs",
+        "begin_line": 13,
+        "end_line": 13
+      },
+      "impl_trait_def_id": 7,
+      "impl_trait_rust_name": "core::marker::Copy",
+      "impl_trait_is_builtin": true
+    },
+    {
+      "def_id": 16,
+      "lean_name": "allowit_kernel.policy_api.PolicyError.Insts.CoreFmtDebug",
+      "lean_file": "AllowitKernel.lean",
+      "rust_name": "allowit_kernel::policy_api::{impl core::fmt::Debug for allowit_kernel::policy_api::PolicyError}",
+      "is_local": true,
+      "source": {
+        "file": "src/policy_api.rs",
+        "begin_line": 13,
+        "end_line": 13
+      },
+      "impl_trait_def_id": 8,
+      "impl_trait_rust_name": "core::fmt::Debug",
+      "impl_trait_is_builtin": true
+    },
+    {
+      "def_id": 17,
+      "lean_name": "allowit_kernel.policy_api.PolicyError.Insts.CoreMarkerStructuralPartialEq",
+      "lean_file": "AllowitKernel.lean",
+      "rust_name": "allowit_kernel::policy_api::{impl core::marker::StructuralPartialEq for allowit_kernel::policy_api::PolicyError}",
+      "is_local": true,
+      "source": {
+        "file": "src/policy_api.rs",
+        "begin_line": 13,
+        "end_line": 13
+      },
+      "impl_trait_def_id": 9,
+      "impl_trait_rust_name": "core::marker::StructuralPartialEq",
+      "impl_trait_is_builtin": true
+    },
+    {
+      "def_id": 18,
+      "lean_name": "allowit_kernel.policy_api.PolicyError.Insts.CoreCmpPartialEqPolicyError",
+      "lean_file": "AllowitKernel.lean",
+      "rust_name": "allowit_kernel::policy_api::{impl core::cmp::PartialEq<allowit_kernel::policy_api::PolicyError> for allowit_kernel::policy_api::PolicyError}",
+      "is_local": true,
+      "source": {
+        "file": "src/policy_api.rs",
+        "begin_line": 13,
+        "end_line": 13
+      },
+      "impl_trait_def_id": 10,
+      "impl_trait_rust_name": "core::cmp::PartialEq",
+      "impl_trait_is_builtin": true
+    },
+    {
+      "def_id": 19,
+      "lean_name": "allowit_kernel.policy_api.PolicyError.Insts.CoreCmpEq",
+      "lean_file": "AllowitKernel.lean",
+      "rust_name": "allowit_kernel::policy_api::{impl core::cmp::Eq for allowit_kernel::policy_api::PolicyError}",
+      "is_local": true,
+      "source": {
+        "file": "src/policy_api.rs",
+        "begin_line": 13,
+        "end_line": 13
+      },
+      "impl_trait_def_id": 11,
+      "impl_trait_rust_name": "core::cmp::Eq",
+      "impl_trait_is_builtin": true
+    }
+  ]
+}

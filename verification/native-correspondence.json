@@ -1,0 +1,53 @@
+{
+  "evidence": "tested_correspondence",
+  "runner": "host rustc and Lean executable model",
+  "cases": 2907,
+  "targets": [
+    "solana",
+    "stellar"
+  ],
+  "policySha256": "eceb1d4f55c93ef7921f47f3ca0d35bc589c3c6a1b0f29ae63f5fb9f9ff37da8",
+  "apiSha256": "70b783aac1a7d7016ea967cc6d873a91917f6ce3f38b030551f4658923b7793d",
+  "modelSha256": "79fc03055aafe0c14ee1a998dcbb18c7429f47b1bd07365b8d24a4a2401184fb",
+  "corpusSha256": "b5a7c358a6368ab3f7eacae921bff63935437c5e43bf040a6c4512fb78552f53",
+  "lean": "Lean (version 4.11.0, arm64-apple-darwin23.6.0, commit ec3042d94bd1, Release)",
+  "verificationDependencies": {
+    "check_native.py": "fe91107cc7ca466eee47761be55a3957aa9019d1b34f1ec98072043c3867f9da",
+    "lean/ReplayNative.lean": "f1b5b2323d9013059c9352c5ba86875a32d414cf5c6f2238d2405cad1340a00f",
+    "lean/check.py": "d87357d8b2e321027e7aecc663d7745245ce6f5b16b1341d07262b4a470c4249",
+    "lean/AllowIt.lean": "f48c17616f351cc6078d2b72a965483147b1fdbdcfa21902be976bd66bd077a4",
+    "lean/lean-toolchain": "7c7da413860f9ec1f8741d6d9d1e803bda6c664f6d954fe15f1a05087dd066f0",
+    "native-source-lock.json": "6c745d74ba7567e95b8f5df00c376e91ca5edbc3d4ca4f16ec5061e70cec75c7"
+  },
+  "proofCheckLogSha256": "fc4de8270ec89c995dc89bbbb186a72990522d212072bc4380c5bef33e67a172",
+  "rustc": "rustc 1.98.0 (88d9e12ae 2026-08-18)",
+  "outcomes": [
+    "ClockWentBackwards",
+    "DailyLimitExceeded",
+    "NotApproved",
+    "Overflow",
+    "ParameterOutOfBounds",
+    "ZeroAmount",
+    "ok"
+  ],
+  "mutationsDetected": [
+    "removed_daily_limit",
+    "same_day_counter_reset",
+    "rejected_exact_limit",
+    "denied_every_success",
+    "swapped_error_priority",
+    "rejected_same_day",
+    "changed_maximum",
+    "changed_day_seconds",
+    "inverted_day_reset"
+  ],
+  "embeddedSourceHashChecked": true,
+  "replayTrustedComponents": [
+    "Lean compiler/runtime",
+    "host Rust compiler/runtime",
+    "Python reference and harness"
+  ],
+  "productionRefinement": false,
+  "adapterExecution": false,
+  "deploymentChecked": false
+}

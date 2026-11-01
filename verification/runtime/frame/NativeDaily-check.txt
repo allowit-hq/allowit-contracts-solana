@@ -1,0 +1,17 @@
+Except.ok 25
+'AllowIt.NativeDaily.validate_daily_limit_iff' depends on axioms: [propext]
+'AllowIt.NativeDaily.valid_request_sum_fits' does not depend on any axioms
+'AllowIt.NativeDaily.success_iff' depends on axioms: [propext, Quot.sound]
+'AllowIt.NativeDaily.valid_request_succeeds' depends on axioms: [propext, Quot.sound]
+'AllowIt.NativeDaily.returned_spend_exact' depends on axioms: [propext, Quot.sound]
+'AllowIt.NativeDaily.not_approved_first' depends on axioms: [propext]
+'AllowIt.NativeDaily.zero_amount_next' depends on axioms: [propext]
+'AllowIt.NativeDaily.invalid_parameter_next' depends on axioms: [propext]
+'AllowIt.NativeDaily.day_regression_error' depends on axioms: [propext]
+'AllowIt.NativeDaily.overflow_next' depends on axioms: [propext]
+'AllowIt.NativeDaily.exceeded_limit_last' depends on axioms: [propext]
+'AllowIt.NativeDaily.day_regression_never_succeeds' depends on axioms: [propext, Quot.sound]
+'AllowIt.NativeDaily.zero_limit_never_succeeds' depends on axioms: [propext, Quot.sound]
+'AllowIt.NativeDaily.same_day_lower_limit_never_succeeds' depends on axioms: [propext, Quot.sound]
+'AllowIt.NativeDaily.fresh_day_old_spend_irrelevant' depends on axioms: [propext, Quot.sound]
+'AllowIt.NativeDaily.exact_limit_example_succeeds' does not depend on any axioms

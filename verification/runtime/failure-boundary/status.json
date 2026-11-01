@@ -1,0 +1,37 @@
+{
+  "checkedAtUTC": "2026-10-05T11:16:19Z",
+  "scope": "read-only local committed heads and current source bytes; no remote fetch, client execution or deployment reconciliation",
+  "heads": {
+    "solana": {
+      "revision": "e0fc5a19985a7c1d1d184754dba98ddbc98e2841",
+      "status": ""
+    },
+    "stellar": {
+      "revision": "8eb495e0a2abd923ae01c81d46f1f5aad1da4114",
+      "status": ""
+    },
+    "sdk": {
+      "revision": "f393d671c05be3e09acd085d2bc594ca73273c97",
+      "status": ""
+    },
+    "cli": {
+      "revision": "3090822bc5f0ad519b96f6dab297f22c64c51dff",
+      "status": ""
+    },
+    "frontendGatewayPlan": {
+      "revision": "2711d1a3a16bc24cb9e5a5265474d14a38bf0587",
+      "status": ""
+    }
+  },
+  "sources": {
+    "../../../AllowIt-contracts-solana/artifacts/manifest.json": "36340489a43ac5e70130afc55646360cdcdada83d8bf9b87dccad673375010af",
+    "../../../AllowIt-contracts-solana/crates/interface/src/lib.rs": "62710f4afc6dce63a3720c4b1e3f482c8315de6cb7261a21cd79cd16c90d9d6e",
+    "../../../AllowIt-contracts-solana/programs/vault/src/lib.rs": "049c9e030d5450e92335ae601ec0ea21817ea3957b07959315c9d04b1b8964fd",
+    "../../allowit-pay-app/docs/solana-mvp-integration-plan.md": "020451b7d336de33d3600f87bbc988701104169ad7267bb81082b43159364405"
+  },
+  "taskStatus": {
+    "integration": "notLoaded",
+    "contracts": "notLoaded",
+    "latestIntegrationHandoff": "2711d1a planning/source-CI/Preview evidence; native SDK/CLI/frontend wiring and public Devnet still pending; source-bound runtime acceptance not delivered"
+  }
+}

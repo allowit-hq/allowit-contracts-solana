@@ -1,0 +1,80 @@
+{
+  "evidence": "tested_correspondence",
+  "domain": "published kernel host execution",
+  "cases": 2907,
+  "policySha256": "e07e148b2403a43e3080d043db7fcd49e505cb661adbb8e40c0f2ae4aeb6978b",
+  "apiSha256": "70b783aac1a7d7016ea967cc6d873a91917f6ce3f38b030551f4658923b7793d",
+  "sourceBundleSha256": "c445348186c8d7ee9132539528c82a3c6a718718993db879cd9ceaf28e1d7cfa",
+  "modelSha256": "79fc03055aafe0c14ee1a998dcbb18c7429f47b1bd07365b8d24a4a2401184fb",
+  "corpusSha256": "b5a7c358a6368ab3f7eacae921bff63935437c5e43bf040a6c4512fb78552f53",
+  "proofCheckLogSha256": "fc4de8270ec89c995dc89bbbb186a72990522d212072bc4380c5bef33e67a172",
+  "lean": "Lean (version 4.11.0, arm64-apple-darwin23.6.0, commit ec3042d94bd1, Release)",
+  "rustc": "rustc 1.98.0 (88d9e12ae 2026-08-18)",
+  "rustcExecutable": "/Users/clawy/.rustup/toolchains/1.98.0-aarch64-apple-darwin/bin/rustc",
+  "contractRevisions": {
+    "solana": "e0fc5a19985a7c1d1d184754dba98ddbc98e2841",
+    "stellar": "8eb495e0a2abd923ae01c81d46f1f5aad1da4114"
+  },
+  "artifactManifests": {
+    "solana": {
+      "schema": 1,
+      "source_bundle": "c445348186c8d7ee9132539528c82a3c6a718718993db879cd9ceaf28e1d7cfa",
+      "git_revision": "8373496dbf4a67c639533f15cc343f484c639aed",
+      "network": null,
+      "deployments": [],
+      "artifacts": [
+        {
+          "name": "allowit_policy.so",
+          "bytes": 1696,
+          "sha256": "8a7312e81e680a54648c2ad7fc23b77f6cddf70a8c2c733b92076563fd3a19f4"
+        },
+        {
+          "name": "allowit_vault.so",
+          "bytes": 100280,
+          "sha256": "b7359562591dcef60a43115f7441be00b8205752af3393c4adbb089c8500cb6f"
+        }
+      ]
+    },
+    "stellar": {
+      "schema": 1,
+      "source_bundle": "c445348186c8d7ee9132539528c82a3c6a718718993db879cd9ceaf28e1d7cfa",
+      "git_revision": "ff7833a9963e194b25698f0d9ed3650b56fcb1c9",
+      "network": null,
+      "deployments": [],
+      "artifacts": [
+        {
+          "name": "allowit_factory.wasm",
+          "bytes": 1390,
+          "sha256": "c9f93314ecb02cfba41a29a61ef35f1d370f161dc80fcf280308ded715be55c4"
+        },
+        {
+          "name": "allowit_policy.wasm",
+          "bytes": 1896,
+          "sha256": "f6ca8400d3394ef5f87f2ba9421391673647049fc1fa394937ab957056a510c1"
+        },
+        {
+          "name": "allowit_vault.wasm",
+          "bytes": 7841,
+          "sha256": "58c3102a275fd20e7995c9108aa6e5881429b968603c193169b5caa6867786b2"
+        }
+      ]
+    }
+  },
+  "verificationDependencies": {
+    "check_published.py": "0247922a9916e904bcb9e345971c16687b7d658b6f00d2f7376250530e752c42",
+    "published-source-lock.json": "810bd6a8756473c69a958eaf47ea48d98892928ed75ccf8bc37c930c07c24a5d",
+    "check_native.py": "fe91107cc7ca466eee47761be55a3957aa9019d1b34f1ec98072043c3867f9da",
+    "lean/check.py": "d87357d8b2e321027e7aecc663d7745245ce6f5b16b1341d07262b4a470c4249",
+    "lean/NativeDaily.lean": "79fc03055aafe0c14ee1a998dcbb18c7429f47b1bd07365b8d24a4a2401184fb",
+    "lean/AllowIt.lean": "f48c17616f351cc6078d2b72a965483147b1fdbdcfa21902be976bd66bd077a4",
+    "lean/ReplayNative.lean": "f1b5b2323d9013059c9352c5ba86875a32d414cf5c6f2238d2405cad1340a00f",
+    "lean/lean-toolchain": "7c7da413860f9ec1f8741d6d9d1e803bda6c664f6d954fe15f1a05087dd066f0"
+  },
+  "localArtifactBytesChecked": true,
+  "oldFrozenEvidenceRetargeted": false,
+  "mutationChecksRerun": false,
+  "buildProvenanceProved": false,
+  "productionRefinement": false,
+  "adapterExecution": false,
+  "deploymentChecked": false
+}

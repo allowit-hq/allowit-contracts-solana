@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "files": {
+    "../adapter/State.lean": "3eed9fd07b540dfb2645114f7c5f952fd1d32e30a1ae85149acdf38464d14259",
+    "../adapter/lock.json": "9b9bd11e17b2f484d2704d13bb57771424b15378d74538dd9905447b6cfd6345",
+    "../check_native.py": "fe91107cc7ca466eee47761be55a3957aa9019d1b34f1ec98072043c3867f9da",
+    "../check_published.py": "0247922a9916e904bcb9e345971c16687b7d658b6f00d2f7376250530e752c42",
+    "../lean/NativeDaily.lean": "79fc03055aafe0c14ee1a998dcbb18c7429f47b1bd07365b8d24a4a2401184fb",
+    "../published-source-lock.json": "810bd6a8756473c69a958eaf47ea48d98892928ed75ccf8bc37c930c07c24a5d",
+    "certificates.py": "1c2df729bd5d6d127b93e6dcbbdd976e7bb4a5c46849f6be5f243eafd05c8d6e",
+    "check.py": "c42db6e19aa250743b5e73db03a51df8ba3ee4c4886ce27d3fc60d013acfd5ed",
+    "trace.rs": "df07509b1e9f94e6c539af2f04d31594b855ec3aa386168dcf845ac5573a2484"
+  },
+  "sources": {
+    "sbf-tests/tests/vault.rs": "c65cc40ac7139c947b0404e59a824bd6d773a194319feb9b3c98253fe0a012ef",
+    "policy/source_hash.rs": "bdb38c28a308722a4444b3592af5a4801d0b2f302dea1ffc1d5b2cc2ff428e4c"
+  },
+  "compiler": {
+    "executable": "/Users/clawy/.rustup/toolchains/1.98.0-aarch64-apple-darwin/bin/rustc",
+    "sha256": "a11618eca0956a8aa4372c2bc898690b513cbdfa2cb9125b2a5301e360ed5b49",
+    "libraries": "/Users/clawy/.rustup/toolchains/1.98.0-aarch64-apple-darwin/lib",
+    "library_identity": [
+      "07261e52f349c126749d8cd9c6eaa7daebdd04032fff5b719dd82105646656ff",
+      149
+    ],
+    "version": "rustc 1.98.0 (88d9e12ae 2026-08-18)\nbinary: rustc\ncommit-hash: 88d9e12ae178fab0fb5cc050a94da85685d449ea\ncommit-date: 2026-08-18\nhost: aarch64-apple-darwin\nrelease: 1.98.0\nLLVM version: 22.1.8"
+  },
+  "dependencies": {
+    "directory": "sbf-tests/target/debug/deps",
+    "identity": [
+      "b66eb1480ede0bca09749194fc30b5d5daf752fdf5e3e1776ad8313c4db31bac",
+      719
+    ]
+  },
+  "externs": {
+    "allowit_interface": "liballowit_interface-592c5055ff24eb86.rlib",
+    "mollusk_svm_programs_token": "libmollusk_svm_programs_token-689d10e93da59a8c.rlib",
+    "solana_program_error": "libsolana_program_error-e0a8d951d7c23e50.rlib",
+    "solana_instruction": "libsolana_instruction-dc05ab2eaf9ead52.rlib",
+    "mollusk_svm": "libmollusk_svm-a7d754123bae6c95.rlib",
+    "solana_pubkey": "libsolana_pubkey-74c74f5692ac6b93.rlib",
+    "spl_token": "libspl_token-83e1cb7f4d9fa4be.rlib",
+    "solana_program": "libsolana_program-a69e409c4a07d8c9.rlib",
+    "solana_account": "libsolana_account-384731fcd3083389.rlib",
+    "borsh": "libborsh-a2d86e1a6f6fc351.rlib",
+    "serde_json": "libserde_json-d2cc04956316f940.rlib"
+  },
+  "lean": {
+    "executable": "lean-4.31.0-darwin_aarch64/bin/lean",
+    "sha256": "1b370cfcbf44e80d1b004ab1b1ab9a4c73951f9f7c242140bcff9bc577576554",
+    "libraries": "lean-4.31.0-darwin_aarch64/lib",
+    "library_identity": [
+      "cbe00504c509d17d0cbf014465078e9320f4524760cd377e821a8bb87447289c",
+      12121
+    ],
+    "version": "Lean (version 4.31.0, arm64-apple-darwin24.6.0, commit 68218e876d2a38b1985b8590fff244a83c321783, Release)"
+  }
+}

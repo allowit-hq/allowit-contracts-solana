@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "source_bundle": "c445348186c8d7ee9132539528c82a3c6a718718993db879cd9ceaf28e1d7cfa",
+  "git_revision": "8373496dbf4a67c639533f15cc343f484c639aed",
+  "network": null,
+  "deployments": [],
+  "artifacts": [
+    {
+      "name": "allowit_policy.so",
+      "bytes": 1696,
+      "sha256": "8a7312e81e680a54648c2ad7fc23b77f6cddf70a8c2c733b92076563fd3a19f4"
+    },
+    {
+      "name": "allowit_vault.so",
+      "bytes": 100280,
+      "sha256": "b7359562591dcef60a43115f7441be00b8205752af3393c4adbb089c8500cb6f"
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "scope": "Human-reviewed source inventory; no Rust AST or compiled ABI exhaustiveness proof.",
+  "solana": {
+    "vaultMethods": [
+      "Initialize",
+      "Deposit",
+      "Approve",
+      "SetDailyLimit",
+      "Transfer",
+      "Withdraw",
+      "SetPolicy",
+      "Unsupported"
+    ],
+    "policyMethods": [
+      "Evaluate",
+      "ValidateDailyLimit"
+    ],
+    "policyResponseBytes": 77,
+    "evaluateRequestBytes": 74,
+    "validateRequestBytes": 41,
+    "stateAllocationBytes": 320,
+    "withdrawRecipient": "owner-authorized external token account; not restricted to owner"
+  },
+  "stellar": {
+    "vaultMethods": [
+      "__constructor",
+      "state",
+      "balance",
+      "deposit",
+      "approve",
+      "set_daily_limit",
+      "set_policy",
+      "transfer",
+      "withdraw",
+      "unsupported"
+    ],
+    "policyMethods": [
+      "evaluate",
+      "validate_daily_limit",
+      "source_hash",
+      "max_daily_limit"
+    ],
+    "withdrawRecipient": "owner",
+    "readEffects": "state() and balance() use a helper that extends instance TTL",
+    "factoryMethods": [
+      "__constructor",
+      "create"
+    ]
+  },
+  "vmTests": [
+    "forged_actor_and_policy_cannot_spend",
+    "initialize_creates_factory_pda_and_policy_change_keeps_counters",
+    "minimal_native_adapter_matches_borsh_requests_and_every_kernel_decision",
+    "policy_artifact_and_immutability_are_enforced_and_recovery_is_independent",
+    "real_cpi_transfer_daily_limits_nonce_and_day_rollover",
+    "tuning_revocation_recovery_and_placeholders",
+    "wrong_mint_and_vault_owned_destinations_are_rejected"
+  ]
+}

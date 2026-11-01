@@ -1,0 +1,2 @@
+   Compiling allowit-transaction-probe v0.1.0 (/private/tmp/allowit-extraction-oct05/failure-probe)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.34s

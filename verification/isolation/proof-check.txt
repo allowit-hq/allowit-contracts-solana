@@ -1,0 +1,28 @@
+'AllowIt.Isolation.checks_spec' depends on axioms: [propext, Quot.sound]
+'AllowIt.Isolation.checks_complete' depends on axioms: [propext, Quot.sound]
+'AllowIt.Isolation.success_0' depends on axioms: [propext]
+'AllowIt.Isolation.asset_0' does not depend on any axioms
+'AllowIt.Isolation.success_1' depends on axioms: [propext]
+'AllowIt.Isolation.success_2' depends on axioms: [propext]
+'AllowIt.Isolation.asset_2' does not depend on any axioms
+'AllowIt.Isolation.success_3' depends on axioms: [propext]
+'AllowIt.Isolation.fault_4' does not depend on any axioms
+'AllowIt.Isolation.refuses_4' depends on axioms: [propext, Quot.sound]
+'AllowIt.Isolation.repair_permits_4' depends on axioms: [propext]
+'AllowIt.Isolation.success_5' depends on axioms: [propext]
+'AllowIt.Isolation.success_6' depends on axioms: [propext]
+'AllowIt.Isolation.asset_6' does not depend on any axioms
+'AllowIt.Isolation.fault_7' does not depend on any axioms
+'AllowIt.Isolation.refuses_7' depends on axioms: [propext]
+'AllowIt.Isolation.repair_permits_7' depends on axioms: [propext]
+'AllowIt.Isolation.fault_8' does not depend on any axioms
+'AllowIt.Isolation.refuses_8' depends on axioms: [propext]
+'AllowIt.Isolation.repair_permits_8' depends on axioms: [propext]
+'AllowIt.Isolation.fault_9' does not depend on any axioms
+'AllowIt.Isolation.refuses_9' depends on axioms: [propext]
+'AllowIt.Isolation.repair_permits_9' depends on axioms: [propext]
+'AllowIt.Isolation.fault_10' does not depend on any axioms
+'AllowIt.Isolation.refuses_10' depends on axioms: [propext]
+'AllowIt.Isolation.repair_permits_10' depends on axioms: [propext]
+'AllowIt.Isolation.success_11' depends on axioms: [propext]
+'AllowIt.Isolation.asset_11' does not depend on any axioms

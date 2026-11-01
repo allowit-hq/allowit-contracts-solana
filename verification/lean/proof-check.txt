@@ -1,0 +1,33 @@
+AllowIt.Outcome.pass
+'AllowIt.traversed_is_required' depends on axioms: [propext]
+'AllowIt.selected_exactly_required' depends on axioms: [propext]
+'AllowIt.selected_covers_traversal' depends on axioms: [propext]
+'AllowIt.selected_is_minimal' depends on axioms: [propext]
+'AllowIt.missing_capability_is_not_supported' depends on axioms: [propext]
+'AllowIt.assessment_pass_iff' depends on axioms: [propext, Quot.sound]
+'AllowIt.missing_evidence_never_passes' depends on axioms: [propext]
+'AllowIt.both_disabled_is_unresolved' depends on axioms: [propext]
+'AllowIt.pass_iff_specification' depends on axioms: [propext, Quot.sound]
+'AllowIt.passing_preserves_every_budget' depends on axioms: [propext, Quot.sound]
+'AllowIt.allowed_budget_cannot_overflow' does not depend on any axioms
+'AllowIt.classification_cannot_bypass_budget' depends on axioms: [propext, Quot.sound]
+'AllowIt.example_passes' does not depend on any axioms
+Verified 13 theorems in AllowIt.lean with Lean 4.11.0; only standard logical axioms.
+Except.ok 25
+'AllowIt.NativeDaily.validate_daily_limit_iff' depends on axioms: [propext, Quot.sound]
+'AllowIt.NativeDaily.valid_request_sum_fits' does not depend on any axioms
+'AllowIt.NativeDaily.success_iff' depends on axioms: [propext, Quot.sound]
+'AllowIt.NativeDaily.valid_request_succeeds' depends on axioms: [propext, Quot.sound]
+'AllowIt.NativeDaily.returned_spend_exact' depends on axioms: [propext, Quot.sound]
+'AllowIt.NativeDaily.not_approved_first' depends on axioms: [propext]
+'AllowIt.NativeDaily.zero_amount_next' depends on axioms: [propext]
+'AllowIt.NativeDaily.invalid_parameter_next' depends on axioms: [propext]
+'AllowIt.NativeDaily.day_regression_error' depends on axioms: [propext]
+'AllowIt.NativeDaily.overflow_next' depends on axioms: [propext]
+'AllowIt.NativeDaily.exceeded_limit_last' depends on axioms: [propext]
+'AllowIt.NativeDaily.day_regression_never_succeeds' depends on axioms: [propext, Quot.sound]
+'AllowIt.NativeDaily.zero_limit_never_succeeds' depends on axioms: [propext, Quot.sound]
+'AllowIt.NativeDaily.same_day_lower_limit_never_succeeds' depends on axioms: [propext, Quot.sound]
+'AllowIt.NativeDaily.fresh_day_old_spend_irrelevant' depends on axioms: [propext, Quot.sound]
+'AllowIt.NativeDaily.exact_limit_example_succeeds' does not depend on any axioms
+Verified 16 theorems in NativeDaily.lean with Lean 4.11.0; only standard logical axioms.

@@ -1,0 +1,14 @@
+{
+  "contractRevision": "e0fc5a19985a7c1d1d184754dba98ddbc98e2841",
+  "manifestSha256": "36340489a43ac5e70130afc55646360cdcdada83d8bf9b87dccad673375010af",
+  "artifacts": {
+    "allowit_policy.so": "8a7312e81e680a54648c2ad7fc23b77f6cddf70a8c2c733b92076563fd3a19f4",
+    "allowit_vault.so": "b7359562591dcef60a43115f7441be00b8205752af3393c4adbb089c8500cb6f",
+    "token.so": "7b44674b9704fa7640fbebfac68389f338b500b8c2bc29175c27ed66838b5a3c"
+  },
+  "sourceFiles": {
+    "programs/vault/src/lib.rs": "049c9e030d5450e92335ae601ec0ea21817ea3957b07959315c9d04b1b8964fd",
+    "crates/interface/src/lib.rs": "62710f4afc6dce63a3720c4b1e3f482c8315de6cb7261a21cd79cd16c90d9d6e"
+  },
+  "sourceBundleIdentifier": "c445348186c8d7ee9132539528c82a3c6a718718993db879cd9ceaf28e1d7cfa"
+}

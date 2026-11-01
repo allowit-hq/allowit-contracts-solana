@@ -1,0 +1,91 @@
+{
+  "evidence": "extracted_model_refinement",
+  "sourceBundle": "c445348186c8d7ee9132539528c82a3c6a718718993db879cd9ceaf28e1d7cfa",
+  "contractRevisions": {
+    "solana": "e0fc5a19985a7c1d1d184754dba98ddbc98e2841",
+    "stellar": "8eb495e0a2abd923ae01c81d46f1f5aad1da4114"
+  },
+  "lockSha256": "7d6a9f9b433c54595703424634c8a1ef528a5ce50f0030e936d343799b34d1b4",
+  "dependencies": {
+    "check.py": "901a7aeadb525ddb9a02a21b4a590004e176debf516e153728b1b4d6857e9f79",
+    "kernel/Cargo.toml": "9e68b2c88c5883cf7633b8d32e6bfe0d05ce3e554bc2a6a26c8cc19b3f11c4e8",
+    "kernel/Cargo.lock": "99b7dcfd7ab05e689336d84850feb26e3d9efa0fd0345b5e1b3ae139b6607de8",
+    "kernel/src/lib.rs": "83a65b3cf2d85709f2047a43fd28fe5f7ffc78fbd334f97d82eebb87014df44d",
+    "kernel/src/policy.rs": "e07e148b2403a43e3080d043db7fcd49e505cb661adbb8e40c0f2ae4aeb6978b",
+    "kernel/src/policy_api.rs": "70b783aac1a7d7016ea967cc6d873a91917f6ce3f38b030551f4658923b7793d",
+    "kernel/allowit_kernel.llbc": "0c0d9c324371fb568c66626e8e26c9bdc809fd9637e8dd747fbdfa9a02737516",
+    "lean/AllowitKernel.lean": "4cc6ca7f1fcd015c9f25d2a92884e5f5d8453bc64a2512ef49bca4b662da98ac",
+    "lean/translation.json": "c6cb7818c68c82e508e23b854d9ef67b977f22afc26d7777c784135e112bc6d2",
+    "lean/NativeDaily.lean": "79fc03055aafe0c14ee1a998dcbb18c7429f47b1bd07365b8d24a4a2401184fb",
+    "lean/Refinement.lean": "05f2e97756de5a40ad3471db27e6ee3a100247785bc4a12b8e6e0d72782862d5",
+    "lean/lakefile.toml": "c11cf85a475a8ea01f4978d184828ed23b50d14ce1fe0a88992f005e29e9f276",
+    "lean/lake-manifest.json": "432f9060baac4242ff6ec1db62c7d5d21aa89125439b829c7d1a1a353edf6755",
+    "lean/lean-toolchain": "efac0b94923b2d8b6840cd35be9177ad0fc5ab2332f4f4311c98712cee92fdee",
+    "proof-check.txt": "a003f22918c8e69e3514f56542d784be84657a6dad605cbe2593c7625e6966eb",
+    "../check_published.py": "0247922a9916e904bcb9e345971c16687b7d658b6f00d2f7376250530e752c42",
+    "../check_native.py": "fe91107cc7ca466eee47761be55a3957aa9019d1b34f1ec98072043c3867f9da",
+    "../published-source-lock.json": "810bd6a8756473c69a958eaf47ea48d98892928ed75ccf8bc37c930c07c24a5d",
+    "../lean/NativeDaily.lean": "79fc03055aafe0c14ee1a998dcbb18c7429f47b1bd07365b8d24a4a2401184fb"
+  },
+  "binaries": {
+    "release/aeneas": "bc9c9f8244710d663fe6855dade25af823532c9ee4aad14a5da6b25366feb2a5",
+    "aeneas/charon/charon/target/release/charon": "cafc146d5dda53d8f93e77b813cc2727c717a1e7ffecbc2f01635cbc8ebbf542",
+    "aeneas/charon/charon/target/release/charon-driver": "de327127129fbc6edd4ab27d52d13dc1af5d462474209b0fb9cf41213cb65c0e",
+    "rustup/toolchains/nightly-2026-09-17-aarch64-apple-darwin/bin/rustc": "25f765e04b0d2cea011e4e85b9d48e1587ea449786259e16b17f01cabc848c3b",
+    "rustup/toolchains/nightly-2026-09-17-aarch64-apple-darwin/bin/cargo": "a609d68dbd176073a6a6584a27a4721cccb37c766ed76a6eeedeb7acdd1e4300",
+    "rustup/toolchains/nightly-2026-09-17-aarch64-apple-darwin/lib/librustc_driver-0df6043a2d170d3f.dylib": "a87174817c670ef340864d70186825d69691bf36cd6a292178d81e8d1594dd45",
+    "lean-4.31.0-darwin_aarch64/bin/lean": "1b370cfcbf44e80d1b004ab1b1ab9a4c73951f9f7c242140bcff9bc577576554",
+    "lean-4.31.0-darwin_aarch64/bin/lake": "58261a1a2fa1a362376c71e02ca854a093e71cc5e6ea64b287a931cb2565273d"
+  },
+  "versions": {
+    "charon": "0.1.279 (c8f15d7d658c86a95658f71ad99cddd4be002e04)",
+    "aeneas": "aeneas nightly-2026.10.04-557eff8",
+    "rustc": "rustc 1.100.0-nightly (923c95cdf 2026-09-16)\nbinary: rustc\ncommit-hash: 923c95cdf5ba65cea505aa2ea829f578e1506ed8\ncommit-date: 2026-09-16\nhost: aarch64-apple-darwin\nrelease: 1.100.0-nightly\nLLVM version: 23.1.1",
+    "lean": "Lean (version 4.31.0, arm64-apple-darwin24.6.0, commit 68218e876d2a38b1985b8590fff244a83c321783, Release)"
+  },
+  "libraryArtifacts": [
+    "e08067af452f5a8282a363d1901010a6b8262cce026c417e8d01e35e9b141bba",
+    10217
+  ],
+  "toolchainLibraries": {
+    "lean-4.31.0-darwin_aarch64/lib": [
+      "cbe00504c509d17d0cbf014465078e9320f4524760cd377e821a8bb87447289c",
+      12121
+    ],
+    "rustup/toolchains/nightly-2026-09-17-aarch64-apple-darwin/lib": [
+      "34880cf0335b52ef7d5362d37607d3cf4f8c5d8e402ead69c81900c51bcf9d6e",
+      7027
+    ]
+  },
+  "axiomAllowlist": [
+    "Classical.choice",
+    "Quot.sound",
+    "propext"
+  ],
+  "theorems": [
+    "validate_refines",
+    "arithmetic_refines",
+    "evaluate_refines",
+    "scalar_word",
+    "word_scalar",
+    "native_outcome_roundtrip",
+    "observe_returns",
+    "evaluate_exact",
+    "context_roundtrip",
+    "evaluate_all_inputs",
+    "extracted_exact_limit_witness",
+    "outcome_native_roundtrip",
+    "extracted_permission_iff"
+  ],
+  "generatedBytesReproduced": true,
+  "allInputEqualityChecked": true,
+  "permissionEquivalenceChecked": true,
+  "successfulWitnessChecked": true,
+  "translationFaithfulnessAssumed": true,
+  "cachedLibraryArtifactsTrusted": true,
+  "rustCompilerVerified": false,
+  "adapterExecution": false,
+  "compiledArtifactRefinement": false,
+  "clientExecution": false,
+  "deploymentChecked": false
+}

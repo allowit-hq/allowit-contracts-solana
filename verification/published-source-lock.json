@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "policy_sha256": "e07e148b2403a43e3080d043db7fcd49e505cb661adbb8e40c0f2ae4aeb6978b",
+  "api_sha256": "70b783aac1a7d7016ea967cc6d873a91917f6ce3f38b030551f4658923b7793d",
+  "source_bundle": "c445348186c8d7ee9132539528c82a3c6a718718993db879cd9ceaf28e1d7cfa",
+  "targets": {
+    "solana": {
+      "repository": "../../../AllowIt-contracts-solana",
+      "revision": "e0fc5a19985a7c1d1d184754dba98ddbc98e2841",
+      "manifest_sha256": "36340489a43ac5e70130afc55646360cdcdada83d8bf9b87dccad673375010af",
+      "artifact_directory": "target/deploy"
+    },
+    "stellar": {
+      "repository": "../../../AllowIt-contracts-stellar",
+      "revision": "8eb495e0a2abd923ae01c81d46f1f5aad1da4114",
+      "manifest_sha256": "361c8ccbd63fb3367794028b87f656e7363fc1dea4c55868688fcc1ec854fa52",
+      "artifact_directory": "target/wasm32v1-none/release"
+    }
+  },
+  "rustc_version": "rustc 1.98.0 (88d9e12ae 2026-08-18)"
+}

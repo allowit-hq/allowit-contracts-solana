@@ -1,0 +1,10 @@
+'AllowIt.Transaction.charge_keys' depends on axioms: [propext, Quot.sound]
+'AllowIt.Transaction.charge_protected' depends on axioms: [propext, Quot.sound]
+'AllowIt.Transaction.charge_zero' depends on axioms: [propext, Quot.sound]
+'AllowIt.Transaction.fee_frame_protected' depends on axioms: [propext, Quot.sound]
+'AllowIt.Transaction.fee_frame_keys' depends on axioms: [propext, Quot.sound]
+'AllowIt.Transaction.failure_protected' depends on axioms: [propext, Quot.sound]
+'AllowIt.Transaction.before_execution_unchanged' does not depend on any axioms
+'AllowIt.Transaction.abort_iff' does not depend on any axioms
+'AllowIt.Transaction.funded_abort_exists' does not depend on any axioms
+'AllowIt.Transaction.funded_debit_exact' depends on axioms: [propext]

@@ -1,0 +1,49 @@
+# Adapter state requirements
+
+[State.lean](State.lean) is an independently written successful-transition specification. Twenty-one checked statements cover maintenance accounting preservation, deposit/withdrawal control preservation, bounded tuning, policy-switch revocation, executor authorization, exact kernel permission and effects, specification sanity (successful transfer construction under stated prerequisites), nonce exhaustion, nonce monotonicity and replay refusal after any successful transition trace, same-day denial after lowering below spent, unsupported methods, reads and a successful exact-limit witness.
+
+This is a **model proof**, not Charon/Aeneas extraction or Rust adapter refinement. The separate [kernel refinement](../refinement/README.md) establishes the extracted pure kernel's relation to the same `NativeDaily` specification. `transfer_kernel` connects this new transition specification to `NativeDaily.evaluate`; it does not connect the production custody program to the transition specification. Error ordering, rejected state, panic/rollback behavior and resource bounds are not defined by this successful-transition relation.
+
+The imported `NativeDaily` file matches the historical Lean 4.11 specification byte for byte, including its old source-digest header. Pinned Lean 4.31 checks this specification. Published intake and extracted refinement bind historical Solana `e0fc5a1` and Stellar `8eb495e` only. They use published `policy.rs` SHA-256 `e07e148b2403a43e3080d043db7fcd49e505cb661adbb8e40c0f2ae4aeb6978b` and `policy_api.rs` SHA-256 `70b783aac1a7d7016ea967cc6d873a91917f6ce3f38b030551f4658923b7793d`. The copied header identifies frozen `policy.rs` SHA-256 `eceb1d4f55c93ef7921f47f3ca0d35bc589c3c6a1b0f29ae63f5fb9f9ff37da8`.
+
+This model does not certify contract `main`, the later `execute` implementation or its revised `policy_api.rs`. The later `policy.rs` SHA-256 starts with `ed974916`. Full historical acceptance still requires the pinned extraction libraries and Rust dependency caches. The retained receipts do not report fresh acceptance of those unavailable identities.
+
+## Abstraction and integration
+
+Identifiers are natural-number symbols for byte identities. Any implementation mapping must preserve identity equality and distinguish custody, owner, executor, asset and policy address/source/artifact. No hashing or signature-verification theorem is supplied. Amounts, counters, revisions and time are bounded u64 values. Balance is a natural-number projection in six-decimal policy units; token representability, native overflow, Stellar dust, fees and exact recipient effects require separate evidence.
+
+This native profile fixes the independently compiled ceiling at 50,000,000 policy units. A candidate policy may impose stricter bounds; those enter module readiness and do not raise custody's ceiling. The switch relation does not itself validate its existing limit against a replacement: the implementation connection must establish both the independent custody bound and candidate acceptance within `ready`.
+
+`ready(state, action)` explicitly represents platform prerequisites. Quantifying this predicate does not establish that a real action is ready. Implementation completeness additionally requires proving that valid platform preconditions imply it; choosing a predicate that never holds would not meet that obligation. The concrete witness instantiates it with `True` solely to establish nonvacuity of the successful-transfer relation from the stated example state; a reachable initialization-to-transfer trace is not proved here. `transfer_day_monotone` checks that the independent kernel predicate prevents backward day transitions.
+
+| Operation | Requirements not discharged by the model |
+| --- | --- |
+| Initialize/constructor | Fresh custody identity, signed owner, supported asset/decimals, bounded limit, approved artifact, rent/storage creation and initial time. `initial` is a record definition, not a proved constructor refinement. New custody has a separate allowance. |
+| Deposit | Real source authority, source/custody token association, checked representability and actual atomic token effects. Any valid source signer may fund. |
+| Withdraw | Authenticated owner and declared recipient, sufficient native funds and token effects. It bypasses the executor daily limit and preserves its counters. |
+| Approve/revoke | Authenticated owner and current revision; checked revision increment. Approval checks the reviewed module; revocation must remain possible independently of successful policy execution, subject to declared account/storage requirements. |
+| Tune | Owner/current revision, independently anchored compiled bounds, valid module and checked revision increment. Preserve approval and accounting, including when limit is below spent. |
+| Switch policy | Owner/current revision, approved replacement identities and checked revision increment. Clear standing approval and preserve accounting. This is a contract operation; the current MVP UI instead retires old authority and creates a separate activation. |
+| Transfer | Authenticated executor, authoritative state/time, approved artifact and strict request/response binding, supported asset/recipient, sufficient funds, exact token effects and runtime atomicity. Request revision and nonce must match. |
+| Read/unsupported | Read abstraction covers custody fields only. Unsupported has no successful transition; actual decoder errors and rejected protected effects still need proof/tests. |
+
+The [inventory](inventory.json) is human-reviewed against exact committed ABI/adapter sources, not a parser-generated exhaustiveness certificate. Both current contracts expose the same custody operations; Stellar additionally has `state`, `balance` and constructor/factory interfaces. Policy responses/requests use different chain encodings. Solana policy requests are 74 bytes for evaluation and 41 for validation; response is 77 bytes. Current Solana custody allocation is 320 bytes, including serialization padding.
+
+Source inspection finds two important profile distinctions. Solana owner withdrawal accepts an external token destination whose owner is not the vault; Stellar withdrawal pays the stored owner. Stellar `state()` and `balance()` call a helper that extends instance TTL. [Stellar's TTL documentation](https://developers.stellar.org/docs/learn/fundamentals/contract-development/storage/state-archival) confirms that extension changes storage lifetime. A claim of completely effect-free reads would therefore be false; custody-field preservation is the required projection here.
+
+The [Solana runtime documentation](https://solana.com/docs/core/transactions/transaction-pipeline) describes discarding account changes on execution failure while charging fees. That runtime behavior is a trust boundary to validate with failure traces, not an inference from the pure policy proof. Soroban rollback/error propagation requires its own runtime evidence; it is not assumed merely because a Rust function returns an error.
+
+## Reproducible evidence
+
+```sh
+python3 verification/adapter/check.py --tools /tmp/allowit-extraction-oct05
+PYTHONPYCACHEPREFIX=/tmp/allowit-proof-python-cache python3 -m unittest discover -s verification/tests -v
+```
+
+The [lock](lock.json) pins all proof/checker/inventory inputs, committed production adapter/interface/test source bytes, the published artifact intake, Lean 4.31 binary/core library identity and the existing cached Solana VM test executable. The checker snapshots inputs, compiles the unchanged independent kernel specification and new state specification in a fresh directory, audits all theorem axioms, then runs the copied VM executable against copied exact manifest artifacts. It checks inputs again and requires the retained [receipt](receipt.json) to match the freshly checked result. `--emit-receipt` prints a candidate for explicit reviewed refresh. It installs nothing and does not rebuild or alter production code. A retained receipt binds the checked result but is not live acceptance unless this checker is rerun.
+
+All seven existing Mollusk test functions pass. Removing either copied ELF or corrupting its ELF magic makes all seven tests fail; the checker restores both artifacts and requires another successful run. These four negative controls show that the cached replay depends on each supplied artifact and its valid ELF bytes, without proving universal byte consumption or build provenance. One contains 120 evaluation comparisons, five limit-validation cases and seven malformed-policy requests; the other functions cover actual token CPI, daily rollover, replay, tuning, policy switching, artifact/immutability checks and owner recovery. Their source is pinned, but the cached test executable's build provenance is **unproved**, as is the source provenance of compiled program artifacts. The executable, Mollusk/token models embedded within it and system runtime are trusted for this replay. Passing these tests is separate compiled execution evidence; no trace-to-model correspondence or universal compiled-adapter refinement is established.
+
+Still required: independent before/request/after traces mapped into this specification; exact failed-transfer rollback, wrong-authority/account/loader negatives with specific errors, counter/revision overflow, signature and deployed artifact provenance, ABI/units/binding proofs, and gateway/SDK/CLI/frontend uncertainty handling. All 24 release obligations remain open. This preparation relates to V02/V06–V13/V23/V24 without closing them; it does not gate the immediate Solana demonstration.
+
+Independent Opus 5.5 closure found no remaining material problems after the theorem and ELF-dependency repairs. This was a tools-disabled review of supplied verification text; the producer performed runtime reproduction.

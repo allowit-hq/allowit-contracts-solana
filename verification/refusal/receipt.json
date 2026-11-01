@@ -1,0 +1,62 @@
+{
+  "evidence": "finite_model_nonpermission_correspondence",
+  "lockSha256": "499d921715ced8dc862e18b51b07dd8f7a138f8708cdc872309f3f90313bccc4",
+  "dependencies": {
+    "../adapter/State.lean": "3eed9fd07b540dfb2645114f7c5f952fd1d32e30a1ae85149acdf38464d14259",
+    "../adapter/lock.json": "9b9bd11e17b2f484d2704d13bb57771424b15378d74538dd9905447b6cfd6345",
+    "../lean/NativeDaily.lean": "79fc03055aafe0c14ee1a998dcbb18c7429f47b1bd07365b8d24a4a2401184fb",
+    "../traces/Certificates.lean": "af4b72a84b56197ec27e1fadfd60056dc6bc01c43b4186fed92297d491005adc",
+    "../traces/certificates.py": "1c2df729bd5d6d127b93e6dcbbdd976e7bb4a5c46849f6be5f243eafd05c8d6e",
+    "../traces/check.py": "c42db6e19aa250743b5e73db03a51df8ba3ee4c4886ce27d3fc60d013acfd5ed",
+    "../traces/lock.json": "47473e4f03f10fca5352ca130f4ed78486b575dc225d1df87c16c6d083bbed7b",
+    "../traces/proof-check.txt": "b846f4b86af1c062f3c0e66b747b191eb522188084bde1aa4ad806dd73496c61",
+    "../traces/receipt.json": "76024d2c39ab05f9ee35a3a409d1c4feda080c91ab6fda0ef4d881bb4eda4fcf",
+    "../traces/vectors.jsonl": "c5248b52d91d9d149650813b834cb897610728b89f64a96e267db7fd7f9d74d9",
+    "check.py": "019f490d5ea1229d0b1f917f28a16eafd1c522eb8c67f49289d1817cedbf5e63",
+    "refusals.py": "23cf94b81ed3787bbdf89f676723c95f9aded266b9c199cad6a808d60f31c0be"
+  },
+  "traceReceiptSha256": "76024d2c39ab05f9ee35a3a409d1c4feda080c91ab6fda0ef4d881bb4eda4fcf",
+  "runtimeReplayed": true,
+  "rejectedCases": [
+    "unapproved",
+    "replay",
+    "lowered_denial",
+    "paused_denial",
+    "pause_new_day",
+    "switch_revoked",
+    "wrong_executor",
+    "unsigned_executor",
+    "stale_revision",
+    "unsupported",
+    "nonce_overflow",
+    "revision_overflow"
+  ],
+  "arbitraryReadinessAndPostState": true,
+  "budgetReadyTrueSuccessfulWitness": true,
+  "certificates": [
+    "tune_capacity",
+    "refuses_unapproved",
+    "refuses_replay",
+    "refuses_lowered_denial",
+    "refuses_paused_denial",
+    "refuses_pause_new_day",
+    "refuses_switch_revoked",
+    "refuses_wrong_executor",
+    "refuses_unsigned_executor",
+    "refuses_stale_revision",
+    "refuses_unsupported",
+    "refuses_nonce_overflow",
+    "refuses_revision_overflow",
+    "budget_model_permits"
+  ],
+  "outputs": {
+    "Refusals.lean": "f53a45dcd8e88bc3292de1ee3b9cbaee9f04b4b59b07c60fb41536c1236ad258",
+    "proof-check.txt": "e817b4336e9667e2d38b87a53a52856b7cbba412529f34cbd1585e6a9c8afce3"
+  },
+  "errorCauseOrPrecedenceProved": false,
+  "universalAdapterRefinement": false,
+  "realSignaturesProved": false,
+  "rollbackProved": false,
+  "clientExecution": false,
+  "deploymentChecked": false
+}

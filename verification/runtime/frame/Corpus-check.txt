@@ -1,0 +1,19 @@
+'AllowIt.TransactionCorpus.transaction_invalid_blockhash_frame' does not depend on any axioms
+'AllowIt.TransactionCorpus.transaction_abort_frame' depends on axioms: [propext, Quot.sound]
+'AllowIt.TransactionCorpus.transaction_invalid_signature_frame' does not depend on any axioms
+'AllowIt.TransactionCorpus.transaction_reuse_custody_preserved' does not depend on any axioms
+'AllowIt.TransactionCorpus.transaction_reuse_same_request' does not depend on any axioms
+'AllowIt.TransactionCorpus.transaction_reuse_success' depends on axioms: [propext]
+'AllowIt.TransactionCorpus.transaction_reuse_nonce_advance' depends on axioms: [propext]
+'AllowIt.TransactionCorpus.failure_boundary_invalid_blockhash_frame' does not depend on any axioms
+'AllowIt.TransactionCorpus.failure_boundary_token_failure_frame' depends on axioms: [propext, Quot.sound]
+'AllowIt.TransactionCorpus.failure_boundary_post_cpi_failure_frame' depends on axioms: [propext, Quot.sound]
+'AllowIt.TransactionCorpus.failure_boundary_invalid_signature_frame' does not depend on any axioms
+'AllowIt.TransactionCorpus.failure_boundary_token_reuse_custody_preserved' does not depend on any axioms
+'AllowIt.TransactionCorpus.failure_boundary_token_reuse_same_request' does not depend on any axioms
+'AllowIt.TransactionCorpus.failure_boundary_token_reuse_success' depends on axioms: [propext]
+'AllowIt.TransactionCorpus.failure_boundary_token_reuse_nonce_advance' depends on axioms: [propext]
+'AllowIt.TransactionCorpus.failure_boundary_post_cpi_reuse_custody_preserved' does not depend on any axioms
+'AllowIt.TransactionCorpus.failure_boundary_post_cpi_reuse_same_request' does not depend on any axioms
+'AllowIt.TransactionCorpus.failure_boundary_post_cpi_reuse_success' depends on axioms: [propext]
+'AllowIt.TransactionCorpus.failure_boundary_post_cpi_reuse_nonce_advance' depends on axioms: [propext]

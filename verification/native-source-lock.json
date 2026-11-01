@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "policy_sha256": "eceb1d4f55c93ef7921f47f3ca0d35bc589c3c6a1b0f29ae63f5fb9f9ff37da8",
+  "api_sha256": "70b783aac1a7d7016ea967cc6d873a91917f6ce3f38b030551f4658923b7793d",
+  "targets": {
+    "solana": "../AllowIt-contracts-solana/policy",
+    "stellar": "../AllowIt-contracts-stellar/policy"
+  },
+  "binding": "Inspected source snapshot only; contract ABI, adapters, compilation to chain targets and deployment remain separate evidence."
+}

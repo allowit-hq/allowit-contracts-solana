@@ -1,0 +1,78 @@
+{
+  "level": "producer_observed_finite_signed_transaction_store_correspondence",
+  "upstreamRevision": "980f39121cda14bc78d8c46489d2d12fb0cc6eae",
+  "upstreamTree": "e8941d2f36e5ec8786254304ec388144dc37f613",
+  "manifest": {
+    "repository": "ackrate/AllowIt-contracts-solana",
+    "revision": "e0fc5a19985a7c1d1d184754dba98ddbc98e2841",
+    "path": "artifacts/manifest.json",
+    "sha256": "36340489a43ac5e70130afc55646360cdcdada83d8bf9b87dccad673375010af"
+  },
+  "files": {
+    "Cargo.toml": "cec67c708f38d12297d369963b5441e3986d65b9455f34969b432d676de60581",
+    "bindings.json": "68f8b15a6e8561457a7085740972f0fa7e53f83d119e83abdf6399d5df19a0b1",
+    "replay.jsonl": "966fc8c481e6f18aaf3aadccd0c96d9cc044d1fbc4b17ba6e01db6f557ce47e0",
+    "Cargo.lock": "408f5dd2f37e102501de5e8da61b615dbf16d4aa1573ba70031e0aded8de4734",
+    "build.txt": "29db26069e10cfe47f6c5c48b4690947b7b798cc9a5c2aeb985aaf22deb03561",
+    "README.md": "8f34556f86ac3ddcc070f8733218e452a23eb43f181239fbd119d462307a7fd7",
+    "validate.py": "69fb1127a503987030dcba22f46551e1c639f9c1eab0afba37e20cdc2f6d9dfc",
+    "validation.json": "f211387bd0cbe6510159dfe98f9943425e85af573331ef53e12adbd2dd3d3f46",
+    "main.rs": "a53bb1b0aad14cc2cd4662c0ec4878c7e794faa17253c729cca549d767909d67",
+    "vectors.jsonl": "18e3766a76806bc9b6f1ac3b376114791a2a1bc7569a77064f32f5203b6a8b80"
+  },
+  "nativeExecutableSha256": "cb6701d683345801b227d00a6784b921c4ad8c5a03c3f37b369ea07d5e747d05",
+  "rustcSha256": "a11618eca0956a8aa4372c2bc898690b513cbdfa2cb9125b2a5301e360ed5b49",
+  "cargoSha256": "1de2e84c15443b70444eecfa959ff9099dd8c1a5606b6d9ef5bc0ea9c25bc7f9",
+  "artifacts": {
+    "allowit_policy.so": {
+      "name": "allowit_policy.so",
+      "bytes": 1696,
+      "sha256": "8a7312e81e680a54648c2ad7fc23b77f6cddf70a8c2c733b92076563fd3a19f4"
+    },
+    "allowit_vault.so": {
+      "name": "allowit_vault.so",
+      "bytes": 100280,
+      "sha256": "b7359562591dcef60a43115f7441be00b8205752af3393c4adbb089c8500cb6f"
+    },
+    "token.so": {
+      "sha256": "7b44674b9704fa7640fbebfac68389f338b500b8c2bc29175c27ed66838b5a3c",
+      "bytes": 134080,
+      "repository": "LiteSVM/litesvm",
+      "revision": "980f39121cda14bc78d8c46489d2d12fb0cc6eae",
+      "path": "crates/litesvm/src/programs/elf/spl_token-3.5.0.so"
+    }
+  },
+  "freshProcesses": 2,
+  "rawCorpusSha256": [
+    "18e3766a76806bc9b6f1ac3b376114791a2a1bc7569a77064f32f5203b6a8b80",
+    "966fc8c481e6f18aaf3aadccd0c96d9cc044d1fbc4b17ba6e01db6f557ce47e0"
+  ],
+  "normalizedCorpusSha256": "cc254bde7de3a0f71d52093a520784946917e2f9f5ee14769ca0e33c40410489",
+  "reproductionScope": "Wire, signatures, logs and raw projections reproduce exactly; full-store account names reproduce modulo one unchanged/unreferenced internal LiteSVM airdrop funding key. normalize() checks original full frames first and refuses changes/reference to that funding account.",
+  "exitStatuses": [
+    0,
+    0
+  ],
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "constructedApprovedFixture": true,
+  "resolvedDownstreamLockScope": "Own lock governs graph; upstream workspace Cargo.lock does not govern downstream selection. No full compiler-lib/compiled-cache/registry-source closure pin.",
+  "accountFrameScope": "Trusted Rust enumerates entire LiteSVM store; independent Python checks metadata/data hashes, raw custody/token/mint/Clock throughout and program/ProgramData raw bytes in initial record. Frozen artifact hashes and unchanged frames bind later execution. PDA canonicality/off-curve selection trusted; supplied-bump hash checked. Clock account/syscall-cache fidelity and manually inspected ABI/source mapping trusted.",
+  "signatureScope": "Finite signed executor cases and exact executor-signature corruption rejected before execution; cryptography/runtime fidelity trusted. No universal authority proof.",
+  "rollbackScope": "Finite three-instruction transaction abort (budget, transfer, unsupported request) after successful custody transfer/token CPI; fee effect and nonce reuse. No same-custody-instruction failure or validator/deployment proof.",
+  "leanProof": false,
+  "readinessProved": false,
+  "universalAdapterRefinement": false,
+  "compiledProgramBuildProvenance": false,
+  "compiledDependencyClosurePinned": false,
+  "clientExecution": false,
+  "deploymentIdentity": false,
+  "releaseObligationsClosed": [],
+  "testFileSha256": "2bd0e687fd33b2d8d13bc52a24042151276f63c984b273374d8a2c713c9336bf",
+  "normalizedSerialization": "UTF8 json.dumps(full normalize(record_list), sort_keys=True, separators=(comma,colon)), no trailing newline; ensure_ascii default True",
+  "pythonVersion": "3.9.6 (default, May 22 2026, 11:13:45) \n[Clang 21.0.0 (clang-2100.1.1.101)]",
+  "pythonExecutable": "/Library/Developer/CommandLineTools/usr/bin/python3",
+  "pythonExecutableSha256": "bdea59019a38eb6600cc9e71e984a97fedadc406448431281e7657030f54987e",
+  "pythonLibraryClosurePinned": false,
+  "rustcVersion": "rustc 1.98.0 (88d9e12ae 2026-08-18)\nbinary: rustc\ncommit-hash: 88d9e12ae178fab0fb5cc050a94da85685d449ea\ncommit-date: 2026-08-18\nhost: aarch64-apple-darwin\nrelease: 1.98.0\nLLVM version: 22.1.8",
+  "cargoVersion": "cargo 1.98.0 (797e8a9bc 2026-08-05)"
+}

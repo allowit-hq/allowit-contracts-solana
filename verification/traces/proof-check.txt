@@ -1,0 +1,32 @@
+'AllowIt.CustodyTraces.success_0' depends on axioms: [propext]
+'AllowIt.CustodyTraces.asset_effect_0' does not depend on any axioms
+'AllowIt.CustodyTraces.rejection_1' does not depend on any axioms
+'AllowIt.CustodyTraces.success_2' depends on axioms: [propext]
+'AllowIt.CustodyTraces.success_3' depends on axioms: [propext]
+'AllowIt.CustodyTraces.asset_effect_3' does not depend on any axioms
+'AllowIt.CustodyTraces.rejection_4' does not depend on any axioms
+'AllowIt.CustodyTraces.success_5' depends on axioms: [propext]
+'AllowIt.CustodyTraces.rejection_6' does not depend on any axioms
+'AllowIt.CustodyTraces.success_7' depends on axioms: [propext]
+'AllowIt.CustodyTraces.rejection_8' does not depend on any axioms
+'AllowIt.CustodyTraces.success_9' depends on axioms: [propext]
+'AllowIt.CustodyTraces.asset_effect_9' does not depend on any axioms
+'AllowIt.CustodyTraces.success_10' depends on axioms: [propext]
+'AllowIt.CustodyTraces.asset_effect_10' does not depend on any axioms
+'AllowIt.CustodyTraces.rejection_11' does not depend on any axioms
+'AllowIt.CustodyTraces.success_12' depends on axioms: [propext]
+'AllowIt.CustodyTraces.success_13' depends on axioms: [propext]
+'AllowIt.CustodyTraces.asset_effect_13' does not depend on any axioms
+'AllowIt.CustodyTraces.success_14' depends on axioms: [propext]
+'AllowIt.CustodyTraces.rejection_15' does not depend on any axioms
+'AllowIt.CustodyTraces.success_16' depends on axioms: [propext]
+'AllowIt.CustodyTraces.success_17' depends on axioms: [propext]
+'AllowIt.CustodyTraces.success_18' depends on axioms: [propext]
+'AllowIt.CustodyTraces.rejection_19' does not depend on any axioms
+'AllowIt.CustodyTraces.rejection_20' does not depend on any axioms
+'AllowIt.CustodyTraces.rejection_21' does not depend on any axioms
+'AllowIt.CustodyTraces.rejection_22' does not depend on any axioms
+'AllowIt.CustodyTraces.rejection_23' does not depend on any axioms
+'AllowIt.CustodyTraces.rejection_24' does not depend on any axioms
+'AllowIt.CustodyTraces.rejection_25' does not depend on any axioms
+'AllowIt.CustodyTraces.diagnostic_recipient_mismatch' does not depend on any axioms
