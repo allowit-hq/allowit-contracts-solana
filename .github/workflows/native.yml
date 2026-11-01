@@ -1,10 +1,10 @@
 name: Native Solana SDK
 on:
   pull_request:
-    paths: ["crates/native/**", "native/**", ".github/workflows/native.yml"]
+    paths: ["crates/native/**", "native/**", "Cargo.toml", "Cargo.lock", ".github/workflows/native.yml"]
   push:
     branches: [main]
-    paths: ["crates/native/**", "native/**", ".github/workflows/native.yml"]
+    paths: ["crates/native/**", "native/**", "Cargo.toml", "Cargo.lock", ".github/workflows/native.yml"]
   schedule:
     - cron: "17 4 * * *"
   workflow_dispatch:
