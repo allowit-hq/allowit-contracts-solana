@@ -648,40 +648,6 @@ fn authority_partial_rejects_changed_envelope_message_and_signer_slots() {
         assert!(f.journal.entries::<Record>().unwrap().is_empty());
     }
 }
-#[test]
-fn expired_authorization_never_requests_executor_signature() {
-    for expired_by_height in [false, true] {
-        let f = Fixture::new();
-        let identity = f.identity("expired-authority-001", "fetch fixed fixture");
-        let response = f.authorized(&identity);
-        {
-            let mut network = f.rpc.data.lock().unwrap();
-            if expired_by_height {
-                network.block_height = response.last_valid_block_height + 1;
-                network.height = response.last_valid_block_height + 1;
-            } else {
-                network.chain_time = response.approval.expires_at;
-            }
-        }
-        let signatures = AtomicUsize::new(0);
-        assert!(
-            f.life()
-                .submit_authorized(
-                    &f.policy,
-                    f.owner.public_key(),
-                    &identity,
-                    || Ok(response.clone()),
-                    |transaction| {
-                        signatures.fetch_add(1, Ordering::Relaxed);
-                        Ok(f.executor.sign(&transaction.message))
-                    },
-                )
-                .is_err()
-        );
-        assert_eq!(signatures.load(Ordering::Relaxed), 0);
-        assert!(f.journal.entries::<Record>().unwrap().is_empty());
-    }
-}
 impl NativeOperations for Fixture {
     fn client(&self) -> &NativeClient {
         &self.sdk
@@ -1543,17 +1509,31 @@ fn server_reconciliation_requires_no_file_journal_or_signing() {
 }
 
 #[test]
-fn live_tip_expiry_and_stale_observations_never_request_executor_signatures() {
-    for case in ["height", "time", "stale", "invalid-blockhash"] {
+fn expiry_and_stale_observations_never_request_executor_signatures() {
+    for case in [
+        "finalized-height",
+        "finalized-time",
+        "height",
+        "time",
+        "stale",
+        "invalid-blockhash",
+    ] {
         let f = Fixture::new();
         let identity = f.identity("live-tip-expiry-001", "fetch fixed fixture");
         let response = f.authorized(&identity);
         {
             let mut network = f.rpc.data.lock().unwrap();
-            // Finalized observations are still fresh. Only the processed tip changed.
-            assert_eq!(network.height, 10);
-            assert_eq!(network.chain_time, 100);
-            network.processed_slot = Some(if case == "stale" { 98 } else { 150 });
+            if case == "finalized-height" {
+                network.block_height = response.last_valid_block_height + 1;
+                network.height = response.last_valid_block_height + 1;
+            } else if case == "finalized-time" {
+                network.chain_time = response.approval.expires_at;
+            } else {
+                // Finalized observations are still fresh. Only the processed tip changed.
+                assert_eq!(network.height, 10);
+                assert_eq!(network.chain_time, 100);
+                network.processed_slot = Some(if case == "stale" { 98 } else { 150 });
+            }
             if case == "height" {
                 network.processed_height = Some(response.last_valid_block_height + 1);
             }
@@ -1581,7 +1561,7 @@ fn live_tip_expiry_and_stale_observations_never_request_executor_signatures() {
             "{case}"
         );
         assert_eq!(signatures.load(Ordering::Relaxed), 0, "{case}");
-        assert!(f.journal.entries::<Record>().unwrap().is_empty());
+        assert!(f.journal.entries::<Record>().unwrap().is_empty(), "{case}");
     }
 }
 

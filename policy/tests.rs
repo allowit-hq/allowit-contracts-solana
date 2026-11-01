@@ -64,6 +64,9 @@ fn only_declared_bounds_are_accepted() {
         crate::policy_api::validate_daily_limit(50_000_001),
         Err(PolicyError::ParameterOutOfBounds)
     );
+    let mut c = ctx();
+    c.daily_limit = crate::policy_api::MAX_DAILY_LIMIT + 1;
+    assert_eq!(policy::execute(&c), Err(PolicyError::ParameterOutOfBounds));
 }
 
 #[test]
