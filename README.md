@@ -221,7 +221,7 @@ The [`Solana runtime smoke`](.github/workflows/integration-runtime.yml) workflow
 - [allowit-core](https://github.com/allowit-hq/allowit-core): the policy compiler, evaluator and shared types (package `allowit-sdk`). The programs and the host crates depend on it.
 - [allowit-sdk](https://github.com/allowit-hq/allowit-sdk): the `allowit` CLI and the engine. They depend on the host crates here and on allowit-core. Pins point one way: allowit-sdk depends on this repository, and this repository depends only on allowit-core.
 - [allowit-contracts-stellar](https://github.com/allowit-hq/allowit-contracts-stellar): the same policy and owner-control principle on Soroban. `check-policy.py --peer` keeps the two in lockstep.
-- The Allowit engine is the off-chain evaluator that signs requests. The service packages under `crates/` were extracted from it.
+- The Allowit engine is the off-chain evaluator that signs requests. The service packages under `crates/` record the engine revision they were extracted from in their `Cargo.toml`.
 
 ## Contributing
 

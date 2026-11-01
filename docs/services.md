@@ -36,4 +36,4 @@ The [`Host service packages`](../.github/workflows/service-packages.yml) workflo
 
 ## Provenance and licensing
 
-Each package declares its own license in `Cargo.toml`. The packages extracted from the Allowit engine carry `LicenseRef-Proprietary`.
+Each package declares its own license in `Cargo.toml`. The packages extracted from the Allowit engine carry `LicenseRef-Proprietary` plus a `[package.metadata.allowit-source]` block that names the engine repository, the exact revision and the source paths they came from.

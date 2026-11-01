@@ -5,6 +5,11 @@ edition = "2024"
 license = "LicenseRef-Proprietary"
 publish = false
 
+[package.metadata.allowit-source]
+repository = "https://github.com/allowit-hq/allowit-engine"
+revision = "8cbd4625b170ae72aa470a642f19a55b2f40e9a3"
+path = "crates/server/crates/api/src/delegated/catalog-mainnet.json"
+
 [dependencies]
 allowit-sdk = { workspace = true, features = ["service"] }
 serde_json = "1.0.150"
