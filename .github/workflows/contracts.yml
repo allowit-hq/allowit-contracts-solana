@@ -16,10 +16,6 @@ jobs:
     if: github.event_name == 'pull_request' || github.event_name == 'push'
     runs-on: ubuntu-24.04
     timeout-minutes: 1
-    strategy:
-      fail-fast: false
-      matrix:
-        flow: [approval, limits]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -30,8 +26,28 @@ jobs:
           set -euo pipefail
           python3 scripts/check-policy.py
           rustc --edition=2021 --test scripts/policy-smoke.rs -o "$RUNNER_TEMP/policy-smoke"
-          "$RUNNER_TEMP/policy-smoke" "${{ matrix.flow }}" --nocapture | tee "$RUNNER_TEMP/policy.log"
+          "$RUNNER_TEMP/policy-smoke" | tee "$RUNNER_TEMP/policy.log"
           grep -Eq 'test result: ok\. [1-9][0-9]* passed; 0 failed' "$RUNNER_TEMP/policy.log"
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      # The mandate program refuses to build for SBF without an explicit cluster.
+      ALLOWIT_SOLANA_NETWORK: devnet
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.98.0
+      - uses: Swatinem/rust-cache@v2
+      - name: Install checksum-pinned official Agave tooling
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/agave"
+          curl --fail --location --retry 3 https://github.com/anza-xyz/agave/releases/download/v4.3.0/solana-release-x86_64-unknown-linux-gnu.tar.bz2 -o "$RUNNER_TEMP/agave.tar.bz2"
+          printf '%s  %s\n' c97289a8abb1d0efb497d8b5cb285baabd9b7f8ea6647f5d145c5dc8ff3611e8 "$RUNNER_TEMP/agave.tar.bz2" | sha256sum --check
+          tar -xjf "$RUNNER_TEMP/agave.tar.bz2" -C "$RUNNER_TEMP/agave"
+          echo "$RUNNER_TEMP/agave/solana-release/bin" >> "$GITHUB_PATH"
+      - run: scripts/build.sh
   contracts:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04

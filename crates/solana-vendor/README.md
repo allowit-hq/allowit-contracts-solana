@@ -1,7 +1,7 @@
 # Solana vendor
 
 `allowit-solana-vendor` provides Solana host adapters to the Allowit SDK client facade.
-It depends on the `client` feature of `allowit-sdk` (SDK core) for errors, origin validation and safe output.
+It depends on the `client` feature of `allowit-sdk` ([Allowit core](https://github.com/allowit-hq/allowit-core)) for errors, origin validation and safe output.
 It does not depend on the SDK client facade or CLI.
 
 `paysh::run(args, stdout, stderr)` reconciles retained PaySH operations with their

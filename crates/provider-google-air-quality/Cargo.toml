@@ -1,6 +1,6 @@
 [package]
 name = "allowit-vendor-google-air-quality"
-version = "0.1.0"
+version.workspace = true
 edition = "2024"
 license = "LicenseRef-Proprietary"
 publish = false
@@ -11,8 +11,6 @@ revision = "8cbd4625b170ae72aa470a642f19a55b2f40e9a3"
 path = "crates/server/crates/provider-google-air-quality"
 
 [dependencies]
-allowit-sdk = { git = "https://github.com/allowit-hq/allowit-sdk.git", rev = "67f5d696847992e18131f815ce905713ec3646e1", default-features = false, features = ["service"] }
+allowit-sdk = { workspace = true, features = ["service"] }
 reqwest = { version = "0.12.28", default-features = false, features = ["blocking", "json", "rustls-tls"] }
 serde_json = "1.0.150"
-
-[workspace]

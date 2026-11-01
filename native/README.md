@@ -6,7 +6,7 @@
 Rust policy source in [allowit-contracts-solana](https://github.com/allowit-hq/allowit-contracts-solana)
 to the owner's lifecycle commands and to the Allowit browser signing flow. It is
 a separate adapter from the restricted Rust compiler and WebAssembly build in
-[allowit-sdk](https://github.com/allowit-hq/allowit-sdk), and from the owner-signed wallet allowance profile in
+[allowit-core](https://github.com/allowit-hq/allowit-core), and from the owner-signed wallet allowance profile in
 [`programs/mandate/`](../programs/mandate/). The Rust counterpart that the client facade uses is
 [`crates/native/`](../crates/native/).
 

@@ -24,15 +24,15 @@ None of this code runs inside an on-chain program.
 
 ## Building and testing
 
-Each package is its own Cargo workspace with its own lockfile, so point Cargo at the manifest you want:
+Each package is a member of the root Cargo workspace and uses the root lockfile:
 
 ```sh
-cargo fmt --manifest-path crates/service-upstreams/Cargo.toml --check
-cargo clippy --manifest-path crates/service-upstreams/Cargo.toml --locked --all-targets -- -D warnings
-cargo test --manifest-path crates/service-upstreams/Cargo.toml --locked
+cargo fmt --all --check
+cargo clippy --locked -p allowit-solana-service-upstreams --all-targets -- -D warnings
+cargo test --locked -p allowit-solana-service-upstreams
 ```
 
-The [`Host service packages`](../.github/workflows/service-packages.yml) workflow runs exactly these three commands for every package whenever one of them changes.
+The [`Host service packages`](../.github/workflows/service-packages.yml) workflow runs clippy and the tests for every package whenever one of them changes.
 
 ## Provenance and licensing
 

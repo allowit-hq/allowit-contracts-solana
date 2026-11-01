@@ -1,6 +1,6 @@
 [package]
 name = "allowit-solana-vendor"
-version = "0.1.0"
+version.workspace = true
 edition = "2024"
 rust-version = "1.98"
 license = "MIT"
@@ -8,6 +8,6 @@ publish = false
 description = "Allowit Solana host adapters and retained PaySH operation reconciliation"
 
 [dependencies]
-allowit-sdk = { git = "https://github.com/allowit-hq/allowit-sdk.git", rev = "67f5d696847992e18131f815ce905713ec3646e1", default-features = false, features = ["client"] }
+allowit-sdk = { workspace = true, features = ["client"] }
 reqwest = { version = "0.12.23", default-features = false, features = ["blocking", "native-tls-vendored"] }
 serde_json = "1.0.150"

@@ -269,31 +269,40 @@ mod tests {
     }
 
     #[test]
-    fn block_time_retry_does_not_admit_bad_envelopes_or_other_errors() {
-        for reply in [
-            json!({"jsonrpc":"2.0", "id":99, "error":{"code":-32004}}),
-            json!({"jsonrpc":"1.0", "error":{"code":-32004}}),
-            json!({"jsonrpc":"2.0", "error":{"code":-32602}}),
-            json!({"jsonrpc":"2.0"}),
-        ] {
-            let (result, requests) = scripted_rpc("getBlockTime", json!([509902168]), vec![reply]);
-            assert_eq!(result.unwrap_err().code, 3);
-            assert_eq!(requests.len(), 1);
-        }
-    }
-
-    #[test]
-    fn block_time_error_does_not_retry_submission_or_another_method() {
-        for (method, params) in [
+    fn only_a_pending_block_time_is_retried() {
+        let block_time = ("getBlockTime", json!([509902168]));
+        let pending = pending_time();
+        for (method, params, reply) in [
+            (
+                block_time.0,
+                block_time.1.clone(),
+                json!({"jsonrpc":"2.0", "id":99, "error":{"code":-32004}}),
+            ),
+            (
+                block_time.0,
+                block_time.1.clone(),
+                json!({"jsonrpc":"1.0", "error":{"code":-32004}}),
+            ),
+            (
+                block_time.0,
+                block_time.1.clone(),
+                json!({"jsonrpc":"2.0", "error":{"code":-32602}}),
+            ),
+            (block_time.0, block_time.1.clone(), json!({"jsonrpc":"2.0"})),
             (
                 "sendTransaction",
                 json!(["signed-proof", {"encoding":"base64"}]),
+                pending.clone(),
             ),
-            ("getBlockHeight", json!([{"commitment":"processed"}])),
+            (
+                "getBlockHeight",
+                json!([{"commitment":"processed"}]),
+                pending.clone(),
+            ),
         ] {
-            let (result, requests) = scripted_rpc(method, params, vec![pending_time()]);
-            assert_eq!(result.unwrap_err().code, 3);
-            assert_eq!(requests.len(), 1);
+            let (result, requests) = scripted_rpc(method, params, vec![reply]);
+            assert_eq!(result.unwrap_err().code, 3, "{method}");
+            assert_eq!(requests.len(), 1, "{method}");
         }
     }
 }

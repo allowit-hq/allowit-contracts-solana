@@ -6,7 +6,7 @@ An owner approves a policy once. These adapters make sure that is the policy tha
 
 ## What is here
 
-- [SDK core](https://github.com/allowit-hq/allowit-sdk/tree/main/core) (`allowit-sdk`, feature `contract`) owns the mandate envelope, artifact checks, exact request binding, budget and nonce accounting, evidence checks and the host-side `allowit-contract-artifact` command.
+- [Allowit core](https://github.com/allowit-hq/allowit-core) (`allowit-sdk`, feature `contract`) owns the mandate envelope, artifact checks, exact request binding, budget and nonce accounting, evidence checks and the host-side `allowit-contract-artifact` command.
 - This package, [`allowit-solana`](src/lib.rs), is a native Rust program that spends through classic SPL Token `transfer_checked`.
 - [`sbf-tests/`](sbf-tests/) runs the built SBF program against the real SPL Token processor.
 
@@ -26,7 +26,7 @@ Each owner/policy pair has one active revision. The first revision is 1; activat
 
 Create exact artifact bytes from source and owner intent:
 
-Run this in an [allowit-sdk](https://github.com/allowit-hq/allowit-sdk) checkout:
+Run this in an [allowit-core](https://github.com/allowit-hq/allowit-core) checkout:
 
 ```sh
 cargo run -p allowit-sdk --features compiler,contract \
@@ -88,7 +88,7 @@ CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 \
   cargo test --locked --manifest-path programs/mandate/Cargo.toml
 ```
 
-The common vectors in [SDK core](https://github.com/allowit-hq/allowit-sdk/tree/main/core) compare oracle and contract core outcomes/error codes, then test bindings, monetary boundaries, replay/revocation, confidence, semantic context and input rejection. Native Solana tests dispatch signed CPI to the actual SPL Token processor and assert balances.
+The common vectors in [Allowit core](https://github.com/allowit-hq/allowit-core) compare oracle and contract core outcomes/error codes, then test bindings, monetary boundaries, replay/revocation, confidence, semantic context and input rejection. Native Solana tests dispatch signed CPI to the actual SPL Token processor and assert balances.
 
 [Mandate CI](../../.github/workflows/mandate.yml) builds the actual SBF program with checksum-pinned official Agave 4.3.0/platform-tools 1.57, runs it with the real SPL Token ELF and System Program in Mollusk 0.15.1, and uploads the ELF/hash/build logs/CU results. The maximum admitted artifact and depth-eight policy must activate and transfer within the configured resource limit. To run that suite after building:
 

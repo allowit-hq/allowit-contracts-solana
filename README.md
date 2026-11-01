@@ -87,15 +87,12 @@ cargo build-sbf --manifest-path programs/paysh/Cargo.toml --arch v3 --optimize-s
 
 # 4. Run the compiled vault and PaySH programs against real SPL Token transfers (Mollusk)
 SBF_OUT_DIR="$PWD/target/deploy" cargo test --manifest-path sbf-tests/Cargo.toml --locked --test vault --test paysh
-
-# 5. Print a manifest of what you just built (hashes, sizes, git revision)
-python3 scripts/artifacts.py                 # add --output PATH to save it
 ```
 
 The PaySH swap tests also need a Whirlpool program. `bash scripts/build-whirlpool-test.sh` downloads a pinned Orca source archive, checks its SHA-256 and builds it into `target/whirlpool-fixture/`. Then add `--test paysh_whirlpool` to step 4, or drop the `--test` flags to run every suite. If you move the fixture with `WHIRLPOOL_FIXTURE_DIR`, point the tests at the built program with `WHIRLPOOL_SBF_PATH=<dir>/target/deploy/whirlpool.so`.
 
 > [!TIP]
-> Each PaySH host service package is its own Cargo workspace. Test one with `cargo test --manifest-path crates/<package>/Cargo.toml --locked`. See [Host service packages](docs/services.md).
+> Every crate and program except the mandate program is a member of the root Cargo workspace. Test one with `cargo test --locked -p <package>`. See [Host service packages](docs/services.md).
 
 ## Using the vault
 
@@ -211,32 +208,36 @@ The [`Solana runtime smoke`](.github/workflows/integration-runtime.yml) workflow
 ├── native/                 @allowit/native: JavaScript native vault lifecycle
 ├── sbf-tests/              Mollusk tests against the compiled programs
 ├── verification/           Hash-locked Solana verification set and obligation ledger
-├── scripts/                check-policy.py, artifacts.py, policy-smoke.rs, Whirlpool fixture
+├── scripts/                build.sh, check-policy.py, policy-smoke.rs, Whirlpool fixture
 └── docs/                   Architecture, PaySH profile, host service packages, native vault v2
 ```
 
-- [`programs/mandate/`](programs/mandate/README.md) is the owner-approved mandate allowance program. It evaluates compiled policy IR with SDK core and spends through SPL Token `transfer_checked`. It keeps its own Cargo lockfile.
+- [`programs/mandate/`](programs/mandate/README.md) is the owner-approved mandate allowance program. It evaluates compiled policy IR with Allowit core and spends through SPL Token `transfer_checked`. It and its Mollusk harness `programs/mandate/sbf-tests/` each keep their own Cargo lockfile.
 - [`crates/native/`](crates/native/) is the Rust native SDK for the vault v2 lifecycle. [`native/`](native/README.md) is its JavaScript counterpart.
-- [`verification/`](verification/README.md) holds the Solana verification set: the native and published policy correspondence checks, the obligation ledger, and the refinement, adapter, trace, refusal, isolation and runtime evidence. allowit-sdk keeps only the core Lean model. The inputs are hash-bound: run `python3 -m unittest discover -s verification/tests`.
+- [`verification/`](verification/README.md) holds the Solana verification set: the native and published policy correspondence checks, the obligation ledger, and the refinement, adapter, trace, refusal, isolation and runtime evidence. allowit-core keeps only the core Lean model. The inputs are hash-bound: run `python3 -m unittest discover -s verification/tests`.
 - [`docs/native-vault-v2.md`](docs/native-vault-v2.md) describes the native vault v2 protocol.
 
 ## Part of Allowit
 
 - [allowit.xyz](https://allowit.xyz): what Allowit is and how owners use it.
-- [allowit-sdk](https://github.com/allowit-hq/allowit-sdk): the policy language, runtime, compiler and CLI that drive these programs.
+- [allowit-core](https://github.com/allowit-hq/allowit-core): the policy compiler, evaluator and shared types (package `allowit-sdk`). The programs and the host crates depend on it.
+- [allowit-sdk](https://github.com/allowit-hq/allowit-sdk): the `allowit` CLI and the engine. They depend on the host crates here and on allowit-core. Pins point one way: allowit-sdk depends on this repository, and this repository depends only on allowit-core.
 - [allowit-contracts-stellar](https://github.com/allowit-hq/allowit-contracts-stellar): the same policy and owner-control principle on Soroban. `check-policy.py --peer` keeps the two in lockstep.
 - The Allowit engine is the off-chain evaluator that signs requests. The service packages under `crates/` record the engine revision they were extracted from in their `Cargo.toml`.
 
 ## Contributing
 
-Pull requests run the portable policy checks ([`contracts.yml`](.github/workflows/contracts.yml)) and, when touched, the service package matrix ([`service-packages.yml`](.github/workflows/service-packages.yml)), the native SDKs ([`native.yml`](.github/workflows/native.yml)), the mandate program ([`mandate.yml`](.github/workflows/mandate.yml)) and verification ([`verification.yml`](.github/workflows/verification.yml)). The compiled-program suites run nightly and on demand. Before you open a PR:
+Pull requests run the portable policy checks and `scripts/build.sh` ([`contracts.yml`](.github/workflows/contracts.yml)) and, when touched, the service package matrix ([`service-packages.yml`](.github/workflows/service-packages.yml)), the native SDKs ([`native.yml`](.github/workflows/native.yml)), the mandate program ([`mandate.yml`](.github/workflows/mandate.yml)) and verification ([`verification.yml`](.github/workflows/verification.yml)). The compiled-program suites run nightly and on demand. Before you open a PR:
 
 ```sh
+ALLOWIT_SOLANA_NETWORK=devnet scripts/build.sh   # fail on a stale allowit-core pin, then build the workspace and the SBF programs
 python3 scripts/check-policy.py
 cargo fmt --all --check
 cargo fmt --manifest-path sbf-tests/Cargo.toml --check
 cargo test --workspace --locked
 ```
+
+Allowit core (package `allowit-sdk`, repository allowit-core) is the only git dependency. `[workspace.metadata.allowit.track]` in the root `Cargo.toml` says which commit it must be pinned to: `"head"` (the default branch tip), `{ branch = "name" }` or `{ version = "1.2.3" }` (tag `v1.2.3`). `scripts/build.sh --update` moves a stale pin and refreshes the locks; `scripts/build.sh --update allowit-core` moves only that repository's pins. The script needs `git`, `cargo` and `jq`.
 
 If you edit `policy/policy.rs` or `policy/policy_api.rs`, regenerate `source_hash.rs` with `--write` and make the identical change in the Stellar repository. [`AGENTS.md`](AGENTS.md) describes what belongs in this repository and what does not.
 

@@ -2,7 +2,7 @@
 
 This folder holds the hash-bound Solana verification set: the native policy correspondence check, the published-source check, the obligation ledger, and the refinement, adapter, trace, refusal, isolation and runtime evidence. It moved here from allowit-sdk as one unit. Every file is byte-identical to allowit-sdk `ede4e9f`, except this README and one run-directory sentence in [`lean/README.md`](lean/README.md). Never re-hash a lock or receipt to make a check pass.
 
-[allowit-sdk `verification/`](https://github.com/allowit-hq/allowit-sdk/tree/main/verification) keeps only the core Lean model of feature selection and policy decisions. `lean/AllowIt.lean` is also here, because the native and published receipts bind it by hash.
+[allowit-core `verification/`](https://github.com/allowit-hq/allowit-core/tree/main/verification) keeps only the core Lean model of feature selection and policy decisions. `lean/AllowIt.lean` is also here, because the native and published receipts bind it by hash.
 
 This space owns Lean specifications, completeness obligations, independent expected outcomes and assurance reports. Contract, SDK, gateway, CLI and frontend agents own their implementations. The verification owner reviews those implementations against independently stated requirements and records remaining gaps; implementation tests alone do not define the expected behavior.
 

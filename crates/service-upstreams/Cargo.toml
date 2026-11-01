@@ -1,6 +1,6 @@
 [package]
 name = "allowit-solana-service-upstreams"
-version = "0.1.0"
+version.workspace = true
 edition = "2024"
 license = "LicenseRef-Proprietary"
 publish = false
@@ -10,10 +10,8 @@ repository = "https://github.com/allowit-hq/allowit-engine"
 revision = "8cbd4625b170ae72aa470a642f19a55b2f40e9a3"
 paths = ["crates/server/src/lib.rs", "crates/server/crates/paysh/src/vendor.rs"]
 
-[workspace]
-
 [dependencies]
-allowit-sdk = { git = "https://github.com/allowit-hq/allowit-sdk.git", rev = "67f5d696847992e18131f815ce905713ec3646e1", default-features = false, features = ["service"] }
+allowit-sdk = { workspace = true, features = ["service"] }
 allowit-vendor-google-air-quality = { path = "../provider-google-air-quality" }
 allowit-vendor-open-meteo = { path = "../provider-open-meteo" }
 allowit-vendor-paysh-catalog = { path = "../paysh-catalog" }

@@ -1,6 +1,6 @@
 [package]
 name = "allowit-solana-delegated-x402"
-version = "0.1.0"
+version.workspace = true
 edition = "2024"
 rust-version = "1.98"
 license = "LicenseRef-Proprietary"
@@ -11,11 +11,9 @@ repository = "https://github.com/allowit-hq/allowit-engine"
 revision = "8cbd4625b170ae72aa470a642f19a55b2f40e9a3"
 paths = ["crates/server/crates/integrations/src/delegated_x402.rs", "crates/server/crates/integrations/src/delegated_x402/tests.rs", "crates/server/crates/api/src/delegated.rs"]
 
-[workspace]
-
 [dependencies]
-allowit-sdk = { git = "https://github.com/allowit-hq/allowit-sdk.git", rev = "67f5d696847992e18131f815ce905713ec3646e1", default-features = false, features = ["service"] }
-allowit-native = { git = "https://github.com/allowit-hq/allowit-sdk.git", rev = "ba4d14c0afca5f7fbab363b991c0bf30be02d630" }
+allowit-sdk = { workspace = true, features = ["service"] }
+allowit-native.workspace = true
 base64 = "0.22"
 bs58 = "0.5"
 serde = { version = "1", features = ["derive"] }

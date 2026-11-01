@@ -1,9 +1,15 @@
-# Extends the default rules. The allowlisted values are public data in the
-# hash-bound verification set, not credentials: SHA-256 digests of policy
+# Extends the default rules. The allowlisted values are public data, not
+# credentials. The hash-bound verification set holds SHA-256 digests of policy
 # sources and SBF files, and Solana account addresses in the recorded test
-# vectors. The verification files cannot change without breaking their locks.
+# vectors; the verification files cannot change without breaking their locks.
+# The PaySH golden fixture holds MPP headers signed with fixed disposable test
+# keys (see crates/paysh-stock/src/lib.rs).
 [extend]
 useDefault = true
+
+[[allowlists]]
+description = "PaySH golden MPP test vectors"
+paths = ['''^crates/paysh-stock/tests/fixtures/official-mpp-google-v0\.json$''']
 
 [[allowlists]]
 description = "Hash-bound digests and account addresses in verification/"

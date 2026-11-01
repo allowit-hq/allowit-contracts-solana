@@ -1,14 +1,54 @@
 [workspace]
-members = ["crates/interface", "programs/policy", "programs/vault", "programs/paysh", "crates/paysh-interface", "crates/solana-vendor"]
-exclude = ["sbf-tests"]
+members = [
+    "crates/delegated-x402",
+    "crates/interface",
+    "crates/native",
+    "crates/paysh-catalog",
+    "crates/paysh-cooperating",
+    "crates/paysh-interface",
+    "crates/paysh-stock",
+    "crates/provider-google-air-quality",
+    "crates/provider-open-meteo",
+    "crates/service-rpc",
+    "crates/service-upstreams",
+    "crates/solana-vendor",
+    "programs/paysh",
+    "programs/policy",
+    "programs/vault",
+]
+# The SBF test harnesses pin the Mollusk crate family exactly. Those pins would
+# change the programs' own dependencies, so each harness keeps its own lock.
+# The mandate program keeps its own lock too: it resolves serde, cc, libc and
+# lazy_static to older versions than the other programs.
+exclude = ["sbf-tests", "programs/mandate"]
 resolver = "2"
+
+# Every package in this repository builds at this version.
+[workspace.package]
+version = "0.1.0"
+
+# The revision each git repository must be pinned to. scripts/build.sh checks
+# every git dependency below against this table and fails on a stale pin.
+[workspace.metadata.allowit.track]
+allowit-core = "head"
+
 [workspace.dependencies]
+# Allowit core (package allowit-sdk) is the only git dependency.
+allowit-sdk = { git = "https://github.com/allowit-hq/allowit-core.git", rev = "6aa00597a0796acf6f6fa911a86c0fe57c055b67", default-features = false }
+allowit-interface = { path = "crates/interface" }
+allowit-native = { path = "crates/native" }
 solana-program = "=2.3.0"
 borsh = { version = "=1.6.0", features = ["derive"] }
-allowit-interface = { path = "crates/interface" }
+
 [profile.release]
 overflow-checks = true
 lto = true
 codegen-units = 1
+
 [profile.dev]
 debug = 0
+incremental = false
+
+[profile.test]
+debug = 0
+incremental = false
