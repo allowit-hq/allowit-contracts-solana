@@ -7,7 +7,7 @@ An owner approves a policy once. These adapters make sure that is the policy tha
 ## What is here
 
 SDK engine owns shared authoring and validation. Vendor packages own native contracts and chain semantics.
-Core owns common types, policy rules and primitives. See the [canonical responsibility diagram][responsibility-model].
+Core owns common types, policy rules and primitives. [Architecture](../../README.md#part-of-allowit).
 
 - The [pinned policy dependency](Cargo.toml) (`allowit-sdk`, feature `contract`) supplies the mandate envelope, artifact checks, request binding, accounting and evidence checks.
   It also supplies the host-side `allowit-contract-artifact` command.
@@ -50,7 +50,6 @@ Confidence and semantic assessments require an **explicit evidence authority**, 
 Runtime context is an object of at most 256 bytes on Solana, subject to the SDK nesting and type bounds. Nonempty runtime context requires evidence authorization. The core receives immutable original intent from stored artifact bytes; an executor cannot replace it.
 
 The policy core measures USDC in six decimal places. These rail adapters accept only Circle's canonical USDC mint/asset on the chosen network, from its [official registry](https://developers.circle.com/stablecoins/usdc-contract-addresses). Solana checks the six-decimal classic SPL mint (`EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v` on Mainnet, `4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU` on Devnet). No canonical USDC mapping exists for Solana Testnet, so USDC mandate activation on that rail fails closed. A custom token cannot inherit the USDC label.
-
 
 ## Fixed Devnet paid-API vault
 
@@ -103,9 +102,6 @@ SBF_OUT_DIR="$PWD/programs/mandate/dist" ALLOWIT_SOLANA_NETWORK=devnet \
   cargo test --locked --manifest-path programs/mandate/sbf-tests/Cargo.toml -- --nocapture
 ```
 
-
 These tests are not evidence of public-chain deployment or wallet acceptance. Deployment must record program/contract and artifact hashes, target-VM/resource results, network, token and authority configuration before the consumer uses a program-controlled allowance. On Solana, deploy the reviewed program immutably or explicitly verify the upgrade authority: that authority can otherwise replace code controlling PDA allowances. No private key or live-chain transaction is included here.
 
 The daily-cap core uses version `0.2.0` and registry `1.6.0`. Custody state stores lifetime spend separately from daily spend and its UTC Unix day. Both counters commit after successful transfer. Existing `0.1.0` state is decoded only as an inactive, revoked mandate so its owner can persist revocation after an upgrade. It cannot execute or activate. Older policy artifacts require owner-authorized activation of a new revision; they are rejected rather than reinterpreted.
-
-[responsibility-model]: https://github.com/allowit-hq/allowit-project/blob/main/wiki/allowit/architecture.md#dependency-direction

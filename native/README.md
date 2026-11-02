@@ -5,7 +5,7 @@
 `@allowit/native` exposes native Solana vault lifecycle and browser signing APIs.
 Vendor packages own native chain semantics. SDK engine owns shared authoring, validation and execution workflows.
 [Allowit core](https://github.com/allowit-hq/allowit-core) owns common types, policy rules and primitives.
-See the [canonical responsibility diagram][responsibility-model].
+[Architecture](../README.md#part-of-allowit).
 
 The owner-signed wallet allowance in [`programs/mandate/`](../programs/mandate/) is a separate profile.
 [`crates/native/`](../crates/native/) supplies the Rust native adapter.
@@ -140,5 +140,3 @@ the original policy instance and writes only public configuration; configure
 the executor signer separately. Status reads all saved operations.
 
 Generated Rust contains only `execute`, calling standard `require_approval` and `enforce_daily_limit` system functions. Their exact implementation lives in the paired, pinned `policy_api.rs`, included in the source-bundle identity. Standard daily rollover, overflow, approval and compiled parameter bounds are not regenerated per policy. The native ABI remains version 1; a new immutable policy version is required for this source bundle. The separate restricted-Rust compiler also accepts `execute` for new policies and retains read compatibility with historical `exec` and `evaluate` source.
-
-[responsibility-model]: https://github.com/allowit-hq/allowit-project/blob/main/wiki/allowit/architecture.md#dependency-direction

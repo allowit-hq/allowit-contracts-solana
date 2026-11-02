@@ -224,17 +224,17 @@ Core owns common types, policy rules and primitives.
 
 ```mermaid
 flowchart TB
+    UI["[allowit-engine]<br/>npm @allowit/ui<br/>Shared policy web components"]
     Engine["[allowit-sdk]<br/>crate @allowit/sdk/engine<br/>All other shared logic"]
-    Vendor["crate + npm @allowit/vendor/*<br/>Native contracts · signing · chain semantics<br/>SVG graphics · web components"]
+    Vendor["[allowit-contracts-solana]<br/>crate + npm @allowit/vendor/solana<br/>Native contracts · signing · chain semantics<br/>SVG graphics · web components"]
     Core["[allowit-core]<br/>crate + npm @allowit/sdk/core<br/>Common types · policy rules · primitives<br/>TypeScript interfaces"]
+
+    UI -->|npm| Vendor
     Engine -->|crate| Vendor
-    Engine -->|crate| Core
     Vendor -->|crate + npm| Core
 ```
 
-Solid arrows are dependencies. Dashed arrows are runtime calls / connections.
-This view follows the [canonical responsibility diagram][responsibility-model].
-Use the [Cargo manifest](Cargo.toml) for Rust build package names.
+[Full architecture][responsibility-model].
 
 - [allowit.xyz](https://allowit.xyz): what Allowit is and how owners use it.
 - [allowit-core](https://github.com/allowit-hq/allowit-core): common types, policy rules, primitives and TypeScript interfaces.
