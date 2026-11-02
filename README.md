@@ -219,11 +219,30 @@ The [`Solana runtime smoke`](.github/workflows/integration-runtime.yml) workflow
 
 ## Part of Allowit
 
+Vendor packages own native contracts, signing and chain semantics. SDK engine owns shared workflows.
+Core owns common types, policy rules and primitives.
+
+```mermaid
+flowchart TB
+    Engine["[allowit-sdk]<br/>crate @allowit/sdk/engine<br/>All other shared logic"]
+    Vendor["crate + npm @allowit/vendor/*<br/>Native contracts · signing · chain semantics<br/>SVG graphics · web components"]
+    Core["[allowit-core]<br/>crate + npm @allowit/sdk/core<br/>Common types · policy rules · primitives<br/>TypeScript interfaces"]
+    Engine -->|crate| Vendor
+    Engine -->|crate| Core
+    Vendor -->|crate + npm| Core
+```
+
+Solid arrows are dependencies. Dashed arrows are runtime calls / connections.
+This view follows the [canonical responsibility diagram][responsibility-model].
+Use the [Cargo manifest](Cargo.toml) for Rust build package names.
+
 - [allowit.xyz](https://allowit.xyz): what Allowit is and how owners use it.
-- [allowit-core](https://github.com/allowit-hq/allowit-core): the policy compiler, evaluator and shared types (package `allowit-sdk`). The programs and the host crates depend on it.
-- [allowit-sdk](https://github.com/allowit-hq/allowit-sdk): the `allowit` CLI and the engine. They depend on the host crates here and on allowit-core. Pins point one way: allowit-sdk depends on this repository, and this repository depends only on allowit-core.
-- [allowit-contracts-stellar](https://github.com/allowit-hq/allowit-contracts-stellar): the same policy and owner-control principle on Soroban. `check-policy.py --peer` keeps the two in lockstep.
-- The Allowit engine is the off-chain evaluator that signs requests. The service packages under `crates/` record the engine revision they were extracted from in their `Cargo.toml`.
+- [allowit-core](https://github.com/allowit-hq/allowit-core): common types, policy rules, primitives and TypeScript interfaces.
+- [allowit-sdk](https://github.com/allowit-hq/allowit-sdk): CLI developer workflows, client validation and shared SDK engine logic.
+- [allowit-contracts-stellar](https://github.com/allowit-hq/allowit-contracts-stellar): native Stellar contracts, signing and chain semantics.
+- [allowit-engine](https://github.com/allowit-hq/allowit-engine): shared server REST API, private enforcement, storage, ADK agent and app, and shared policy web components.
+
+The service packages under `crates/` record their source engine revision in their `Cargo.toml`.
 
 ## Contributing
 
@@ -244,3 +263,5 @@ If you edit `policy/policy.rs` or `policy/policy_api.rs`, regenerate `source_has
 ## License
 
 Licensing is per crate. `allowit-paysh-interface`, `allowit-solana-vendor`, `allowit-native`, `@allowit/native` and the mandate program `allowit-solana` are MIT (see [`crates/solana-vendor/LICENSE`](crates/solana-vendor/LICENSE)). The other programs and the vault interface are `UNLICENSED`; the host service packages extracted from the Allowit engine are `LicenseRef-Proprietary`. Each `Cargo.toml` states its own terms.
+
+[responsibility-model]: https://github.com/allowit-hq/allowit-project/blob/main/wiki/allowit/architecture.md#dependency-direction

@@ -6,7 +6,11 @@ An owner approves a policy once. These adapters make sure that is the policy tha
 
 ## What is here
 
-- [Allowit core](https://github.com/allowit-hq/allowit-core) (`allowit-sdk`, feature `contract`) owns the mandate envelope, artifact checks, exact request binding, budget and nonce accounting, evidence checks and the host-side `allowit-contract-artifact` command.
+SDK engine owns shared authoring and validation. Vendor packages own native contracts and chain semantics.
+Core owns common types, policy rules and primitives. See the [canonical responsibility diagram][responsibility-model].
+
+- The [pinned policy dependency](Cargo.toml) (`allowit-sdk`, feature `contract`) supplies the mandate envelope, artifact checks, request binding, accounting and evidence checks.
+  It also supplies the host-side `allowit-contract-artifact` command.
 - This package, [`allowit-solana`](src/lib.rs), is a native Rust program that spends through classic SPL Token `transfer_checked`.
 - [`sbf-tests/`](sbf-tests/) runs the built SBF program against the real SPL Token processor.
 
@@ -26,7 +30,7 @@ Each owner/policy pair has one active revision. The first revision is 1; activat
 
 Create exact artifact bytes from source and owner intent:
 
-Run this in an [allowit-core](https://github.com/allowit-hq/allowit-core) checkout:
+Run this in an [allowit-core](https://github.com/allowit-hq/allowit-core) checkout at the dependency revision in [Cargo.toml](Cargo.toml):
 
 ```sh
 cargo run -p allowit-sdk --features compiler,contract \
@@ -77,7 +81,9 @@ Prepend `required_compute_budget_instructions()` to program transactions: the co
 
 ## Stellar custody
 
-Stellar uses the owner-controlled ODC and shared veto engine in [allowit-contracts-stellar](https://github.com/allowit-hq/allowit-contracts-stellar). The [Stellar wallet SDK](https://github.com/allowit-hq/allowit-contracts-stellar/tree/main/stellar/core) maps canonical execution requests to native-account or ODC custody. Its static source generator emits the private policy checks used by the ODC `execute` wrapper. Persistent token allowances are outside that custody profile.
+Stellar native custody and chain semantics belong to [allowit-contracts-stellar](https://github.com/allowit-hq/allowit-contracts-stellar).
+Its [rail crate](https://github.com/allowit-hq/allowit-contracts-stellar/tree/main/stellar/core) supplies native-account and policy-wallet APIs.
+SDK engine composes shared workflows for CLI and server callers.
 
 ## Verification and deployment boundary
 
@@ -101,3 +107,5 @@ SBF_OUT_DIR="$PWD/programs/mandate/dist" ALLOWIT_SOLANA_NETWORK=devnet \
 These tests are not evidence of public-chain deployment or wallet acceptance. Deployment must record program/contract and artifact hashes, target-VM/resource results, network, token and authority configuration before the consumer uses a program-controlled allowance. On Solana, deploy the reviewed program immutably or explicitly verify the upgrade authority: that authority can otherwise replace code controlling PDA allowances. No private key or live-chain transaction is included here.
 
 The daily-cap core uses version `0.2.0` and registry `1.6.0`. Custody state stores lifetime spend separately from daily spend and its UTC Unix day. Both counters commit after successful transfer. Existing `0.1.0` state is decoded only as an inactive, revoked mandate so its owner can persist revocation after an upgrade. It cannot execute or activate. Older policy artifacts require owner-authorized activation of a new revision; they are rejected rather than reinterpreted.
+
+[responsibility-model]: https://github.com/allowit-hq/allowit-project/blob/main/wiki/allowit/architecture.md#dependency-direction
