@@ -56,7 +56,7 @@ dependencies = [
 [[package]]
 name = "allowit-sdk"
 version = "0.1.0"
-source = "git+https://github.com/allowit-hq/allowit-core.git?rev=6aa00597a0796acf6f6fa911a86c0fe57c055b67#6aa00597a0796acf6f6fa911a86c0fe57c055b67"
+source = "git+https://github.com/allowit-hq/allowit-core.git?rev=e2423bb586b1c1fef2e4ca6321b8f0edb531a114#e2423bb586b1c1fef2e4ca6321b8f0edb531a114"
 dependencies = [
  "borsh 1.6.0",
  "proc-macro2",
