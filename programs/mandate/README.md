@@ -6,7 +6,11 @@ An owner approves a policy once. These adapters make sure that is the policy tha
 
 ## What is here
 
-- [Allowit core](https://github.com/allowit-hq/allowit-core) (`allowit-sdk`, feature `contract`) owns the mandate envelope, artifact checks, exact request binding, budget and nonce accounting, evidence checks and the host-side `allowit-contract-artifact` command.
+SDK engine owns shared authoring and validation. Vendor packages own native contracts and chain semantics.
+Core owns common types, policy rules and primitives. [Architecture](../../README.md#part-of-allowit).
+
+- The [pinned policy dependency](Cargo.toml) (`allowit-sdk`, feature `contract`) supplies the mandate envelope, artifact checks, request binding, accounting and evidence checks.
+  It also supplies the host-side `allowit-contract-artifact` command.
 - This package, [`allowit-solana`](src/lib.rs), is a native Rust program that spends through classic SPL Token `transfer_checked`.
 - [`sbf-tests/`](sbf-tests/) runs the built SBF program against the real SPL Token processor.
 
@@ -26,7 +30,7 @@ Each owner/policy pair has one active revision. The first revision is 1; activat
 
 Create exact artifact bytes from source and owner intent:
 
-Run this in an [allowit-core](https://github.com/allowit-hq/allowit-core) checkout:
+Run this in an [allowit-core](https://github.com/allowit-hq/allowit-core) checkout at the dependency revision in [Cargo.toml](Cargo.toml):
 
 ```sh
 cargo run -p allowit-sdk --features compiler,contract \
@@ -46,7 +50,6 @@ Confidence and semantic assessments require an **explicit evidence authority**, 
 Runtime context is an object of at most 256 bytes on Solana, subject to the SDK nesting and type bounds. Nonempty runtime context requires evidence authorization. The core receives immutable original intent from stored artifact bytes; an executor cannot replace it.
 
 The policy core measures USDC in six decimal places. These rail adapters accept only Circle's canonical USDC mint/asset on the chosen network, from its [official registry](https://developers.circle.com/stablecoins/usdc-contract-addresses). Solana checks the six-decimal classic SPL mint (`EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v` on Mainnet, `4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU` on Devnet). No canonical USDC mapping exists for Solana Testnet, so USDC mandate activation on that rail fails closed. A custom token cannot inherit the USDC label.
-
 
 ## Fixed Devnet paid-API vault
 
@@ -77,7 +80,9 @@ Prepend `required_compute_budget_instructions()` to program transactions: the co
 
 ## Stellar custody
 
-Stellar uses the owner-controlled ODC and shared veto engine in [allowit-contracts-stellar](https://github.com/allowit-hq/allowit-contracts-stellar). The [Stellar wallet SDK](https://github.com/allowit-hq/allowit-contracts-stellar/tree/main/stellar/core) maps canonical execution requests to native-account or ODC custody. Its static source generator emits the private policy checks used by the ODC `execute` wrapper. Persistent token allowances are outside that custody profile.
+Stellar native custody and chain semantics belong to [allowit-contracts-stellar](https://github.com/allowit-hq/allowit-contracts-stellar).
+Its [rail crate](https://github.com/allowit-hq/allowit-contracts-stellar/tree/main/stellar/core) supplies native-account and policy-wallet APIs.
+SDK engine composes shared workflows for CLI and server callers.
 
 ## Verification and deployment boundary
 
@@ -96,7 +101,6 @@ The common vectors in [Allowit core](https://github.com/allowit-hq/allowit-core)
 SBF_OUT_DIR="$PWD/programs/mandate/dist" ALLOWIT_SOLANA_NETWORK=devnet \
   cargo test --locked --manifest-path programs/mandate/sbf-tests/Cargo.toml -- --nocapture
 ```
-
 
 These tests are not evidence of public-chain deployment or wallet acceptance. Deployment must record program/contract and artifact hashes, target-VM/resource results, network, token and authority configuration before the consumer uses a program-controlled allowance. On Solana, deploy the reviewed program immutably or explicitly verify the upgrade authority: that authority can otherwise replace code controlling PDA allowances. No private key or live-chain transaction is included here.
 

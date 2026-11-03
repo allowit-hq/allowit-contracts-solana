@@ -2,13 +2,13 @@
 
 *Generate, deploy, fund, run and revoke a native Solana policy vault from Node.*
 
-`@allowit/native` is the JavaScript side of the native Solana rail. It links the
-Rust policy source in [allowit-contracts-solana](https://github.com/allowit-hq/allowit-contracts-solana)
-to the owner's lifecycle commands and to the Allowit browser signing flow. It is
-a separate adapter from the restricted Rust compiler and WebAssembly build in
-[allowit-core](https://github.com/allowit-hq/allowit-core), and from the owner-signed wallet allowance profile in
-[`programs/mandate/`](../programs/mandate/). The Rust counterpart that the client facade uses is
-[`crates/native/`](../crates/native/).
+`@allowit/native` exposes native Solana vault lifecycle and browser signing APIs.
+Vendor packages own native chain semantics. SDK engine owns shared authoring, validation and execution workflows.
+[Allowit core](https://github.com/allowit-hq/allowit-core) owns common types, policy rules and primitives.
+[Architecture](../README.md#part-of-allowit).
+
+The owner-signed wallet allowance in [`programs/mandate/`](../programs/mandate/) is a separate profile.
+[`crates/native/`](../crates/native/) supplies the Rust native adapter.
 
 Node 22 or later is required. Install with `npm ci` in this directory and run
 the tests with `npm test`.
@@ -43,11 +43,11 @@ On Windows, run the CLI in Linux/WSL. Keep policy and journal state in the Linux
 Do not delete an existing Windows journal after an error. Keep its signed proofs and reconcile uncertain operations before another submission.
 The platform check runs before the CLI reads keys, writes state, or contacts RPC.
 
-Node >=22 is required. Install with `npm ci` in this directory. The Go `allowit`
-action CLI dispatches to this SDK (`ALLOWIT_SDK_CLI` absolute path, or a shipped
-`native-sdk/cli.mjs` beside the Go executable). The Rust compiler CLI is separate. To ship the Go binary and SDK together, run
-`node native/scripts/build-bundle.mjs OUTPUT_DIRECTORY` from this repository
-with `ALLOWIT_CLI_SOURCE` set to the checked-out Go CLI repository.
+Use Node 22 or later. Install with `npm ci` in this directory.
+The legacy Go-client bundle dispatches to this package through `ALLOWIT_SDK_CLI` or `native-sdk/cli.mjs` beside its executable.
+Build that bundle with `node native/scripts/build-bundle.mjs OUTPUT_DIRECTORY` from this repository.
+Set `ALLOWIT_CLI_SOURCE` to the checked-out Go client repository.
+Common developer workflows belong to the [SDK-owned Allowit CLI](https://github.com/allowit-hq/allowit-sdk/tree/main/cli).
 
 ```sh
 allowit policy generate 'Spend up to 5 test tokens per day with PaySH discovery'
