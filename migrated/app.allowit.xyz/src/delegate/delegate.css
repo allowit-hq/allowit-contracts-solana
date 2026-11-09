@@ -1,0 +1,27 @@
+/* Agent wallet uses the existing Allowit shell, type, controls and source view. */
+.delegate-page {display: grid; gap: 28px; min-width: 0; max-width: var(--column); margin-inline: auto;}
+.delegate-heading {display: flex; align-items: start; justify-content: space-between; gap: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--rule);}
+.delegate-heading .small {margin-top: 8px;}
+.delegate-network {display: flex; align-items: center; gap: 10px; flex-wrap: wrap;}
+.delegate-source-input {font-size: 12px; line-height: 1.65; tab-size: 2;}
+.delegate-check {display: flex; align-items: start; gap: 10px; font-size: 13px; line-height: 1.6;}
+.delegate-check input {flex: none; width: 18px; height: 18px; margin-top: 2px; accent-color: var(--ink);}
+.delegate-budget-grid {display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 24px; padding-block: 18px; border-block: 1px solid var(--rule); margin-block: 12px;}
+.delegate-budget-grid dt {font-size: 12px; color: var(--muted);}
+.delegate-budget-grid dd {margin: 5px 0 0; font-size: 24px; overflow-wrap: anywhere; font-variant-numeric: tabular-nums;}
+.delegate-budget-grid dd span {font-size: 12px; color: var(--muted);}
+.delegate-facts {margin-block: 18px;}
+.delegate-facts dd {overflow-wrap: anywhere;}
+.delegate-table-wrap {max-width: 100%; overflow-x: auto; margin-block: 12px;}
+.delegate-table {width: 100%; border-collapse: collapse; font-size: 13px; text-align: left;}
+.delegate-table th {font-weight: 500; color: var(--muted);}
+.delegate-table th, .delegate-table td {padding: 10px 12px 10px 0; border-bottom: 1px solid var(--rule); vertical-align: top;}
+.delegate-table td.mono {overflow-wrap: anywhere;}
+.delegate-child-form {margin-top: 20px;}
+.delegate-access {margin-top: 20px; padding-block: 18px; border-block: 1px solid var(--rule);}
+.delegate-access textarea {width: 100%; overflow-wrap: anywhere; font-size: 12px;}
+.delegate-resource {display: block; max-width: 220px; overflow-wrap: anywhere;}
+.delegate-question {padding-block: 18px; border-top: 1px solid var(--rule);}
+.delegate-request-url {overflow-wrap: anywhere;}
+.delegate-context {overflow-x: auto; max-height: 420px; font-size: 11px; line-height: 1.65; padding-block: 12px; white-space: pre-wrap; overflow-wrap: anywhere;}
+@media (max-width: 480px) {.delegate-heading {flex-wrap: wrap;}.delegate-budget-grid {gap: 16px;}.delegate-budget-grid dd {font-size: 21px;}}

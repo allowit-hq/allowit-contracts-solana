@@ -1,0 +1,547 @@
+/* PaySH whitelist: the pay.sh catalog a policy's service list is chosen from, in the app's paper-and-ink style. */
+.wl {
+  --wl-hatch: repeating-linear-gradient(-45deg, transparent 0 5px, color-mix(in srgb, currentColor 22%, transparent) 5px 6px);
+  width: min(100%, 1180px);
+  margin: 0 auto;
+  padding-bottom: 48px;
+}
+.wl-head {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 24px;
+}
+.wl-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  justify-self: start;
+  padding: 6px 10px 6px 6px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.wl-back:hover {
+  background: var(--wash);
+  color: var(--ink);
+}
+.wl-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px 32px;
+}
+.wl-title {
+  margin: 0;
+  font-size: clamp(28px, 3.4vw, 40px);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.wl-title:focus-visible {
+  outline: none;
+}
+.wl-lede {
+  max-width: 62ch;
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.5;
+}
+.wl-summary {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.wl-count {
+  font-size: 13px;
+  color: var(--muted);
+}
+.wl-count .mono {
+  color: var(--ink);
+  font-size: 22px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.wl-search {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 52px;
+  padding: 0 16px;
+  border: 1px solid var(--rule-strong);
+  border-bottom: 0;
+  border-radius: 14px 14px 0 0;
+  background: var(--wash);
+  color: var(--muted);
+  transition: background 160ms ease, box-shadow 160ms ease;
+}
+.wl-search:focus-within {
+  background: var(--field);
+  color: var(--ink);
+  box-shadow: inset 0 -2px 0 var(--trace);
+}
+.wl-search input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 15px;
+}
+.wl-search input::placeholder {
+  color: var(--muted);
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.wl-search input:focus-visible {
+  outline: none;
+}
+.wl-search kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.wl-tabs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+  border-top: 1px solid var(--rule-strong);
+  border-left: 1px solid var(--rule-strong);
+}
+.wl-tab,
+.wl-tab-fill {
+  border-right: 1px solid var(--rule-strong);
+  border-bottom: 1px solid var(--rule-strong);
+}
+.wl-tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 14px;
+  border-top: 0;
+  border-left: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease;
+}
+.wl-tab::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  width: 100%;
+  height: 2px;
+  background: var(--trace);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 220ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.wl-tab:hover:not(:disabled) {
+  background: var(--wash);
+}
+.wl-tab[aria-pressed="true"] {
+  background: var(--ink);
+  color: var(--on-ink);
+}
+.wl-tab[aria-pressed="true"]::after {
+  transform: scaleX(1);
+}
+.wl-tab:disabled {
+  color: var(--muted);
+  opacity: 0.55;
+  cursor: default;
+}
+.wl-tab:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+.wl-tab-count {
+  font-weight: 400;
+  opacity: 0.7;
+  font-variant-numeric: tabular-nums;
+}
+.wl-tab-fill {
+  min-height: 44px;
+  background: var(--wl-hatch);
+  color: var(--rule-strong);
+}
+
+.wl-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 20px;
+  padding: 14px 2px;
+}
+.wl-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.wl-switch input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.wl-sort-bar {
+  display: none;
+  gap: 14px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.wl-switch-track {
+  position: relative;
+  width: 34px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--wash-2);
+  transition: background 160ms ease;
+}
+.wl-switch-track::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--field);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  transition: transform 180ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.wl-switch input:checked + .wl-switch-track {
+  background: var(--ink);
+}
+.wl-switch input:checked + .wl-switch-track::after {
+  transform: translateX(14px);
+}
+.wl-switch input:focus-visible + .wl-switch-track {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.wl-meta {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.wl-table-wrap {
+  border-top: 1px solid var(--rule-strong);
+}
+.wl-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.wl-table th {
+  padding: 12px 14px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.wl-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+.wl-sort svg {
+  opacity: 0;
+  transition: opacity 140ms ease;
+}
+.wl-sort:hover svg,
+.wl-sort[data-on] svg {
+  opacity: 1;
+}
+.wl-sort[data-on] {
+  color: var(--ink);
+}
+.wl-sort:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.wl-row {
+  border-top: 1px solid var(--rule);
+  animation: wl-row-in 320ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: calc(var(--i, 0) * 22ms);
+  transition: background 160ms ease;
+}
+@keyframes wl-row-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+.wl-row:hover {
+  background: var(--wash);
+}
+.wl-row[data-selected] {
+  background: color-mix(in srgb, var(--trace) 6%, transparent);
+}
+.wl-row td {
+  padding: 14px;
+  vertical-align: middle;
+  font-size: 14px;
+}
+.wl-row td:first-child {
+  box-shadow: inset 2px 0 0 transparent;
+  transition: box-shadow 200ms ease;
+}
+.wl-row[data-selected] td:first-child {
+  box-shadow: inset 2px 0 0 var(--trace);
+}
+.wl-service {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  max-width: 440px;
+}
+.wl-service-title {
+  font-weight: 600;
+}
+.wl-fqn {
+  color: var(--muted);
+  font-size: 12px;
+}
+.wl-desc {
+  overflow: hidden;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.wl-chip {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--wash-2);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.wl-num {
+  font-variant-numeric: tabular-nums;
+}
+.wl-price {
+  white-space: nowrap;
+}
+.wl-billing {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.wl-net {
+  color: var(--muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.wl-net[data-here] {
+  color: var(--ready-status);
+  font-weight: 600;
+}
+.wl-action {
+  text-align: right;
+}
+.wl-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 92px;
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease, border-color 160ms ease;
+}
+.wl-add:hover:not(:disabled) {
+  border-color: var(--ink);
+}
+.wl-add[aria-pressed="true"] {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--on-ink);
+}
+.wl-add[aria-pressed="true"] svg {
+  animation: wl-pop 260ms cubic-bezier(0.2, 0.9, 0.3, 1.4);
+}
+@keyframes wl-pop {
+  from {
+    transform: scale(0.4);
+  }
+}
+.wl-add:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.wl-add:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.wl-empty,
+.wl-note {
+  margin: 0;
+  padding: 28px 14px;
+  color: var(--muted);
+  font-size: 14px;
+  text-align: center;
+}
+.wl-note {
+  padding: 16px 14px 0;
+}
+.wl-row[data-unavailable] .wl-service-title,
+.wl-row[data-unavailable] .wl-price {
+  color: var(--muted);
+}
+.wl-unavailable {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+@media (prefers-reduced-motion: reduce) {
+  .wl-row,
+  .wl-add[aria-pressed="true"] svg {
+    animation: none;
+  }
+  .wl-tab::after,
+  .wl-switch-track::after {
+    transition: none;
+  }
+}
+/* Narrow screens: each service becomes a card. */
+@media (max-width: 760px) {
+  .wl-table thead {
+    display: none;
+  }
+  .wl-sort-bar {
+    display: flex;
+  }
+  .wl-table,
+  .wl-table tbody {
+    display: block;
+  }
+  .wl-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 6px 12px;
+    padding: 14px 12px;
+  }
+  .wl-row[data-selected] {
+    box-shadow: inset 2px 0 0 var(--trace);
+  }
+  .wl-row[data-selected] td:first-child {
+    box-shadow: none;
+  }
+  .wl-row td {
+    padding: 0;
+  }
+  .wl-service {
+    grid-column: 1 / -1;
+    max-width: none;
+  }
+  .wl-row td[data-label] {
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+    font-size: 13px;
+  }
+  .wl-row td[data-label]::before {
+    content: attr(data-label);
+    min-width: 76px;
+    color: var(--muted);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .wl-billing {
+    display: inline;
+    margin: 0 0 0 6px;
+  }
+  .wl-action {
+    grid-column: 2;
+    grid-row: 2 / span 4;
+    align-self: center;
+  }
+  .wl-tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* The catalog opens over the policy form as a full-height sheet. */
+.paysh-dialog {
+  width: min(100% - 32px, 1240px);
+  max-width: none;
+  height: min(100dvh - 32px, 960px);
+  max-height: none;
+  margin: auto;
+  padding: 24px clamp(16px, 3vw, 32px) 0;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+  background: var(--field);
+  color: var(--ink);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.paysh-dialog::backdrop {
+  background: color-mix(in srgb, var(--ink) 40%, transparent);
+}
+@media (max-width: 760px) {
+  .paysh-dialog {
+    width: 100%;
+    height: 100dvh;
+    border: 0;
+    border-radius: 0;
+    padding-top: 16px;
+  }
+}

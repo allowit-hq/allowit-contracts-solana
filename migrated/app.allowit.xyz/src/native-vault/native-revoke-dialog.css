@@ -1,0 +1,99 @@
+/* Single-policy revoke dialog: balance summary, two choice cards and a quiet disclosure. Builds on .revoke-policies-dialog. */
+.native-revoke-dialog { --danger-wash: color-mix(in srgb, var(--red-text) 6%, transparent); --danger-rule: color-mix(in srgb, var(--red-text) 32%, transparent); width: min(460px, calc(100% - 32px)); padding: 20px; border-color: var(--rule); border-radius: 18px; box-shadow: 0 24px 64px rgba(0,0,0,.18), 0 2px 8px rgba(0,0,0,.06); }
+.native-revoke-dialog::backdrop { background: rgba(17,17,16,.42); backdrop-filter: blur(3px); }
+.native-revoke-dialog[open] { display: flex; flex-direction: column; gap: 12px; }
+.native-revoke-dialog p { margin: 0; }
+
+.native-revoke-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
+.native-revoke-dialog .native-revoke-header h2 { margin: 0; font-size: 20px; line-height: 1.3; letter-spacing: -.01em; }
+.native-revoke-close { flex: none; display: grid; place-items: center; width: 32px; height: 32px; margin: -4px -6px -4px 0; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--muted); cursor: pointer; }
+.native-revoke-close:hover:not(:disabled) { background: var(--wash); color: var(--ink); }
+.native-revoke-close:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.native-revoke-close:disabled { opacity: .45; cursor: not-allowed; }
+
+.native-revoke-label { font-size: 12px; font-weight: 500; color: var(--muted); }
+.native-revoke-balance { display: grid; gap: 4px; padding: 16px; border-radius: 14px; background: var(--wash); }
+.native-revoke-balance strong { font-size: 28px; line-height: 1.15; font-weight: 600; letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--ink); }
+.native-revoke-dialog .native-revoke-balance p { display: flex; align-items: flex-start; gap: 6px; margin-top: 6px; font-size: 13px; line-height: 1.45; color: var(--muted); }
+.native-revoke-balance p svg { flex: none; margin-top: 2px; }
+
+.native-revoke-option { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 16px; border: 1px solid var(--rule); border-radius: 14px; }
+.native-revoke-option-danger { border-color: var(--danger-rule); background: var(--danger-wash); }
+.native-revoke-option-head { display: flex; align-items: center; gap: 10px; }
+.native-revoke-option h3 { margin: 0; font-size: 15px; font-weight: 600; line-height: 1.3; }
+.native-revoke-icon { flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--wash-2); color: var(--ink); }
+.native-revoke-option-danger .native-revoke-icon { background: color-mix(in srgb, var(--red-text) 14%, transparent); color: var(--red-text); }
+.native-revoke-dialog .native-revoke-option > p { font-size: 13px; line-height: 1.5; color: var(--muted); }
+.native-revoke-dialog .native-revoke-blocker { color: var(--red-text); }
+.native-revoke-cta { width: 100%; margin-top: 4px; }
+
+.native-revoke-option .native-withdraw { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; margin-top: 2px; }
+.native-withdraw-row { display: flex; gap: 8px; align-items: stretch; }
+.native-amount { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 8px; height: var(--control); padding: 0 6px 0 14px; border: 1px solid var(--rule-strong); border-radius: 999px; background: var(--field); transition: border-color .15s; }
+.native-amount:focus-within { border-color: var(--ink); box-shadow: 0 0 0 3px var(--wash-2); }
+.native-amount[data-invalid='true'] { border-color: var(--red-text); }
+.native-amount:has(input:disabled) { opacity: .55; }
+.native-amount input { flex: 1 1 auto; width: 0; min-width: 0; height: 100%; padding: 0; border: 0; outline: 0; background: transparent; color: var(--ink); font-size: 15px; }
+.native-amount input::placeholder { color: var(--muted); opacity: .7; }
+.native-amount-unit { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.native-amount-max { flex: none; height: 28px; padding: 0 10px; border: 0; border-radius: 999px; background: var(--wash-2); color: var(--ink); font: 600 12px var(--sans); cursor: pointer; }
+.native-amount-max:hover:not(:disabled) { background: color-mix(in srgb, var(--ink) 16%, transparent); }
+.native-amount-max:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.native-amount-max:disabled { opacity: .45; cursor: not-allowed; }
+.native-withdraw-row > .btn { flex: none; }
+.native-revoke-dialog .native-revoke-hint { font-size: 12px; color: var(--muted); }
+
+.native-revoke-more { padding: 2px 4px 0; }
+.native-revoke-more > summary { display: flex; align-items: center; gap: 6px; width: fit-content; min-height: 32px; list-style: none; font-size: 13px; color: var(--muted); cursor: pointer; }
+.native-revoke-more > summary::-webkit-details-marker { display: none; }
+.native-revoke-more > summary:hover { color: var(--ink); }
+.native-revoke-more > summary svg { transition: transform .15s; }
+.native-revoke-more[open] > summary { color: var(--ink); }
+.native-revoke-more[open] > summary svg { transform: rotate(90deg); }
+.native-revoke-more-body { display: grid; justify-items: start; gap: 10px; padding: 4px 0 4px 22px; }
+.native-revoke-dialog .native-revoke-more-body p { font-size: 13px; line-height: 1.5; color: var(--muted); }
+
+.native-revoke-dialog .native-revoke-notice { padding: 10px 12px; border-radius: 10px; background: var(--wash); font-size: 13px; }
+
+/* Progress: three steps, the current one marked by a turning ring. */
+.native-revoke-progress { display: grid; gap: 16px; padding: 20px 16px; border-radius: 14px; background: var(--wash); }
+.native-revoke-dialog .native-revoke-progress-title { font-size: 18px; font-weight: 600; letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
+.native-revoke-steps { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; font-size: 14px; }
+.native-revoke-steps li { display: flex; align-items: center; gap: 12px; color: var(--muted); transition: color .2s; }
+.native-revoke-steps li[data-step='current'] { color: var(--ink); font-weight: 600; }
+.native-revoke-steps li[data-step='done'] { color: var(--ink); }
+.native-revoke-step-mark { position: relative; flex: none; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--rule-strong); color: var(--on-ink); }
+.native-revoke-steps li[data-step='done'] .native-revoke-step-mark { border-color: var(--ink); background: var(--ink); }
+.native-revoke-steps li[data-step='current'] .native-revoke-step-mark { border-color: color-mix(in srgb, var(--trace) 25%, transparent); }
+.native-revoke-steps li[data-step='current'] .native-revoke-step-mark::after { content: ''; position: absolute; inset: -1.5px; border-radius: 50%; border: 1.5px solid transparent; border-top-color: var(--trace); border-right-color: var(--trace); animation: native-revoke-turn .8s linear infinite; }
+.native-revoke-steps li[data-step='current'] .native-revoke-step-mark::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--trace); animation: native-revoke-beat 1.2s ease-in-out infinite; }
+.native-revoke-dialog .native-revoke-progress-note { font-size: 12px; color: var(--muted); }
+@keyframes native-revoke-turn { to { transform: rotate(360deg); } }
+@keyframes native-revoke-beat { 50% { transform: scale(.55); opacity: .6; } }
+
+/* Result: what reached the wallet, or that nothing moved. */
+.native-revoke-outcome { display: grid; justify-items: center; gap: 8px; padding: 24px 16px 16px; border-radius: 14px; text-align: center; background: var(--wash); }
+.native-revoke-outcome[data-tone='done'] { background: color-mix(in srgb, var(--ready-status) 9%, transparent); }
+.native-revoke-outcome[data-tone='failed'] { background: var(--danger-wash); }
+.native-revoke-outcome-mark { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; margin-bottom: 4px; animation: native-revoke-pop .35s cubic-bezier(.2, .9, .3, 1.3); }
+.native-revoke-outcome[data-tone='done'] .native-revoke-outcome-mark { color: var(--ready-status); background: color-mix(in srgb, var(--ready-status) 16%, transparent); }
+.native-revoke-outcome[data-tone='failed'] .native-revoke-outcome-mark { color: var(--red-text); background: color-mix(in srgb, var(--red-text) 14%, transparent); }
+.native-revoke-outcome[data-tone='pending'] .native-revoke-outcome-mark { color: var(--ink); background: var(--wash-2); }
+.native-revoke-dialog .native-revoke-outcome h3 { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.native-revoke-dialog .native-revoke-outcome p { max-width: 36ch; font-size: 14px; line-height: 1.5; color: var(--muted); }
+.native-revoke-dialog .native-revoke-outcome[data-tone='failed'] > p:first-of-type { color: var(--red-text); }
+.native-revoke-outcome-link { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; color: var(--ink); }
+.native-revoke-outcome-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; width: 100%; margin-top: 8px; }
+.native-revoke-outcome-actions .btn { flex: 1 1 140px; justify-content: center; }
+@keyframes native-revoke-pop { from { transform: scale(.6); opacity: 0; } }
+
+@media (max-width: 480px) {
+  .native-revoke-dialog { padding: 16px; }
+  .native-withdraw-row { flex-wrap: wrap; }
+  .native-withdraw-row > .btn { flex: 1 1 100%; }
+}
+@media (pointer: coarse) { .native-revoke-close { width: 44px; height: 44px; } .native-revoke-more > summary { min-height: 44px; } }
+@media (prefers-reduced-motion: reduce) {
+  .native-revoke-more > summary svg, .native-amount, .native-revoke-steps li { transition: none; }
+  .native-revoke-steps li[data-step='current'] .native-revoke-step-mark::after, .native-revoke-steps li[data-step='current'] .native-revoke-step-mark::before, .native-revoke-outcome-mark { animation: none; }
+}

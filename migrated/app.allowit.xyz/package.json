@@ -1,0 +1,58 @@
+{
+  "name": "allowit-app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "^22.12.0 || >=24"
+  },
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "dev:testnet": "vite --config scripts/testnet/vite.config.ts",
+    "build": "tsc -b && vite build",
+    "check": "node scripts/check-test-selection.mjs && tsc -b && vitest run src && node --test scripts/tests/*.test.mjs",
+    "test": "vitest run",
+    "test:e2e": "node scripts/build-rust-backend.mjs && node scripts/test-browser-networks.mjs",
+    "test:testnet-tools": "playwright test --config scripts/testnet/playwright.config.ts",
+    "preview": "vite preview --host 127.0.0.1",
+    "test:visual": "playwright test --config playwright.visual.config.ts",
+    "test:visual:update": "node scripts/fetch-visual-baselines.mjs",
+    "test:rust": "node scripts/build-rust-backend.mjs test",
+    "test:native-contract": "node scripts/test-pinned-native-contract.mjs",
+    "build:rust-fixture": "node scripts/build-rust-backend.mjs",
+    "preinstall": "node scripts/require-pnpm.mjs"
+  },
+  "dependencies": {
+    "@noble/curves": "1.9.7",
+    "@noble/hashes": "^1.8.0",
+    "@solana-program/token": "^0.17.0",
+    "@solana/kit": "^8.3.0",
+    "@solana/wallet-standard-features": "^1.3.0",
+    "@solana/web3.js": "1.98.4",
+    "@wallet-standard/app": "^1.1.0",
+    "@wallet-standard/base": "^1.1.0",
+    "buffer": "^6.0.3",
+    "lucide-react": "^0.468.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
+    "viem": "2.57.4",
+    "@allowit/engine": "file:vendor/ui/allowit-engine-0.1.0.tgz"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0",
+    "@solana-program/system": "^0.15.0",
+    "@stellar/freighter-api": "6.0.1",
+    "@stellar/stellar-sdk": "17.3.0",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "typescript": "~5.9.2",
+    "vite": "^7.1.0",
+    "vitest": "^5.0.3",
+    "@allowit/stellar": "github:allowit-hq/allowit-contracts-stellar#fe03112215d0f91e317052e3ec034ca3e7b36fc0&path:/npm/stellar"
+  },
+  "packageManager": "pnpm@10.34.6"
+}

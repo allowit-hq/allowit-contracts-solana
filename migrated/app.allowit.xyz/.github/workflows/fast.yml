@@ -1,0 +1,172 @@
+name: Focused checks
+
+on:
+  pull_request:
+  push:
+    branches: [main, prod]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: focused-${{ github.repository }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  flow:
+    name: ${{ matrix.flow }}
+    runs-on: ubuntu-latest
+    # Includes checkout, dependency setup and execution. A slow battery fails.
+    timeout-minutes: 1
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - flow: TypeScript contracts
+            kind: types
+          - flow: HTTP transport
+            kind: node
+            tests: scripts/tests/frontend-server.test.mjs scripts/tests/proxy-runtime.test.mjs
+          - flow: Wallet signing and transfers
+            tests: src/wallet
+          - flow: Stellar wallets
+            tests: src/stellar
+          - flow: Native Solana vault
+            tests: src/native-vault
+          - flow: Delegated agent wallet
+            tests: src/delegate
+          - flow: Tempo payments
+            tests: src/tempo
+          - flow: PaySH services
+            tests: src/paysh
+          - flow: Policy creation and lifecycle
+            tests: src/policy
+          - flow: Runtime authorization
+            tests: src/runtime
+          - flow: Owner requests
+            tests: src/owner
+          - flow: Proxy transport
+            tests: src/server-proxy.test.ts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.6
+      - name: Install locked dependencies
+        run: node scripts/ci-dependencies.mjs
+      - name: Check TypeScript contracts
+        if: matrix.kind == 'types'
+        run: pnpm exec tsc -b
+      - name: Run HTTP transport tests
+        if: matrix.kind == 'node'
+        env:
+          TEST_PATHS: ${{ matrix.tests }}
+        run: |
+          read -r -a test_paths <<< "$TEST_PATHS"
+          node --test --test-reporter=./scripts/ci-node-reporter.mjs "${test_paths[@]}"
+      - name: Run focused tests (zero tests is a failure)
+        if: matrix.kind != 'node' && matrix.kind != 'types'
+        env:
+          TEST_PATHS: ${{ matrix.tests }}
+        run: |
+          read -r -a test_paths <<< "$TEST_PATHS"
+          pnpm exec vitest run "${test_paths[@]}" --passWithNoTests=false --reporter=json --outputFile="$RUNNER_TEMP/vitest.json"
+          node --input-type=module -e "import {readFileSync} from 'node:fs'; const r=JSON.parse(readFileSync(process.env.RUNNER_TEMP+'/vitest.json')); if(!(r.numPassedTests>0)) throw new Error('No tests passed');"
+
+  transport:
+    name: ${{ matrix.flow }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - flow: Native preflight
+            tests: scripts/tests/native-solana-preflight.test.mjs
+          - flow: Frontend source gate
+            tests: scripts/tests/frontend-source-gate.test.mjs
+          - flow: Bundled Engine inputs
+            tests: scripts/tests/bundled-artifacts.test.mjs
+          - flow: Source provenance
+            tests: scripts/tests/rust-backend-source.test.mjs
+          - flow: Vercel configuration
+            tests: scripts/tests/vercel-pull.test.mjs scripts/tests/stellar-csp.test.mjs
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run focused Node tests
+        env:
+          TEST_PATHS: ${{ matrix.tests }}
+        run: |
+          set -euo pipefail
+          read -r -a test_paths <<< "$TEST_PATHS"
+          node --test --test-reporter=./scripts/ci-node-reporter.mjs "${test_paths[@]}"
+
+  visual:
+    name: ${{ matrix.flow }}
+    # Baselines are Windows Chromium renders made by this job (tests/visual.spec.ts-snapshots/*-win32.png).
+    # After an approved visual change, `pnpm run test:visual:update` copies this job's renders from its failed run.
+    runs-on: windows-latest
+    # Includes the production build and the Chromium download.
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - flow: Visual smokes
+            tests: tests/visual.spec.ts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.6
+      - name: Install locked dependencies
+        run: node scripts/ci-dependencies.mjs
+      - name: Install Chromium
+        run: pnpm exec playwright install chromium
+      - name: Compare screens with the approved baselines
+        env:
+          TEST_PATHS: ${{ matrix.tests }}
+        run: |
+          read -r -a test_paths <<< "$TEST_PATHS"
+          # A new screen without a baseline still fails, but leaves its render for pnpm run test:visual:update.
+          pnpm exec playwright test --config playwright.visual.config.ts --update-snapshots=missing "${test_paths[@]}"
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: visual-diffs
+          path: .data/visual-checks/
+          retention-days: 7
+
+  coverage:
+    name: Test selection coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Require every source test to belong to a battery
+        run: |
+          node scripts/check-test-selection.mjs

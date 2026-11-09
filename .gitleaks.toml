@@ -31,3 +31,9 @@ regexes = [
   '''^BAudUD1ESiZUrng178AsG2SRLM4DqUExojbsgAwnn6Sj$''',
 ]
 condition = "AND"
+
+[[allowlists]]
+description = "Browser storage key name in migrated app code, not a credential"
+condition = "AND"
+paths = ['''^migrated/app\.allowit\.xyz/src/delegate/delegate-wallet-diagnostics\.ts$''']
+regexes = ['''^allowit\.delegate\.wallet-diagnostic\.v1$''']
