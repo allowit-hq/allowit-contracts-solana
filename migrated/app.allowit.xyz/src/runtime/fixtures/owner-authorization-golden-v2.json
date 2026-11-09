@@ -1,0 +1,110 @@
+{
+  "purpose": "Cross-language encoding fixture with public RFC8032 owner key and synthetic source/IR/intent commitments; no admitted policy, grant or chain effect.",
+  "budgetEncoding": {
+    "domain": "allowit-typed-budgets-v1",
+    "separator": "NUL byte",
+    "payload": "[version decimal string, compiler requirements in exact source order as seven-field arrays, asset metadata sorted by ASCII assetId as six-field arrays]",
+    "requirementFields": [
+      "operation",
+      "budget_id",
+      "asset_id",
+      "decimals decimal string",
+      "total_budget_units",
+      "max_debit_units",
+      "max_fee_units"
+    ],
+    "assetFields": [
+      "assetId",
+      "decimals decimal string",
+      "symbol exact UTF8",
+      "network",
+      "kind",
+      "mint or null"
+    ]
+  },
+  "authorizationEncoding": {
+    "domain": "allowit-owner-policy-authorization-v1",
+    "separator": "NUL byte",
+    "payload": "Compact UTF8 JSON array; version and revision are canonical decimal strings; all other fields are unchanged strings; no trailing bytes",
+    "orderedFields": [
+      "version",
+      "owner",
+      "policyId",
+      "policyInstance",
+      "sourceHash",
+      "irHash",
+      "originalIntentHash",
+      "revision",
+      "walletProfile",
+      "sourceProfile",
+      "walletKind",
+      "operation",
+      "network",
+      "typedBudgetsHash",
+      "nonce",
+      "origin",
+      "expiresAt"
+    ]
+  },
+  "typedBudgetRequirements": [
+    {
+      "operation": "allowit::execution_request_cap",
+      "budget_id": "native budget",
+      "asset_id": "native:solana:3a132ece10305ec1830725502fa2b7e7eb8157e9123d4c1f654a71787161dc21",
+      "decimals": 9,
+      "total_budget_units": "50000000",
+      "max_debit_units": "10000000",
+      "max_fee_units": "10000"
+    }
+  ],
+  "assetMetadata": [
+    {
+      "assetId": "native:solana:3a132ece10305ec1830725502fa2b7e7eb8157e9123d4c1f654a71787161dc21",
+      "decimals": 9,
+      "symbol": "Testnet SOL",
+      "network": "solana:testnet",
+      "kind": "native"
+    }
+  ],
+  "budgetPreimageBase64": "YWxsb3dpdC10eXBlZC1idWRnZXRzLXYxAFsiMSIsW1siYWxsb3dpdDo6ZXhlY3V0aW9uX3JlcXVlc3RfY2FwIiwibmF0aXZlIGJ1ZGdldCIsIm5hdGl2ZTpzb2xhbmE6M2ExMzJlY2UxMDMwNWVjMTgzMDcyNTUwMmZhMmI3ZTdlYjgxNTdlOTEyM2Q0YzFmNjU0YTcxNzg3MTYxZGMyMSIsIjkiLCI1MDAwMDAwMCIsIjEwMDAwMDAwIiwiMTAwMDAiXV0sW1sibmF0aXZlOnNvbGFuYTozYTEzMmVjZTEwMzA1ZWMxODMwNzI1NTAyZmEyYjdlN2ViODE1N2U5MTIzZDRjMWY2NTRhNzE3ODcxNjFkYzIxIiwiOSIsIlRlc3RuZXQgU09MIiwic29sYW5hOnRlc3RuZXQiLCJuYXRpdmUiLG51bGxdXV0=",
+  "authorization": {
+    "version": 1,
+    "owner": "FVen3X669xLzsi6N2V91DoiyzHzg1uAgqiT8jZ9nS96Z",
+    "policyId": "policy-unchanged",
+    "policyInstance": "8eb3eff71a6a028f304c0d17a18923905cb784fdec9c17fe66c3f92ebdd658e1",
+    "sourceHash": "2222222222222222222222222222222222222222222222222222222222222222",
+    "irHash": "3333333333333333333333333333333333333333333333333333333333333333",
+    "originalIntentHash": "4444444444444444444444444444444444444444444444444444444444444444",
+    "revision": 1,
+    "walletProfile": "solana-owner-typed-v1",
+    "network": "solana:testnet",
+    "typedBudgetsHash": "bc2c31b1b4fa4053a8ddd1a3e527b40e8f6dd6f89c8f1cca881202ddf5687887",
+    "nonce": "6666666666666666666666666666666666666666666666666666666666666666",
+    "origin": "https://owner.test",
+    "expiresAt": "2030-01-02T00:00:00Z",
+    "sourceProfile": "oracle",
+    "walletKind": "owner-wallet",
+    "operation": "allowit::execution_request_validate"
+  },
+  "messageBase64": "YWxsb3dpdC1vd25lci1wb2xpY3ktYXV0aG9yaXphdGlvbi12MQBbIjEiLCJGVmVuM1g2Njl4THpzaTZOMlY5MURvaXl6SHpnMXVBZ3FpVDhqWjluUzk2WiIsInBvbGljeS11bmNoYW5nZWQiLCI4ZWIzZWZmNzFhNmEwMjhmMzA0YzBkMTdhMTg5MjM5MDVjYjc4NGZkZWM5YzE3ZmU2NmMzZjkyZWJkZDY1OGUxIiwiMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMiIsIjMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMiLCI0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0IiwiMSIsInNvbGFuYS1vd25lci10eXBlZC12MSIsIm9yYWNsZSIsIm93bmVyLXdhbGxldCIsImFsbG93aXQ6OmV4ZWN1dGlvbl9yZXF1ZXN0X3ZhbGlkYXRlIiwic29sYW5hOnRlc3RuZXQiLCJiYzJjMzFiMWI0ZmE0MDUzYThkZGQxYTNlNTI3YjQwZThmNmRkNmY4OWM4ZjFjY2E4ODEyMDJkZGY1Njg3ODg3IiwiNjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NiIsImh0dHBzOi8vb3duZXIudGVzdCIsIjIwMzAtMDEtMDJUMDA6MDA6MDBaIl0=",
+  "messageSha256": "bbc0fa03363bc965312a453ba210fa15a39e9b4256170a02200c606c48ae737f",
+  "instanceBinding": {
+    "owner": "FVen3X669xLzsi6N2V91DoiyzHzg1uAgqiT8jZ9nS96Z",
+    "policyId": "policy-unchanged",
+    "sourceHash": "2222222222222222222222222222222222222222222222222222222222222222",
+    "irHash": "3333333333333333333333333333333333333333333333333333333333333333",
+    "originalIntentHash": "4444444444444444444444444444444444444444444444444444444444444444",
+    "revision": 1,
+    "sourceProfile": "oracle",
+    "walletKind": "owner-wallet",
+    "walletProfile": "solana-owner-typed-v1",
+    "operation": "allowit::execution_request_validate",
+    "network": "solana:testnet",
+    "typedBudgetsHash": "bc2c31b1b4fa4053a8ddd1a3e527b40e8f6dd6f89c8f1cca881202ddf5687887",
+    "version": 1,
+    "nonce": "3333333333333333333333333333333333333333333333333333333333333333",
+    "instanceId": "8eb3eff71a6a028f304c0d17a18923905cb784fdec9c17fe66c3f92ebdd658e1"
+  },
+  "instancePreimageBase64": "YWxsb3dpdC1vd25lci1wb2xpY3ktaW5zdGFuY2UtdjEAWyIxIiwiRlZlbjNYNjY5eEx6c2k2TjJWOTFEb2l5ekh6ZzF1QWdxaVQ4alo5blM5NloiLCJwb2xpY3ktdW5jaGFuZ2VkIiwiMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMiIsIjMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMiLCI0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0IiwiMSIsIm9yYWNsZSIsIm93bmVyLXdhbGxldCIsInNvbGFuYS1vd25lci10eXBlZC12MSIsImFsbG93aXQ6OmV4ZWN1dGlvbl9yZXF1ZXN0X3ZhbGlkYXRlIiwic29sYW5hOnRlc3RuZXQiLCJiYzJjMzFiMWI0ZmE0MDUzYThkZGQxYTNlNTI3YjQwZThmNmRkNmY4OWM4ZjFjY2E4ODEyMDJkZGY1Njg3ODg3IiwiMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMyJd",
+  "instanceEncoding": "ASCII allowit-owner-policy-instance-v1 + NUL + compact UTF8 JSON string tuple: version, owner, policyId, sourceHash, irHash, originalIntentHash, revision, sourceProfile, walletKind, walletProfile, operation, network, typedBudgetsHash, nonce. SHA256 lowercase hex. No normalization or trailing bytes."
+}

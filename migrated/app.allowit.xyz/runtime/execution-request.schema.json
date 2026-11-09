@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Allowit local execution request v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "requestId",
+    "amount",
+    "token",
+    "action",
+    "recipient",
+    "execution"
+  ],
+  "properties": {
+    "requestId": {
+      "type": "string",
+      "minLength": 8,
+      "maxLength": 100
+    },
+    "amount": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]{0,6})(\\.[0-9]{1,6})?$",
+      "description": "Positive USDC budget charge, maximum 1000000: ceil(quantity * fixed test rate * 10^6) / 10^6 plus sum of all call maxCostUSDC. Test rates: SOL=100, XLM=0.1, USDC=1; never market quotes."
+    },
+    "token": {
+      "const": "USDC"
+    },
+    "action": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "merchant": {
+      "type": "string",
+      "maxLength": 200
+    },
+    "recipient": {
+      "type": "string",
+      "description": "Valid Solana 32-byte base58 or Stellar checksummed G/C/M address. No recipient allowlist unless policy imposes one."
+    },
+    "context": {
+      "type": "object",
+      "description": "Evidence claims as JSON. Combined with server-added allowitExecution: maximum 16 KiB, depth 8 and 128 entries. Do not supply allowitExecution."
+    },
+    "execution": {
+      "$ref": "#/$defs/plan"
+    }
+  },
+  "$defs": {
+    "plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rail",
+        "asset",
+        "quantity"
+      ],
+      "properties": {
+        "rail": {
+          "enum": [
+            "solana",
+            "stellar"
+          ]
+        },
+        "asset": {
+          "enum": [
+            "SOL",
+            "XLM",
+            "USDC"
+          ]
+        },
+        "quantity": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]{0,6})(\\.[0-9]{1,9})?$",
+          "description": "Positive decimal: SOL at most 9 places, XLM 7, USDC 6. SOL only on Solana; XLM only on Stellar."
+        },
+        "memo": {
+          "type": "string",
+          "description": "At most 256 UTF-8 bytes. Mock metadata, not a signed on-chain memo."
+        },
+        "data": {
+          "type": "string",
+          "contentEncoding": "base64",
+          "maxLength": 1368,
+          "description": "Canonical padded base64, at most 1024 decoded bytes; no executable script."
+        },
+        "before": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "$ref": "#/$defs/call"
+          }
+        },
+        "after": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "$ref": "#/$defs/call"
+          }
+        }
+      }
+    },
+    "call": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "contract",
+        "method",
+        "args",
+        "maxCostUSDC"
+      ],
+      "properties": {
+        "type": {
+          "const": "contract_call"
+        },
+        "contract": {
+          "type": "string",
+          "description": "Solana program address or Stellar C address; same rail as transfer."
+        },
+        "method": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,63}$"
+        },
+        "args": {
+          "type": "object",
+          "description": "At most 2048 UTF-8 bytes; contributes to combined context limits."
+        },
+        "maxCostUSDC": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]{0,6})(\\.[0-9]{1,6})?$",
+          "description": "Maximum additional mock cost; zero is allowed. Charged in full."
+        }
+      }
+    }
+  },
+  "description": "Local dev only. Semantic validation also enforces addresses, asset/rail matching, exact amounts, UTF-8 byte limits and combined context limits. Transactions run before[] in order, transfer, then after[] in order as mock records. Calls require policy pass and an additional exact-plan owner answer. No RPC, provider delivery, arbitrary URL or real settlement."
+}

@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "profile": "allowit-deploy-v1",
+  "requestId": "cli-deploy-0001",
+  "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+  "owner": "4vJ9JU1bJJE96FWSJKvHsmmFADCg4gpZQff4P3bkLKi",
+  "amount": "1",
+  "policy": {
+    "version": 2,
+    "instance": "9b14a209-1075-4752-85ca-f22113108c07",
+    "profile": "solana-native-v2",
+    "network": "solana:devnet",
+    "prompt": "Spend up to 5 test tokens per day",
+    "dailyLimit": "5",
+    "actionLimit": "5",
+    "payDiscovery": false,
+    "executionPolicyDigest": "e0ed33013748c504bf29df419463f7dc9eadfaeaedee52d48408f1b961cd1542",
+    "executionRequirementsDigest": "6fa1fe1cd6debd64f7a9f93660a341684169fea401e63a3a11464b66d9de611a",
+    "semanticRequired": false,
+    "sourceBundle": "793db01595fbcb15503914744e49b45f470e9ca1d2805aceadeac00a0d843fc7",
+    "id": "5c37422e229aac8e5b7a1bbcfc79e174c024a87fa030923fccf7a8afd31517d3",
+    "policyArtifact": "cb55e2015dbc437cce58a53727c947cd1d8db75453623c5e53a4e4ea15b40dde",
+    "rust": "//! Native policy source, copied byte-for-byte into both chain builds.\n//! Amounts use six-decimal policy units. Only daily_limit is explicitly tunable.\nuse crate::policy_api::*;\n\npub fn execute(ctx: &Context) -> Result<u64, PolicyError> {\n    require_approval(ctx)?;\n    enforce_daily_limit(ctx)\n}\n"
+  },
+  "deployment": {
+    "network": "solana:devnet",
+    "sourceBundle": "793db01595fbcb15503914744e49b45f470e9ca1d2805aceadeac00a0d843fc7",
+    "policy": "US517G5965aydkZ46HS38QLi7UQiSojurfbQfKCELFx",
+    "policyData": "YMN9Qj5jPNp7j14VPcML1B6xGgcPWVZUGLFU3Mnyfaf",
+    "custody": "cGfHiC6Kgg3FpFZvgwGcswsCRtp4aBP2fzuXRQPizuN"
+  },
+  "wallet": {
+    "mint": "GgBaCs3NCBuZN12kCJgAW63ydqohFkHEdfdEXBPzLHq",
+    "executor": "8qbHbw2BbbTHBW1sbeqakYXVKRQM8Ne7pLK7m6CVfeR",
+    "authority": "CktRuQ2mttgRGkXJtyksdKHjUdc2C4TgDzyB98oEzy8"
+  },
+  "intentDigest": "daefa5d2c4ee4359297a41e377e80adcbb6bad525f473e62bfd45f59cc661466"
+}

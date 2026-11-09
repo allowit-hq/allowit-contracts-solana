@@ -1,0 +1,10 @@
+.solana-network-switch {display:inline-flex;gap:2px;padding:3px;border:1px solid var(--rule);border-radius:999px;background:var(--field);}
+.solana-network-option {border:0;border-radius:999px;padding:6px 10px;min-height:44px;background:transparent;color:var(--muted);font:inherit;white-space:nowrap;cursor:pointer;}
+.solana-network-option[aria-pressed='true'] {background:var(--ink);color:var(--on-ink);}
+.solana-network-option:not(:disabled):hover {color:var(--ink);background:color-mix(in srgb,var(--ink) 8%,transparent);}
+.solana-network-option[aria-pressed='true']:not(:disabled):hover {background:var(--ink);color:var(--on-ink);}
+.solana-network-option:focus-visible {outline:2px solid var(--ink);outline-offset:2px;}
+.solana-network-option:disabled {cursor:default;opacity:.5;}
+@media (prefers-reduced-motion: no-preference) {
+  .solana-network-option {transition:background-color 180ms ease,color 180ms ease,opacity 180ms ease;}
+}

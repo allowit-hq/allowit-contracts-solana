@@ -1,0 +1,817 @@
+{
+ "provenance": {
+  "note": "Mechanical camelCase projection of preserved SDK draft output. Not a live compile, chain or provider result.",
+  "compiled": {
+   "artifact": "instance/artifacts/200-paysh-request-conversion-and-typed-ui/sdk-draft-payment-compiled-v6.json",
+   "sha256": "747f871769cd207119a67ffe33a81013602b4d15c52c9ad6616b9bbc0efcec3a"
+  },
+  "registry": {
+   "artifact": "instance/artifacts/200-paysh-request-conversion-and-typed-ui/sdk-draft-registry-v6.json",
+   "sha256": "8f3019b9a44251a91d8bbd861e658650f08ec54cfe3567f7134c50a19ef91ce1"
+  },
+  "projection": "scripts/typed-fixture-projection.mjs"
+ },
+ "policy": {
+  "language": "allowit-rust-v1",
+  "code": "use allowit::prelude::*;\nstruct PolicyParams { native_asset: &'static str, total_native_budget: u64, token_asset: &'static str, total_token_budget:u64 }\nfn new() -> PolicyParams { PolicyParams { native_asset: \"native:solana:0909090909090909090909090909090909090909090909090909090909090909\", total_native_budget:50000000, token_asset:\"token:solana:0909090909090909090909090909090909090909090909090909090909090909:1616161616161616161616161616161616161616161616161616161616161616:contract\", total_token_budget:5000 } }\nasync fn _execute(ctx: &Context, params:&PolicyParams) -> PolicyResult {\n    if let Some(request) = &ctx.curl_request {\n        if let Some(outcome) = &ctx.curl_outcome {\n            let proposed = paysh::payment_request_from_curl(outcome, request)?;\n            if let Some(payment) = proposed {\n                allowit::payment_request_cap(&payment,\"token-budget\",params.token_asset,6,params.total_token_budget,1000,0)?;\n                allowit::payment_request_cap(&payment,\"native-budget\",params.native_asset,9,params.total_native_budget,0,10000)?;\n                if payment.payment.units > 1000 { return allowit::fail(\"Payment exceeds owner ceiling\"); }\n                if payment.payment.decimals != 6 { return allowit::fail(\"Wrong decimal scale\"); }\n                if let Some(fees) = &payment.fee_bounds {\n                    for fee in fees {\n                        if fee.max_fee > 10000 { return allowit::fail(\"Fee exceeds owner ceiling\"); }\n                    }\n                } else { return allowit::fail(\"Fees are unresolved\"); }\n            }\n        } else { return allowit::fail(\"HTTP outcome is missing\"); }\n    } else { return allowit::fail(\"HTTP request is missing\"); }\n    Ok(())\n}\n",
+  "sourceHash": "212ce295645df4133edb0d35610563cf86cb07e7e98b85290c4908dfccd740bb",
+  "irHash": "7a200444a9cdc0198211d99dbacb4a572a40494c1dcf989f1c19974075fde026",
+  "registryVersion": "1.4.0",
+  "typeDeclarations": [
+   "ExecutionRequest",
+   "ValidatedExecutionRequest",
+   "CurlRequest",
+   "CurlOutcome",
+   "PaymentRequest",
+   "WorkflowAmount",
+   "WorkflowAsset",
+   "WorkflowEffectBound",
+   "WorkflowFeeBound",
+   "AccountId",
+   "OperationRef",
+   "NativeInstruction",
+   "Unit"
+  ],
+  "typedWorkflowRequirements": [
+   {
+    "inputs": [
+     {
+      "binding": {
+       "kind": "variable",
+       "name": "outcome"
+      },
+      "name": "outcome",
+      "state": "after_some",
+      "valueType": {
+       "kind": "named",
+       "value": "CurlOutcome"
+      }
+     },
+     {
+      "binding": {
+       "kind": "variable",
+       "name": "request"
+      },
+      "name": "request",
+      "state": "after_some",
+      "valueType": {
+       "kind": "named",
+       "value": "CurlRequest"
+      }
+     }
+    ],
+    "operation": "paysh::payment_request_from_curl",
+    "outputBinding": "proposed",
+    "outputState": "via_try",
+    "outputType": {
+     "kind": "result",
+     "value": {
+      "kind": "option",
+      "value": {
+       "kind": "named",
+       "value": "PaymentRequest"
+      }
+     }
+    },
+    "outputValueType": {
+     "kind": "option",
+     "value": {
+      "kind": "named",
+      "value": "PaymentRequest"
+     }
+    },
+    "span": {
+     "end": 746,
+     "start": 714
+    },
+    "spanEncoding": "utf8_bytes"
+   },
+   {
+    "inputs": [
+     {
+      "binding": {
+       "kind": "borrow",
+       "value": {
+        "kind": "variable",
+        "name": "payment"
+       }
+      },
+      "name": "request",
+      "state": "after_some",
+      "valueType": {
+       "kind": "named",
+       "value": "PaymentRequest"
+      }
+     },
+     {
+      "binding": {
+       "kind": "string",
+       "value": "token-budget"
+      },
+      "name": "budget_id",
+      "state": "literal",
+      "valueType": {
+       "kind": "string"
+      }
+     },
+     {
+      "binding": {
+       "kind": "string",
+       "value": "token:solana:0909090909090909090909090909090909090909090909090909090909090909:1616161616161616161616161616161616161616161616161616161616161616:contract"
+      },
+      "name": "asset_id",
+      "state": "literal",
+      "valueType": {
+       "kind": "string"
+      }
+     },
+     {
+      "binding": {
+       "kind": "integer",
+       "value": "6"
+      },
+      "name": "decimals",
+      "state": "literal",
+      "valueType": {
+       "kind": "u64"
+      }
+     },
+     {
+      "binding": {
+       "kind": "integer",
+       "value": "5000"
+      },
+      "name": "total_budget_units",
+      "state": "literal",
+      "valueType": {
+       "kind": "u64"
+      }
+     },
+     {
+      "binding": {
+       "kind": "integer",
+       "value": "1000"
+      },
+      "name": "max_debit_units",
+      "state": "literal",
+      "valueType": {
+       "kind": "u64"
+      }
+     },
+     {
+      "binding": {
+       "kind": "integer",
+       "value": "0"
+      },
+      "name": "max_fee_units",
+      "state": "literal",
+      "valueType": {
+       "kind": "u64"
+      }
+     }
+    ],
+    "operation": "allowit::payment_request_cap",
+    "outputBinding": null,
+    "outputState": "result",
+    "outputType": {
+     "kind": "result",
+     "value": {
+      "kind": "named",
+      "value": "Unit"
+     }
+    },
+    "outputValueType": {
+     "kind": "result",
+     "value": {
+      "kind": "named",
+      "value": "Unit"
+     }
+    },
+    "span": {
+     "end": 857,
+     "start": 829
+    },
+    "spanEncoding": "utf8_bytes"
+   },
+   {
+    "inputs": [
+     {
+      "binding": {
+       "kind": "borrow",
+       "value": {
+        "kind": "variable",
+        "name": "payment"
+       }
+      },
+      "name": "request",
+      "state": "after_some",
+      "valueType": {
+       "kind": "named",
+       "value": "PaymentRequest"
+      }
+     },
+     {
+      "binding": {
+       "kind": "string",
+       "value": "native-budget"
+      },
+      "name": "budget_id",
+      "state": "literal",
+      "valueType": {
+       "kind": "string"
+      }
+     },
+     {
+      "binding": {
+       "kind": "string",
+       "value": "native:solana:0909090909090909090909090909090909090909090909090909090909090909"
+      },
+      "name": "asset_id",
+      "state": "literal",
+      "valueType": {
+       "kind": "string"
+      }
+     },
+     {
+      "binding": {
+       "kind": "integer",
+       "value": "9"
+      },
+      "name": "decimals",
+      "state": "literal",
+      "valueType": {
+       "kind": "u64"
+      }
+     },
+     {
+      "binding": {
+       "kind": "integer",
+       "value": "50000000"
+      },
+      "name": "total_budget_units",
+      "state": "literal",
+      "valueType": {
+       "kind": "u64"
+      }
+     },
+     {
+      "binding": {
+       "kind": "integer",
+       "value": "0"
+      },
+      "name": "max_debit_units",
+      "state": "literal",
+      "valueType": {
+       "kind": "u64"
+      }
+     },
+     {
+      "binding": {
+       "kind": "integer",
+       "value": "10000"
+      },
+      "name": "max_fee_units",
+      "state": "literal",
+      "valueType": {
+       "kind": "u64"
+      }
+     }
+    ],
+    "operation": "allowit::payment_request_cap",
+    "outputBinding": null,
+    "outputState": "result",
+    "outputType": {
+     "kind": "result",
+     "value": {
+      "kind": "named",
+      "value": "Unit"
+     }
+    },
+    "outputValueType": {
+     "kind": "result",
+     "value": {
+      "kind": "named",
+      "value": "Unit"
+     }
+    },
+    "span": {
+     "end": 983,
+     "start": 955
+    },
+    "spanEncoding": "utf8_bytes"
+   }
+  ],
+  "typedBudgetRequirements": [
+   {
+    "assetId": "token:solana:0909090909090909090909090909090909090909090909090909090909090909:1616161616161616161616161616161616161616161616161616161616161616:contract",
+    "budgetId": "token-budget",
+    "decimals": 6,
+    "maxDebitUnits": "1000",
+    "maxFeeUnits": "0",
+    "operation": "allowit::payment_request_cap",
+    "totalBudgetUnits": "5000"
+   },
+   {
+    "assetId": "native:solana:0909090909090909090909090909090909090909090909090909090909090909",
+    "budgetId": "native-budget",
+    "decimals": 9,
+    "maxDebitUnits": "0",
+    "maxFeeUnits": "10000",
+    "operation": "allowit::payment_request_cap",
+    "totalBudgetUnits": "50000000"
+   }
+  ],
+  "calls": [
+   {
+    "end": 746,
+    "name": "paysh::payment_request_from_curl",
+    "start": 714
+   },
+   {
+    "end": 857,
+    "name": "allowit::payment_request_cap",
+    "start": 829
+   },
+   {
+    "end": 983,
+    "name": "allowit::payment_request_cap",
+    "start": 955
+   },
+   {
+    "end": 1139,
+    "name": "fail",
+    "start": 1126
+   },
+   {
+    "end": 1247,
+    "name": "fail",
+    "start": 1234
+   },
+   {
+    "end": 1439,
+    "name": "fail",
+    "start": 1426
+   },
+   {
+    "end": 1539,
+    "name": "fail",
+    "start": 1526
+   },
+   {
+    "end": 1617,
+    "name": "fail",
+    "start": 1604
+   },
+   {
+    "end": 1681,
+    "name": "fail",
+    "start": 1668
+   }
+  ],
+  "workflow": [
+   {
+    "arguments": [],
+    "description": "These conditions and calculations run in the order shown. Open the code to inspect their exact rules.",
+    "end": 1711,
+    "id": "45c0882dc1e76623",
+    "kind": "custom",
+    "label": "Custom code",
+    "name": "custom",
+    "source": "if let Some(request) = &ctx.curl_request {\n        if let Some(outcome) = &ctx.curl_outcome {\n            let proposed = paysh::payment_request_from_curl(outcome, request)?;\n            if let Some(payment) = proposed {\n                allowit::payment_request_cap(&payment,\"token-budget\",params.token_asset,6,params.total_token_budget,1000,0)?;\n                allowit::payment_request_cap(&payment,\"native-budget\",params.native_asset,9,params.total_native_budget,0,10000)?;\n                if payment.payment.units > 1000 { return allowit::fail(\"Payment exceeds owner ceiling\"); }\n                if payment.payment.decimals != 6 { return allowit::fail(\"Wrong decimal scale\"); }\n                if let Some(fees) = &payment.fee_bounds {\n                    for fee in fees {\n                        if fee.max_fee > 10000 { return allowit::fail(\"Fee exceeds owner ceiling\"); }\n                    }\n                } else { return allowit::fail(\"Fees are unresolved\"); }\n            }\n        } else { return allowit::fail(\"HTTP outcome is missing\"); }\n    } else { return allowit::fail(\"HTTP request is missing\"); }",
+    "start": 593
+   },
+   {
+    "arguments": [],
+    "description": "The request meets the policy's rules. This result is not a transfer receipt.",
+    "end": 1722,
+    "id": "aacaef16f58a28b0",
+    "kind": "pass",
+    "label": "Pass the policy check",
+    "name": "Ok",
+    "source": "Ok(())",
+    "start": 1716
+   }
+  ],
+  "functionHelp": [
+   {
+    "name": "set_cap",
+    "title": "Total spending limit",
+    "description": "Sets the total amount this policy can spend. Previous spending and the new request must fit within this limit."
+   },
+   {
+    "name": "cap_per_transaction",
+    "title": "Limit per purchase",
+    "description": "Rejects a purchase above this amount, even when money remains in the total allowance."
+   },
+   {
+    "name": "cap_purchase_tiers",
+    "title": "Purchase tiers",
+    "description": "Limits expensive purchases: the first price band allows the stated count. Each cheaper band halves the ceiling and doubles the count. No minimum purchase amount; the total cap still applies. Uses authoritative purchase history, including reservations."
+   },
+   {
+    "name": "usdc",
+    "title": "USDC amount",
+    "description": "Writes amounts in USDC: usdc(\"25.50\")? means 25.50 USDC. Up to six decimal places, with no rounding. On Testnet this unit uses the policy's configured six-decimal test token."
+   },
+   {
+    "name": "percent",
+    "title": "Percentage",
+    "description": "Writes a percentage from 0 to 100: percent(\"85\")? means 85%, or 8,500 basis points. Up to two decimal places, with no rounding."
+   },
+   {
+    "name": "amount_at_most",
+    "title": "Compare purchase amount",
+    "description": "Checks whether the purchase is at or below this USDC amount, including equality. This comparison does not set a spending allowance."
+   },
+   {
+    "name": "within_percentage_points",
+    "title": "Compare returns",
+    "description": "Checks whether the candidate return is no more than this many percentage points below the benchmark. Both returns use basis points. A higher return passes; 4% versus 5% passes a 1-point gap. This is an absolute gap, not a relative percent change."
+   },
+   {
+    "name": "allow_actions",
+    "title": "Exact action labels",
+    "description": "Compares the caller-supplied action field with literal strings. It does not verify an action's category or purpose; use check_preference for classification."
+   },
+   {
+    "name": "require_merchant",
+    "title": "Required merchant",
+    "description": "Allows a request only when its merchant exactly matches this value."
+   },
+   {
+    "name": "require_recipient",
+    "title": "Required recipient",
+    "description": "Allows funds to be sent only to this exact address. The executing wallet or contract verifies the destination."
+   },
+   {
+    "name": "confidence",
+    "title": "Confidence interval",
+    "description": "Reads the supplied evidence interval. Both bounds use basis points: 10,000 means 100%. Missing or invalid evidence rejects the request."
+   },
+   {
+    "name": "preference_evidence",
+    "title": "Preference evidence",
+    "description": "Reads the named trusted optional numeric evidence. Use only inside the matching preference guard."
+   },
+   {
+    "name": "semantic",
+    "title": "Preference assessment",
+    "description": "Reads an assessment of how the request fits this preference. A missing assessment prevents approval. A point score is not a calibrated confidence interval."
+   },
+   {
+    "name": "check_preference",
+    "title": "Preference",
+    "description": "Assesses this preference. Enabled approval and denial thresholds apply inclusively; all other scores ask you. Every other policy rule must still pass. The result is one preference-fit score, not calibrated confidence."
+   },
+   {
+    "name": "context_u64",
+    "title": "Request value",
+    "description": "Reads a whole-number value supplied with the request, such as an expected return in basis points. Missing or non-whole values reject the request. Supplied facts need a trustworthy source."
+   },
+   {
+    "name": "require_user_input",
+    "title": "Ask for approval",
+    "description": "Pauses for your approval. Declining rejects the request."
+   },
+   {
+    "name": "owner_limit",
+    "title": "Owner-controlled limit",
+    "description": "Declares one named native limit and its initial integer units in new(). Owner authorization controls later native account updates."
+   },
+   {
+    "name": "stored_limit",
+    "title": "Read native policy storage",
+    "description": "Reads a declared limit from verified current native account state. Missing trusted state prevents approval."
+   },
+   {
+    "name": "is_one_of",
+    "title": "List membership",
+    "description": "Checks whether the primitive string equals an entry in a bounded inline or constructor list."
+   },
+   {
+    "name": "fail",
+    "title": "Reject the request",
+    "description": "Stops evaluation and rejects the request with this explanation. No spending is authorized."
+   },
+   {
+    "name": "allowit::set_cap",
+    "title": "Total spending limit",
+    "description": "Sets the total amount this policy can spend. Previous spending and the new request must fit within this limit."
+   },
+   {
+    "name": "allowit::cap_per_transaction",
+    "title": "Limit per purchase",
+    "description": "Rejects a purchase above this amount, even when money remains in the total allowance."
+   },
+   {
+    "name": "allowit::cap_purchase_tiers",
+    "title": "Purchase tiers",
+    "description": "Limits expensive purchases: the first price band allows the stated count. Each cheaper band halves the ceiling and doubles the count. No minimum purchase amount; the total cap still applies. Uses authoritative purchase history, including reservations."
+   },
+   {
+    "name": "allowit::usdc",
+    "title": "USDC amount",
+    "description": "Writes amounts in USDC: usdc(\"25.50\")? means 25.50 USDC. Up to six decimal places, with no rounding. On Testnet this unit uses the policy's configured six-decimal test token."
+   },
+   {
+    "name": "allowit::percent",
+    "title": "Percentage",
+    "description": "Writes a percentage from 0 to 100: percent(\"85\")? means 85%, or 8,500 basis points. Up to two decimal places, with no rounding."
+   },
+   {
+    "name": "allowit::amount_at_most",
+    "title": "Compare purchase amount",
+    "description": "Checks whether the purchase is at or below this USDC amount, including equality. This comparison does not set a spending allowance."
+   },
+   {
+    "name": "allowit::within_percentage_points",
+    "title": "Compare returns",
+    "description": "Checks whether the candidate return is no more than this many percentage points below the benchmark. Both returns use basis points. A higher return passes; 4% versus 5% passes a 1-point gap. This is an absolute gap, not a relative percent change."
+   },
+   {
+    "name": "allowit::allow_actions",
+    "title": "Exact action labels",
+    "description": "Compares the caller-supplied action field with literal strings. It does not verify an action's category or purpose; use check_preference for classification."
+   },
+   {
+    "name": "allowit::require_merchant",
+    "title": "Required merchant",
+    "description": "Allows a request only when its merchant exactly matches this value."
+   },
+   {
+    "name": "allowit::require_recipient",
+    "title": "Required recipient",
+    "description": "Allows funds to be sent only to this exact address. The executing wallet or contract verifies the destination."
+   },
+   {
+    "name": "allowit::confidence",
+    "title": "Confidence interval",
+    "description": "Reads the supplied evidence interval. Both bounds use basis points: 10,000 means 100%. Missing or invalid evidence rejects the request."
+   },
+   {
+    "name": "allowit::preference_evidence",
+    "title": "Preference evidence",
+    "description": "Reads the named trusted optional numeric evidence. Use only inside the matching preference guard."
+   },
+   {
+    "name": "jev::preference_evidence",
+    "title": "Preference evidence",
+    "description": "Reads the named trusted optional numeric evidence. Use only inside the matching preference guard."
+   },
+   {
+    "name": "allowit::semantic",
+    "title": "Preference assessment",
+    "description": "Reads an assessment of how the request fits this preference. A missing assessment prevents approval. A point score is not a calibrated confidence interval."
+   },
+   {
+    "name": "jev::semantic",
+    "title": "Preference assessment",
+    "description": "Reads an assessment of how the request fits this preference. A missing assessment prevents approval. A point score is not a calibrated confidence interval."
+   },
+   {
+    "name": "allowit::check_preference",
+    "title": "Preference",
+    "description": "Assesses this preference. Enabled approval and denial thresholds apply inclusively; all other scores ask you. Every other policy rule must still pass. The result is one preference-fit score, not calibrated confidence."
+   },
+   {
+    "name": "jev::check_preference",
+    "title": "Preference",
+    "description": "Assesses this preference. Enabled approval and denial thresholds apply inclusively; all other scores ask you. Every other policy rule must still pass. The result is one preference-fit score, not calibrated confidence."
+   },
+   {
+    "name": "allowit::context_u64",
+    "title": "Request value",
+    "description": "Reads a whole-number value supplied with the request, such as an expected return in basis points. Missing or non-whole values reject the request. Supplied facts need a trustworthy source."
+   },
+   {
+    "name": "allowit::require_user_input",
+    "title": "Ask for approval",
+    "description": "Pauses for your approval. Declining rejects the request."
+   },
+   {
+    "name": "allowit::owner_limit",
+    "title": "Owner-controlled limit",
+    "description": "Declares one named native limit and its initial integer units in new(). Owner authorization controls later native account updates."
+   },
+   {
+    "name": "allowit::stored_limit",
+    "title": "Read native policy storage",
+    "description": "Reads a declared limit from verified current native account state. Missing trusted state prevents approval."
+   },
+   {
+    "name": "allowit::is_one_of",
+    "title": "List membership",
+    "description": "Checks whether the primitive string equals an entry in a bounded inline or constructor list."
+   },
+   {
+    "name": "allowit::fail",
+    "title": "Reject the request",
+    "description": "Stops evaluation and rejects the request with this explanation. No spending is authorized."
+   },
+   {
+    "name": "paysh::call",
+    "title": "Paid provider call",
+    "description": "Admits one call using authenticated run input and exact payment, swap and service-fee ceilings. True means admitted plan, not payment or delivery. The host settles through the selected native wallet and provider adapter after every policy guard passes."
+   },
+   {
+    "name": "allowit::execution_request_validate",
+    "title": "Validate native request",
+    "description": "Checks the complete request through the installed native profile. Structural validity is not spending approval.",
+    "typedSignature": {
+     "effect": "pure_validation",
+     "parameters": [
+      {
+       "borrowed": true,
+       "name": "request",
+       "valueType": {
+        "kind": "named",
+        "value": "ExecutionRequest"
+       }
+      }
+     ],
+     "result": {
+      "kind": "result",
+      "value": {
+       "kind": "named",
+       "value": "ValidatedExecutionRequest"
+      }
+     },
+     "sourceProfile": "oracle"
+    }
+   },
+   {
+    "name": "paysh::payment_request_from_curl",
+    "title": "Convert payment challenge",
+    "description": "Converts an authenticated bound challenge into unsigned payment facts. None means a valid bound free response; failures remain errors.",
+    "typedSignature": {
+     "effect": "pure_validation",
+     "parameters": [
+      {
+       "borrowed": true,
+       "name": "outcome",
+       "valueType": {
+        "kind": "named",
+        "value": "CurlOutcome"
+       }
+      },
+      {
+       "borrowed": true,
+       "name": "request",
+       "valueType": {
+        "kind": "named",
+        "value": "CurlRequest"
+       }
+      }
+     ],
+     "result": {
+      "kind": "result",
+      "value": {
+       "kind": "option",
+       "value": {
+        "kind": "named",
+        "value": "PaymentRequest"
+       }
+      }
+     },
+     "sourceProfile": "oracle"
+    }
+   },
+   {
+    "name": "allowit::execution_request_cap",
+    "title": "Typed asset budget",
+    "description": "Checks complete same-asset debit and cumulative fee bounds against an owner-authored total budget and protected prior consumption. Other assets need separate guards. The host atomically reserves the approved plan before signing.",
+    "typedSignature": {
+     "effect": "budget_guard",
+     "parameters": [
+      {
+       "borrowed": true,
+       "name": "request",
+       "valueType": {
+        "kind": "named",
+        "value": "ValidatedExecutionRequest"
+       }
+      },
+      {
+       "borrowed": true,
+       "name": "budget_id",
+       "valueType": {
+        "kind": "string"
+       }
+      },
+      {
+       "borrowed": true,
+       "name": "asset_id",
+       "valueType": {
+        "kind": "string"
+       }
+      },
+      {
+       "borrowed": false,
+       "name": "decimals",
+       "valueType": {
+        "kind": "u64"
+       }
+      },
+      {
+       "borrowed": false,
+       "name": "total_budget_units",
+       "valueType": {
+        "kind": "u64"
+       }
+      },
+      {
+       "borrowed": false,
+       "name": "max_debit_units",
+       "valueType": {
+        "kind": "u64"
+       }
+      },
+      {
+       "borrowed": false,
+       "name": "max_fee_units",
+       "valueType": {
+        "kind": "u64"
+       }
+      }
+     ],
+     "result": {
+      "kind": "result",
+      "value": {
+       "kind": "named",
+       "value": "Unit"
+      }
+     },
+     "sourceProfile": "oracle"
+    }
+   },
+   {
+    "name": "allowit::payment_request_cap",
+    "title": "Typed asset budget",
+    "description": "Checks complete same-asset debit and cumulative fee bounds against an owner-authored total budget and protected prior consumption. Other assets need separate guards. The host atomically reserves the approved plan before signing.",
+    "typedSignature": {
+     "effect": "budget_guard",
+     "parameters": [
+      {
+       "borrowed": true,
+       "name": "request",
+       "valueType": {
+        "kind": "named",
+        "value": "PaymentRequest"
+       }
+      },
+      {
+       "borrowed": true,
+       "name": "budget_id",
+       "valueType": {
+        "kind": "string"
+       }
+      },
+      {
+       "borrowed": true,
+       "name": "asset_id",
+       "valueType": {
+        "kind": "string"
+       }
+      },
+      {
+       "borrowed": false,
+       "name": "decimals",
+       "valueType": {
+        "kind": "u64"
+       }
+      },
+      {
+       "borrowed": false,
+       "name": "total_budget_units",
+       "valueType": {
+        "kind": "u64"
+       }
+      },
+      {
+       "borrowed": false,
+       "name": "max_debit_units",
+       "valueType": {
+        "kind": "u64"
+       }
+      },
+      {
+       "borrowed": false,
+       "name": "max_fee_units",
+       "valueType": {
+        "kind": "u64"
+       }
+      }
+     ],
+     "result": {
+      "kind": "result",
+      "value": {
+       "kind": "named",
+       "value": "Unit"
+      }
+     },
+     "sourceProfile": "oracle"
+    }
+   }
+  ]
+ }
+}
