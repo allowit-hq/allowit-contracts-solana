@@ -112,8 +112,8 @@ checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 
 [[package]]
 name = "allowit-core"
-version = "0.14.0"
-source = "git+https://github.com/allowit-hq/allowit-core.git?rev=78f738fd5576e94d5bdb7be569d17b5c05fb4e3e#78f738fd5576e94d5bdb7be569d17b5c05fb4e3e"
+version = "0.14.1"
+source = "git+https://github.com/allowit-hq/allowit-core.git?rev=240d417298955f30190a1ce95d6cc4893ed9f105#240d417298955f30190a1ce95d6cc4893ed9f105"
 dependencies = [
  "libc",
  "reqwest",
