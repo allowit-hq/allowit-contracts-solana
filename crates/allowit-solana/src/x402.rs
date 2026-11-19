@@ -1011,6 +1011,16 @@ pub fn check_payment(wire: &[u8], accepted: &Value, max_fee: u64) -> Result<Paym
             "it writes other accounts than the fee payer, the source and the destination",
         ));
     }
+    // Every other account is a program or an account of an instruction: the message names no
+    // signer that the facilitator would pay for and no account that it locks for nothing.
+    let used = |i: usize| {
+        tx.instructions
+            .iter()
+            .any(|ix| ix.program == tx.keys[i] || ix.accounts.contains(&i))
+    };
+    if !(1..tx.keys.len()).all(used) {
+        return Err(invalid("it names an account that no instruction uses"));
+    }
     if read_u64(&transfer.data[1..9]) != units {
         return Err(Error::usage(
             "The payment moves another amount than the requirement.",
@@ -1737,6 +1747,29 @@ mod tests {
         twice[at + 5] = twice[at + 4];
         let refused = check_payment(&twice, &accepted(), MAX_FEE).unwrap_err();
         assert!(refused.message.contains("twice"), "{}", refused.message);
+        // A key that no instruction uses is refused: an extra read-only account, or a signer that
+        // the multisig does not list.
+        let mut unused = wire.clone();
+        let keys_at = header + 3;
+        unused[keys_at] += 1;
+        let end = keys_at + 1 + 32 * usize::from(wire[keys_at]);
+        unused.splice(end..end, [9u8; 32]);
+        unused[header + 2] += 1;
+        let refused = check_payment(&unused, &accepted(), MAX_FEE).unwrap_err();
+        assert!(
+            refused.message.contains("no instruction"),
+            "{}",
+            refused.message
+        );
+        let mut unlisted = wire.clone();
+        unlisted[at - 1] -= 1;
+        unlisted.remove(at + 5);
+        let refused = check_payment(&unlisted, &accepted(), MAX_FEE).unwrap_err();
+        assert!(
+            refused.message.contains("no instruction"),
+            "{}",
+            refused.message
+        );
         // A source that the runtime reserves, here the System Program, is never write-locked.
         let source = usize::from(wire[at]);
         let key_at = header + 3 + 1 + 32 * source;
