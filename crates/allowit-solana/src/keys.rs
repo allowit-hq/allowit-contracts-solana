@@ -32,9 +32,15 @@ impl Key {
 }
 
 /// The base58 address of a 32-byte Ed25519 public key.
+/// A small-order point decompresses but is the public key of no signer, so it is refused.
 pub fn signer_identity(key: &[u8; 32]) -> Result<String> {
-    VerifyingKey::from_bytes(key)
+    let point = VerifyingKey::from_bytes(key)
         .map_err(|_| Error::usage("The key is not an Ed25519 public key"))?;
+    if point.is_weak() {
+        return Err(Error::usage(
+            "The key is a small-order point, not a signer's public key",
+        ));
+    }
     Ok(bs58::encode(key).into_string())
 }
 
@@ -53,24 +59,23 @@ impl KeyProvider for Keys {
     }
     /// The key whose Ed25519 seed is `entropy`.
     fn derive(&self, entropy: &[u8]) -> Result<Box<dyn PrivateSigner>> {
-        let seed: [u8; 32] = entropy
+        let seed: &[u8; 32] = entropy
             .try_into()
             .map_err(|_| Error::usage("A Solana key needs 32 bytes of entropy"))?;
-        Ok(Box::new(Key::new(SigningKey::from_bytes(&seed))))
+        Ok(Box::new(Key::new(SigningKey::from_bytes(seed))))
     }
     /// A secret in the wallet export format: base58 of the 64 bytes seed and public key. The
     /// public half must belong to the seed.
     fn parse(&self, secret: &str) -> Result<Box<dyn PrivateSigner>> {
-        let bytes = Zeroizing::new(
-            bs58::decode(secret.trim())
-                .into_vec()
-                .map_err(|_| Error::usage("A Solana secret key is base58"))?,
-        );
-        let pair: &[u8; 64] = bytes
-            .as_slice()
-            .try_into()
-            .map_err(|_| Error::usage("A Solana secret key is 64 bytes"))?;
-        let signing = SigningKey::from_keypair_bytes(pair)
+        // Decoded straight into a buffer that is wiped on every path, a failed decode included.
+        let mut pair = Zeroizing::new([0u8; 64]);
+        let len = bs58::decode(secret.trim())
+            .onto(&mut pair[..])
+            .map_err(|_| Error::usage("A Solana secret key is base58 of 64 bytes"))?;
+        if len != 64 {
+            return Err(Error::usage("A Solana secret key is 64 bytes"));
+        }
+        let signing = SigningKey::from_keypair_bytes(&pair)
             .map_err(|_| Error::usage("The Solana secret key does not match its public key"))?;
         Ok(Box::new(Key::new(signing)))
     }
@@ -176,6 +181,9 @@ mod tests {
         let mut pair = bs58::decode(secret.as_str()).into_vec().unwrap();
         pair[63] ^= 1;
         assert!(KEYS.parse(&bs58::encode(&pair).into_string()).is_err());
+        // A valid export with one more character, and one with an invalid character, are refused.
+        assert!(KEYS.parse(&format!("{}2", secret.as_str())).is_err());
+        assert!(KEYS.parse(&format!("{}0", secret.as_str())).is_err());
     }
 
     #[test]
@@ -193,6 +201,10 @@ mod tests {
                 .is_err()
         );
         assert!(KEYS.validate_identity("short", "short", "ed25519").is_err());
+        // The all-zero key decompresses to a small-order point: no signer has it.
+        let zero = bs58::encode([0u8; 32]).into_string();
+        assert!(KEYS.validate_identity(&zero, &zero, "ed25519").is_err());
+        assert!(signer_identity(&[0u8; 32]).is_err());
         let raw = public_key(key.address()).unwrap();
         assert_eq!(signer_identity(&raw).unwrap(), key.address());
     }
