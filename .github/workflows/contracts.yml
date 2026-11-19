@@ -31,9 +31,6 @@ jobs:
   build:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
-    env:
-      # The mandate program refuses to build for SBF without an explicit cluster.
-      ALLOWIT_SOLANA_NETWORK: devnet
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@1.98.0
