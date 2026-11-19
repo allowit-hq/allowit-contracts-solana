@@ -211,7 +211,13 @@ fn an_exact_payment_from_a_native_wallet_settles_through_a_three_signature_facil
         .try_into()
         .unwrap();
     tx.signatures[0] = Signature::from(fee_payer);
-    svm.send_transaction(tx).unwrap();
+    let settled = svm.send_transaction(tx).unwrap();
+    // The payment runs within the smallest compute-unit limit that a payment may set.
+    assert!(
+        settled.compute_units_consumed <= u64::from(x402::MIN_COMPUTE_UNITS),
+        "{}",
+        settled.compute_units_consumed
+    );
     assert_eq!(amount_of(&svm, &seller_account), 2_500_000);
     assert_eq!(amount_of(&svm, &wallet.token_account()), 7_500_000);
     assert_eq!(

@@ -70,6 +70,11 @@ pub const DEFAULT_SETTLE_WITHIN: u64 = 60;
 pub const BLOCK_MILLIS: u64 = 500;
 /// The most blocks for which a blockhash stays valid.
 pub const MAX_VALID_BLOCKS: u64 = 150;
+/// The smallest compute-unit limit of a payment: [`Budget::PAYMENT`], which the ledger test shows
+/// is enough for a Native payment with its memo.
+pub const MIN_COMPUTE_UNITS: u32 = Budget::PAYMENT.units;
+/// The most signers of an SPL Token multisig.
+const MAX_MULTISIG_SIGNERS: usize = 11;
 /// The largest network fee, in lamports, of a payment that a proof presents for the facilitator
 /// to pay: three signatures and 200,000 compute units at 1,000,000 micro-lamports a unit.
 pub const MAX_FEE: u64 = 215_000;
@@ -328,19 +333,19 @@ fn digest(parts: &[&[u8]]) -> String {
 }
 
 /// The memo that names one purchase: `allowit:x402:<challenge>:<request>`. The first part binds the
-/// challenge's operation context and accepted terms, the second the request ID of the operation
-/// that pays it.
+/// challenge's operation context and its whole terms, which the proof echoes; the second the
+/// request ID of the operation that pays it.
 pub fn purchase_memo(challenge: &Challenge, request_id: &str) -> Result<String> {
     if !request_id_valid(request_id) {
         return Err(Error::usage("The payment names no valid request ID."));
     }
     let context = serde_json::to_vec(&challenge.context())
         .map_err(|_| Error::config("The payment challenge cannot be encoded."))?;
-    let accepted = serde_json::to_vec(&challenge.terms["accepted"])
+    let terms = serde_json::to_vec(&challenge.terms)
         .map_err(|_| Error::config("The payment challenge cannot be encoded."))?;
     Ok(format!(
         "{MEMO_PREFIX}{}:{}",
-        digest(&[b"challenge", &context, &accepted]),
+        digest(&[b"challenge", &context, &terms]),
         digest(&[b"request", request_id.as_bytes()])
     ))
 }
@@ -356,14 +361,14 @@ pub struct Recent {
 }
 
 /// Check that a payment signed with `recent.blockhash` expires within `settle_within` seconds of
-/// blocks at [`BLOCK_MILLIS`]: it is still valid, and it has at most that many blocks to go.
+/// blocks at [`BLOCK_MILLIS`]: it is still valid at the reported block height (the last valid
+/// height included), and it has at most that many blocks to go.
 /// Returns its expiry, the last block height at which it can settle.
 pub fn check_expiry(settle_within: u64, recent: &Recent) -> Result<u64> {
     let admitted = (settle_within.saturating_mul(1000) / BLOCK_MILLIS).min(MAX_VALID_BLOCKS);
     let remaining = recent
         .last_valid_block_height
         .checked_sub(recent.block_height)
-        .filter(|blocks| *blocks > 0)
         .ok_or_else(|| Error::usage("The payment's blockhash has expired."))?;
     if remaining > admitted {
         return Err(Error::usage(format!(
@@ -405,6 +410,11 @@ pub fn payment(
         ));
     }
     // A payment that a proof could not present is never signed.
+    if budget.units < MIN_COMPUTE_UNITS {
+        return Err(Error::usage(format!(
+            "The payment's compute-unit limit is below {MIN_COMPUTE_UNITS}."
+        )));
+    }
     let fee = crate::native::fee(MAX_SIGNATURES as u8, budget);
     if fee > MAX_FEE {
         return Err(Error::usage(format!(
@@ -422,6 +432,18 @@ pub fn payment(
         &t.fee_payer,
         recent.blockhash,
     )?;
+    // The fee payer signs first and appears in no instruction: not as the mint, a program or
+    // an account of the transfer.
+    let message = prepared.message();
+    if message
+        .instructions
+        .iter()
+        .any(|ix| ix.program_id_index == 0 || ix.accounts.contains(&0))
+    {
+        return Err(Error::usage(
+            "The payment challenge names an account of the payment as the facilitator.",
+        ));
+    }
     Ok(Payment {
         prepared,
         expires_height,
@@ -722,7 +744,16 @@ pub fn check_payment(wire: &[u8], accepted: &Value, max_fee: u64) -> Result<Paym
     }
     // The authority signs itself, or it is a multisig whose listed signers sign.
     let signs = |i: usize| i < tx.required;
+    // A multisig's listed signers are distinct client signers, at most the multisig's maximum.
     let signers = &transfer.accounts[4..];
+    let mut distinct = signers.to_vec();
+    distinct.sort_unstable();
+    distinct.dedup();
+    if distinct.len() != signers.len() || signers.len() > MAX_MULTISIG_SIGNERS {
+        return Err(invalid(
+            "the transfer's multisig signers repeat or are too many",
+        ));
+    }
     let authorized = if signers.is_empty() {
         signs(transfer.accounts[3])
     } else {
@@ -733,6 +764,9 @@ pub fn check_payment(wire: &[u8], accepted: &Value, max_fee: u64) -> Result<Paym
     }
     let compute_units = u32::from_le_bytes(limit.data[1..5].try_into().expect("4 bytes"));
     let micro_lamports_per_unit = read_u64(&price.data[1..9]);
+    if compute_units < MIN_COMPUTE_UNITS {
+        return Err(invalid("its compute-unit limit cannot run the transfer"));
+    }
     let fee = crate::native::fee(
         u8::try_from(tx.required).expect("at most three signatures"),
         Budget {
@@ -1072,7 +1106,22 @@ mod tests {
     fn a_payment_never_names_a_wallet_key_as_facilitator_and_follows_its_terms() {
         let w = wallet();
         let pay = |c: &Challenge| payment(&w, c, REQUEST, Budget::PAYMENT, recent());
-        for own in [&w.owner, &w.agent, &w.server] {
+        // Neither a wallet key nor any other account or program of the payment is the facilitator.
+        let accounts = [
+            w.owner,
+            w.agent,
+            w.server,
+            w.mint,
+            w.token_account(),
+            w.delegate(),
+            TOKEN_PROGRAM,
+            MEMO_PROGRAM,
+            COMPUTE_BUDGET_PROGRAM,
+        ];
+        for own in &accounts {
+            if signer_identity(&own.to_bytes()).is_err() {
+                continue;
+            }
             let mut a = accepted();
             a["extra"]["feePayer"] = json!(own.to_string());
             let c = parse_challenge(&document(vec![a])).unwrap();
@@ -1129,9 +1178,11 @@ mod tests {
             "{}",
             refused.message
         );
+        // The last valid height is still valid; the next one is not.
+        assert!(payment(&w, &c, REQUEST, Budget::PAYMENT, at(0, 1_000)).is_ok());
         let expired = Recent {
             blockhash: Hash::default(),
-            last_valid_block_height: 1_000,
+            last_valid_block_height: 999,
             block_height: 1_000,
         };
         assert!(payment(&w, &c, REQUEST, Budget::PAYMENT, expired).is_err());
@@ -1146,6 +1197,12 @@ mod tests {
             micro_lamports_per_unit: 2_000_000,
         };
         assert!(payment(&w, &c, REQUEST, pricey, at(120, 1_000)).is_err());
+        // Nor is a compute-unit limit that cannot run the transfer.
+        let starved = Budget {
+            units: MIN_COMPUTE_UNITS - 1,
+            micro_lamports_per_unit: 1,
+        };
+        assert!(payment(&w, &c, REQUEST, starved, at(120, 1_000)).is_err());
     }
 
     #[test]
@@ -1229,6 +1286,38 @@ mod tests {
         readonly[header + 2] += 2;
         let refused = check_payment(&readonly, &accepted(), MAX_FEE).unwrap_err();
         assert!(refused.message.contains("writable"), "{}", refused.message);
+        // A multisig signer listed twice is refused.
+        let mut twice = wire.clone();
+        twice[at + 5] = twice[at + 4];
+        let refused = check_payment(&twice, &accepted(), MAX_FEE).unwrap_err();
+        assert!(refused.message.contains("repeat"), "{}", refused.message);
+        // A compute-unit limit below the floor cannot run the transfer.
+        let starved = wallet()
+            .payment(
+                &associated_token_account(&key(20).parse().unwrap(), &wallet().mint),
+                2_500_000,
+                6,
+                Budget {
+                    units: MIN_COMPUTE_UNITS - 1,
+                    micro_lamports_per_unit: 1,
+                },
+                Some(&purchase_memo(&c, REQUEST).unwrap()),
+                &key(21).parse().unwrap(),
+                Hash::default(),
+            )
+            .unwrap();
+        let starved = starved
+            .wire(&[
+                starved.sign(&signer(2)).unwrap(),
+                starved.sign(&signer(3)).unwrap(),
+            ])
+            .unwrap();
+        let refused = check_payment(&starved, &accepted(), MAX_FEE).unwrap_err();
+        assert!(
+            refused.message.contains("compute-unit"),
+            "{}",
+            refused.message
+        );
     }
 
     #[test]
@@ -1314,7 +1403,7 @@ mod tests {
         for (key, value) in [
             ("lastValidBlockHeight", json!(1_150)),
             ("lastValidBlockHeight", json!(null)),
-            ("blockHeight", json!(1_120)),
+            ("blockHeight", json!(1_121)),
         ] {
             let mut bad = good.clone();
             bad[AUTHORIZATION_KEY][key] = value;
@@ -1326,6 +1415,16 @@ mod tests {
         a["extra"]["challengeId"] = json!("order-2");
         let other = parse_challenge(&document(vec![a])).unwrap();
         assert!(proof(&c, &receipt(&c, &signed(&other))).is_err());
+        // A challenge of the same URL and requirement with another resource descriptor is another
+        // purchase: its memo differs, and this payment is no proof of it.
+        let mut doc = document(vec![accepted()]);
+        doc["resource"]["description"] = json!("another report");
+        let described = parse_challenge(&doc).unwrap();
+        assert_ne!(
+            purchase_memo(&c, REQUEST).unwrap(),
+            purchase_memo(&described, REQUEST).unwrap()
+        );
+        assert!(proof(&described, &receipt(&described, &wire)).is_err());
         // A restored challenge whose echoed resource differs presents no proof.
         let mut restored = c.clone();
         restored.terms["resource"]["url"] = json!("https://seller.example/other");
