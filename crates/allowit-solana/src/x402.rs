@@ -31,6 +31,11 @@
 //! deserializes it: this module sees its terms only as values, never as the seller's bytes. It
 //! checks that they are consistent and within the proof's size bound. Whether the record is the
 //! one that this module produced is the integrity of the host's store.
+//!
+//! [`check_payment`] checks what the signed message alone determines. Whether its accounts hold
+//! what the transfer needs (the source a token account of the mint with the amount, the
+//! recipient's account created) is the ledger's to say: the facilitator simulates the payment
+//! before it signs.
 use crate::{
     keys::signer_identity,
     native::{
