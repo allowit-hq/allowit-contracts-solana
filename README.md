@@ -190,11 +190,10 @@ The [`Solana runtime smoke`](.github/workflows/integration-runtime.yml) workflow
 ├── sbf-tests/              Mollusk tests against the compiled programs
 ├── verification/           Hash-locked Solana verification set and obligation ledger
 ├── scripts/                build.sh, check-policy.py, policy-smoke.rs
-└── docs/                   Architecture, native vault v2
+└── docs/                   Architecture
 ```
 
 - [`verification/`](verification/README.md) holds the Solana verification set: the native and published policy correspondence checks, the obligation ledger, and the refinement, adapter, trace, refusal, isolation and runtime evidence. allowit-core keeps only the core Lean model. The inputs are hash-bound: run `python3 -m unittest discover -s verification/tests`.
-- [`docs/native-vault-v2.md`](docs/native-vault-v2.md) describes the native vault v2 protocol.
 
 ## Part of Allowit
 
