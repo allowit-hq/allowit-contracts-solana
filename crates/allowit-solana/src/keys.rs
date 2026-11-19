@@ -32,13 +32,16 @@ impl Key {
 }
 
 /// The base58 address of a 32-byte Ed25519 public key.
-/// A small-order point decompresses but is the public key of no signer, so it is refused.
+/// The base58 identity of a key that a signer can hold: a canonical encoding of a point of the
+/// prime-order subgroup, not the identity. A small-order or mixed-order point decompresses but is
+/// the public key of no signer, so it is refused.
 pub fn signer_identity(key: &[u8; 32]) -> Result<String> {
     let point = VerifyingKey::from_bytes(key)
         .map_err(|_| Error::usage("The key is not an Ed25519 public key"))?;
-    if point.is_weak() {
+    let edwards = point.to_edwards();
+    if point.is_weak() || !edwards.is_torsion_free() || edwards.compress().to_bytes() != *key {
         return Err(Error::usage(
-            "The key is a small-order point, not a signer's public key",
+            "The key is no signer's public key: not a canonical point of prime order",
         ));
     }
     Ok(bs58::encode(key).into_string())
@@ -219,6 +222,15 @@ mod tests {
         let zero = bs58::encode([0u8; 32]).into_string();
         assert!(KEYS.validate_identity(&zero, &zero, "ed25519").is_err());
         assert!(signer_identity(&[0u8; 32]).is_err());
+        // A signer's key plus a point of order 8 is mixed-order: no signer has it.
+        use curve25519_dalek::constants::EIGHT_TORSION;
+        let raw = public_key(key.address()).unwrap();
+        let mixed = (VerifyingKey::from_bytes(&raw).unwrap().to_edwards() + EIGHT_TORSION[1])
+            .compress()
+            .to_bytes();
+        assert!(VerifyingKey::from_bytes(&mixed).is_ok());
+        assert!(signer_identity(&mixed).is_err());
+        assert!(signer_identity(&raw).is_ok());
         let long = "2".repeat(10_000);
         assert!(KEYS.validate_identity(&long, &long, "ed25519").is_err());
         assert!(KEYS.parse(&long).is_err());

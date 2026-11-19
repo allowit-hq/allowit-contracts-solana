@@ -164,6 +164,7 @@ version = "0.1.0"
 dependencies = [
  "allowit-core",
  "bs58",
+ "curve25519-dalek",
  "ed25519-dalek",
  "five8_core 0.1.2",
  "litesvm",
