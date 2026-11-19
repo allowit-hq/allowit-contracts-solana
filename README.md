@@ -203,12 +203,10 @@ Core owns common types, policy rules and primitives.
 
 ```mermaid
 flowchart TB
-    UI["[allowit-engine]<br/>npm @allowit/ui<br/>Shared policy web components"]
     Engine["[allowit-sdk]<br/>crate @allowit/sdk/engine<br/>All other shared logic"]
-    Vendor["[allowit-contracts-solana]<br/>crate allowit-interface · programs policy and vault<br/>Native contracts · signing · chain semantics<br/>SVG graphics · web components"]
+    Vendor["[allowit-contracts-solana]<br/>crate allowit-interface · programs policy and vault<br/>Native contracts · signing · chain semantics"]
     Core["[allowit-core]<br/>crate + npm @allowit/sdk/core<br/>Common types · policy rules · primitives<br/>TypeScript interfaces"]
 
-    UI -->|npm| Vendor
     Engine -->|crate| Vendor
 ```
 
