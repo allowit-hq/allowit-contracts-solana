@@ -88,9 +88,11 @@ pub fn explorer(network: &str, kind: LinkKind, id: &str) -> Option<String> {
     ))
 }
 
-/// A transaction lapses when its recent blockhash expires: after 150 slots, about 60 seconds at
-/// 400 ms a slot. An agent request and an owner step are signed against one blockhash, so both
-/// are valid for at most that long; a lapsed owner step is prepared again.
+/// The client's timeouts: a recent blockhash is valid for 150 blocks, about 60 seconds at 400 ms a
+/// slot, so a request and an owner step are given 60 seconds. The time is a timeout, not the proof
+/// of a lapse: blocks can come slower than that. A signed transaction counts as lapsed only when
+/// the finalized block height is past its blockhash's last valid block height and its signature
+/// has no status; only then is a replacement prepared.
 pub fn deadlines(_network: &str) -> Deadlines {
     Deadlines {
         max_validity_secs: 60,
