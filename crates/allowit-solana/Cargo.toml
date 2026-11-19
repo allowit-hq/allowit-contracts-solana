@@ -2,7 +2,8 @@
 name = "allowit-solana"
 version.workspace = true
 edition = "2024"
-rust-version = "1.85"
+# The toolchain that rust-toolchain.toml pins and that the locked dependencies are built with.
+rust-version = "1.98"
 license = "MIT"
 publish = false
 description = "The Solana rail of Allowit: networks, tokens, explorer links and agent keys"

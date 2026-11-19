@@ -68,19 +68,20 @@ pub fn native_display() -> AssetDisplay {
 }
 
 /// The Solana Explorer link of an address, a program or a transaction signature on `network`.
-/// `None` for an unknown network or an id that is not base58.
+/// `None` for an unknown network, or an id that is not base58 of the kind's length.
 pub fn explorer(network: &str, kind: LinkKind, id: &str) -> Option<String> {
     let cluster = match self::network(network).ok()?.id {
         DEVNET => "devnet",
         _ => return None,
     };
-    if id.is_empty() || bs58::decode(id).into_vec().is_err() {
+    // An address or a program is 32 bytes, a transaction signature 64.
+    let (path, len) = match kind {
+        LinkKind::Address | LinkKind::Contract => ("address", 32),
+        LinkKind::Transaction => ("tx", 64),
+    };
+    if bs58::decode(id).into_vec().ok()?.len() != len {
         return None;
     }
-    let path = match kind {
-        LinkKind::Address | LinkKind::Contract => "address",
-        LinkKind::Transaction => "tx",
-    };
     Some(format!(
         "https://explorer.solana.com/{path}/{id}?cluster={cluster}"
     ))
@@ -151,6 +152,9 @@ mod tests {
         assert_eq!(explorer("solana:testnet", LinkKind::Address, address), None);
         assert_eq!(explorer(DEVNET, LinkKind::Address, "not/base58?x=1"), None);
         assert_eq!(explorer(DEVNET, LinkKind::Address, ""), None);
+        assert_eq!(explorer(DEVNET, LinkKind::Transaction, "1"), None);
+        assert_eq!(explorer(DEVNET, LinkKind::Transaction, address), None);
+        assert_eq!(explorer(DEVNET, LinkKind::Address, signature), None);
     }
 
     #[test]
