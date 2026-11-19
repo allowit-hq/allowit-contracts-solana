@@ -279,6 +279,40 @@ fn the_facilitator_checks_signs_and_submits_a_native_payment_once() {
     }
     let other = facilitator::verify(&fresh_wire, &one, &policy, 100_000, &OtherHash(&ledger));
     assert!(other.unwrap_err().message.contains("another blockhash"));
+    // A payment that fails simulation is never signed or submitted.
+    struct Refusing<'a>(&'a Svm);
+    impl Ledger for Refusing<'_> {
+        fn heights(&self, blockhash: &solana_hash::Hash) -> Result<x402::Recent> {
+            self.0.heights(blockhash)
+        }
+        fn simulate(&self, _: &[u8]) -> Result<()> {
+            Err(Error::usage("simulation failed"))
+        }
+        fn submit(&self, _: &[u8]) -> Result<()> {
+            panic!("submitted a payment that failed simulation")
+        }
+    }
+    struct Unsigning<'a>(&'a KeySigner);
+    impl Signer for Unsigning<'_> {
+        fn identity(&self) -> &str {
+            self.0.identity()
+        }
+        fn sign_hash(&self, _: &[u8; 32]) -> Result<Vec<u8>> {
+            panic!("signed a payment that failed simulation")
+        }
+        fn sign_bytes(&self, _: &[u8]) -> Result<Vec<u8>> {
+            panic!("signed a payment that failed simulation")
+        }
+    }
+    let refused = facilitator::settle(
+        &fresh_wire,
+        &one,
+        &policy,
+        100_000,
+        &Unsigning(&fac),
+        &Refusing(&ledger),
+    );
+    assert_eq!(refused.unwrap_err().message, "simulation failed");
     let lost =
         facilitator::settle(&fresh_wire, &one, &policy, 100_000, &fac, &Lost(&ledger)).unwrap();
     assert!(lost.answer.is_err());
