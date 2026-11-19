@@ -232,6 +232,42 @@ mod tests {
     }
 
     #[test]
+    fn the_facilitator_settles_no_payment_to_itself() {
+        let (agent, server, facilitator) = (signer(2), signer(3), signer(4));
+        let wallet = Wallet {
+            owner: address(&signer(1)),
+            mint: USDC_DEVNET.parse().unwrap(),
+            agent: address(&agent),
+            server: address(&server),
+        };
+        let me = address(&facilitator).to_string();
+        let accepted = json!({
+            "scheme": "exact", "network": DEVNET, "amount": "2500000", "asset": USDC_DEVNET,
+            "payTo": me, "extra": {"feePayer": me},
+        });
+        let destination = x402::associated_token_account(&address(&facilitator), &wallet.mint);
+        let p = wallet
+            .payment(
+                &destination,
+                2_500_000,
+                6,
+                Budget::PAYMENT,
+                None,
+                &address(&facilitator),
+                Hash::default(),
+            )
+            .unwrap();
+        let wire = p
+            .wire(&[p.sign(&agent).unwrap(), p.sign(&server).unwrap()])
+            .unwrap();
+        // The payment matches its requirement; only the facilitator's own guard refuses it.
+        assert!(x402::check_payment(&wire, &accepted, MAX_FEE).is_ok());
+        let policy = Policy::allowit(address(&facilitator));
+        let refused = check(&wire, &accepted, &policy, MAX_FEE).unwrap_err();
+        assert!(refused.message.contains("itself"), "{}", refused.message);
+    }
+
+    #[test]
     fn the_facilitator_settles_only_for_its_own_key_and_within_its_bounds() {
         let f = fixture(Budget::PAYMENT);
         let other = Policy::allowit(address(&signer(6)));

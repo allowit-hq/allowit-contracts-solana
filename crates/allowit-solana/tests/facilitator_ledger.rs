@@ -219,10 +219,6 @@ fn the_facilitator_checks_signs_and_submits_a_native_payment_once() {
     // The same payment cannot settle twice, and a facilitator on two signatures refuses it.
     let again = facilitator::settle(&wire, &accepted, &policy, 100_000, &fac, &ledger);
     assert!(again.map_or(true, |s| s.answer.is_err()));
-    // A requirement that pays the facilitator itself is refused.
-    let mut to_itself = accepted.clone();
-    to_itself["payTo"] = json!(address(&fac).to_string());
-    assert!(facilitator::verify(&wire, &to_itself, &policy, 100_000, &ledger).is_err());
     let two = Policy {
         max_signatures: 2,
         ..policy
