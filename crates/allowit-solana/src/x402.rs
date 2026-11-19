@@ -135,6 +135,9 @@ pub const MAX_SIGNATURES: usize = 3;
 const MAX_REQUIREMENTS: usize = 32;
 /// The largest accepted terms, as JSON. The proof echoes them.
 pub const MAX_TERMS_BYTES: usize = 4096;
+/// The deepest nesting of accepted terms. serde_json reads at most 128 levels; a record that holds
+/// a challenge nests its terms a few levels deeper, and this bound leaves it the room.
+pub const MAX_TERMS_DEPTH: usize = 32;
 /// The prefix of the memo that names a purchase.
 pub const MEMO_PREFIX: &str = "allowit:x402:";
 const PURCHASE_DOMAIN: &[u8] = b"allowit-solana-x402-purchase-v1";
@@ -209,6 +212,15 @@ fn free_of_reserved_keys(bytes: &[u8]) -> bool {
         }
     }
     true
+}
+
+/// How deeply `value` nests: 1 for a scalar, one more for each array or object around it.
+fn depth(value: &Value) -> usize {
+    1 + match value {
+        Value::Array(items) => items.iter().map(depth).max().unwrap_or(0),
+        Value::Object(map) => map.values().map(depth).max().unwrap_or(0),
+        _ => 0,
+    }
 }
 
 /// The JSON of `value` when it fits in `max` bytes: the writer stops at the bound, so a large
@@ -377,7 +389,9 @@ fn requirement(resource: &str, document: &Value, accepted: &Value) -> Result<Opt
     if document["resource"].is_object() {
         terms["resource"] = document["resource"].clone();
     }
-    if serde_json::to_vec(&terms).map_or(true, |encoded| encoded.len() > MAX_TERMS_BYTES) {
+    if serde_json::to_vec(&terms).map_or(true, |encoded| encoded.len() > MAX_TERMS_BYTES)
+        || depth(&terms) > MAX_TERMS_DEPTH
+    {
         return Err(Error::usage(
             "The seller's payment terms are too large to present as a proof.",
         ));
@@ -1276,6 +1290,31 @@ mod tests {
         a["maxTimeoutSeconds"] = json!(null);
         let c = parse_challenge(&document(vec![a])).unwrap();
         assert_eq!(c.settle_within, Some(DEFAULT_SETTLE_WITHIN));
+    }
+
+    #[test]
+    fn a_challenge_survives_a_round_trip_through_cores_record() {
+        let nested = |levels: usize| {
+            let mut v = json!(1);
+            for _ in 0..levels {
+                v = json!([v]);
+            }
+            v
+        };
+        let with = |levels: usize| {
+            let mut doc = document(vec![accepted()]);
+            doc["resource"]["extra"] = nested(levels);
+            parse_challenge(&doc)
+        };
+        // The terms and the resource are two levels above the nested arrays and their scalar.
+        let c = with(MAX_TERMS_DEPTH - 3).unwrap();
+        let record = serde_json::to_vec(&json!({"operation": {"challenge": c}})).unwrap();
+        let read: Value = serde_json::from_slice(&record).unwrap();
+        let back: Challenge =
+            serde_json::from_value(read["operation"]["challenge"].clone()).unwrap();
+        assert_eq!(back, c);
+        assert!(with(MAX_TERMS_DEPTH - 2).is_err());
+        assert!(with(125).is_err());
     }
 
     #[test]
