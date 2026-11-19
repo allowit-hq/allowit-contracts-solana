@@ -74,12 +74,13 @@ pub fn explorer(network: &str, kind: LinkKind, id: &str) -> Option<String> {
         DEVNET => "devnet",
         _ => return None,
     };
-    // An address or a program is 32 bytes, a transaction signature 64.
-    let (path, len) = match kind {
-        LinkKind::Address | LinkKind::Contract => ("address", 32),
-        LinkKind::Transaction => ("tx", 64),
+    // An address or a program is 32 bytes (at most 44 base58 characters), a transaction signature
+    // 64 (at most 88). Longer input is refused before it is decoded.
+    let (path, len, chars) = match kind {
+        LinkKind::Address | LinkKind::Contract => ("address", 32, 44),
+        LinkKind::Transaction => ("tx", 64, 88),
     };
-    if bs58::decode(id).into_vec().ok()?.len() != len {
+    if id.len() > chars || bs58::decode(id).into_vec().ok()?.len() != len {
         return None;
     }
     Some(format!(
@@ -155,6 +156,10 @@ mod tests {
         assert_eq!(explorer(DEVNET, LinkKind::Transaction, "1"), None);
         assert_eq!(explorer(DEVNET, LinkKind::Transaction, address), None);
         assert_eq!(explorer(DEVNET, LinkKind::Address, signature), None);
+        assert_eq!(
+            explorer(DEVNET, LinkKind::Address, &"2".repeat(10_000)),
+            None
+        );
     }
 
     #[test]

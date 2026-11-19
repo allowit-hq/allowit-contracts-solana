@@ -44,13 +44,21 @@ pub fn signer_identity(key: &[u8; 32]) -> Result<String> {
     Ok(bs58::encode(key).into_string())
 }
 
+/// The 32 bytes of an address: at most 44 base58 characters, refused before decoding when longer.
 fn public_key(address: &str) -> Result<[u8; 32]> {
-    let bytes = bs58::decode(address)
-        .into_vec()
-        .map_err(|_| Error::usage("A Solana address is base58"))?;
-    bytes
-        .try_into()
-        .map_err(|_| Error::usage("A Solana address is 32 bytes"))
+    let mut out = [0u8; 32];
+    if address.len() > 44 {
+        return Err(Error::usage(
+            "A Solana address is at most 44 base58 characters",
+        ));
+    }
+    let len = bs58::decode(address)
+        .onto(&mut out[..])
+        .map_err(|_| Error::usage("A Solana address is base58 of 32 bytes"))?;
+    if len != 32 {
+        return Err(Error::usage("A Solana address is 32 bytes"));
+    }
+    Ok(out)
 }
 
 impl KeyProvider for Keys {
@@ -67,7 +75,13 @@ impl KeyProvider for Keys {
     /// A secret in the wallet export format: base58 of the 64 bytes seed and public key. The
     /// public half must belong to the seed.
     fn parse(&self, secret: &str) -> Result<Box<dyn PrivateSigner>> {
-        // Decoded straight into a buffer that is wiped on every path, a failed decode included.
+        // At most 88 base58 characters, decoded straight into a buffer that is wiped on every path,
+        // a failed decode included.
+        if secret.trim().len() > 88 {
+            return Err(Error::usage(
+                "A Solana secret key is at most 88 base58 characters",
+            ));
+        }
         let mut pair = Zeroizing::new([0u8; 64]);
         let len = bs58::decode(secret.trim())
             .onto(&mut pair[..])
@@ -205,6 +219,9 @@ mod tests {
         let zero = bs58::encode([0u8; 32]).into_string();
         assert!(KEYS.validate_identity(&zero, &zero, "ed25519").is_err());
         assert!(signer_identity(&[0u8; 32]).is_err());
+        let long = "2".repeat(10_000);
+        assert!(KEYS.validate_identity(&long, &long, "ed25519").is_err());
+        assert!(KEYS.parse(&long).is_err());
         let raw = public_key(key.address()).unwrap();
         assert_eq!(signer_identity(&raw).unwrap(), key.address());
     }
