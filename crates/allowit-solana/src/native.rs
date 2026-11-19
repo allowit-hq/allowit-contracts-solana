@@ -299,6 +299,10 @@ impl Wallet {
                 "A payment goes to another account than the wallet's own",
             ));
         }
+        // A zero amount moves nothing and still costs the fee.
+        if amount == 0 {
+            return Err(Error::usage("A payment moves a positive amount"));
+        }
         if memo.is_some_and(|m| m.len() > MAX_MEMO_BYTES) {
             return Err(Error::usage(format!(
                 "A payment memo has at most {MAX_MEMO_BYTES} bytes"
@@ -697,6 +701,18 @@ mod tests {
     fn payments_and_recoveries_to_the_wallets_own_account_are_refused() {
         let w = wallet();
         let payer = signer_key(9);
+        assert!(
+            w.payment(
+                &key(8),
+                0,
+                6,
+                Budget::PAYMENT,
+                None,
+                &payer,
+                Hash::default()
+            )
+            .is_err()
+        );
         // The agent pays no fee, and a payer must be able to sign; the server may pay.
         let to = key(8);
         assert!(
