@@ -11,6 +11,5 @@ node_modules/
 /evidence/
 
 # Generated outputs.
-/dist-native/
 __pycache__/
 *.py[cod]
