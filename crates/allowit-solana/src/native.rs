@@ -149,6 +149,10 @@ impl Wallet {
                 "The owner, the agent and the server are three different keys",
             ));
         }
+        // Each is a key that can sign: an Ed25519 point of full order, not a program or a PDA.
+        for key in [&self.owner, &self.agent, &self.server] {
+            crate::keys::signer_identity(&key.to_bytes())?;
+        }
         Ok(())
     }
 
@@ -460,6 +464,7 @@ pub fn sign(message: &Message, signer: &dyn Signer) -> Result<(Address, Signatur
             "{identity} does not sign this message"
         )));
     }
+    message_size(message)?;
     let bytes = signer.sign_bytes(&message.serialize())?;
     let signature: [u8; 64] = bytes
         .try_into()
@@ -483,7 +488,7 @@ pub fn transaction(message: Message, signatures: &[(Address, Signature)]) -> Res
         signatures: out,
         message,
     };
-    if size(&transaction) > MAX_TRANSACTION_BYTES {
+    if size(&transaction)? > MAX_TRANSACTION_BYTES {
         return Err(Error::usage(format!(
             "A transaction has at most {MAX_TRANSACTION_BYTES} bytes"
         )));
@@ -491,32 +496,68 @@ pub fn transaction(message: Message, signatures: &[(Address, Signature)]) -> Res
     Ok(transaction)
 }
 
-/// The serialized size of `transaction`: the signature count, the signatures and the message.
-pub fn size(transaction: &Transaction) -> usize {
-    let count = transaction.signatures.len();
-    let prefix = if count < 0x80 {
-        1
-    } else if count < 0x4000 {
-        2
-    } else {
-        3
+/// The length of a compact-u16 ("short vec") prefix, or `None` above its 65,535 maximum.
+fn short_len(n: usize) -> Option<usize> {
+    match n {
+        0..0x80 => Some(1),
+        0x80..0x4000 => Some(2),
+        0x4000..=0xffff => Some(3),
+        _ => None,
+    }
+}
+
+/// The serialized size of a legacy `message`, counted without serializing it. A message that
+/// cannot be serialized, or that exceeds the transaction limit with no signature at all, is
+/// refused, so a later serialization of it cannot fail.
+pub fn message_size(message: &Message) -> Result<usize> {
+    let too_large = || {
+        Error::usage(format!(
+            "A transaction has at most {MAX_TRANSACTION_BYTES} bytes"
+        ))
     };
-    prefix + 64 * count + transaction.message.serialize().len()
+    let keys = message.account_keys.len();
+    let mut total = 3 + short_len(keys).ok_or_else(too_large)? + 32 * keys + 32;
+    total += short_len(message.instructions.len()).ok_or_else(too_large)?;
+    for ix in &message.instructions {
+        total += 1 + short_len(ix.accounts.len()).ok_or_else(too_large)? + ix.accounts.len();
+        total += short_len(ix.data.len()).ok_or_else(too_large)? + ix.data.len();
+        if total > MAX_TRANSACTION_BYTES {
+            return Err(too_large());
+        }
+    }
+    Ok(total)
+}
+
+/// The serialized size of `transaction`: the signature count, the signatures and the message.
+pub fn size(transaction: &Transaction) -> Result<usize> {
+    let count = transaction.signatures.len();
+    let prefix = short_len(count).ok_or_else(|| Error::usage("Too many signatures"))?;
+    Ok(prefix + 64 * count + message_size(&transaction.message)?)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use allowit_core::vendor::KeyProvider;
 
     fn key(byte: u8) -> Address {
         Address::new_from_array([byte; 32])
     }
+    /// The address of a rail key: a point that can sign.
+    fn signer_key(seed: u8) -> Address {
+        crate::KEYS
+            .derive(&[seed; 32])
+            .unwrap()
+            .address()
+            .parse()
+            .unwrap()
+    }
     fn wallet() -> Wallet {
         Wallet {
-            owner: key(1),
+            owner: signer_key(1),
             mint: key(2),
-            agent: key(3),
-            server: key(4),
+            agent: signer_key(3),
+            server: signer_key(4),
         }
     }
 
@@ -527,17 +568,23 @@ mod tests {
         assert_eq!(w.delegate_seed().len(), 32);
         assert_ne!(w.token_account(), w.delegate());
         let new_server = Wallet {
-            server: key(5),
+            server: signer_key(5),
             ..w
         };
         assert_eq!(new_server.token_account(), w.token_account());
         assert_ne!(new_server.delegate(), w.delegate());
-        let new_agent = Wallet { agent: key(6), ..w };
+        let new_agent = Wallet {
+            agent: signer_key(6),
+            ..w
+        };
         assert_ne!(new_agent.token_account(), w.token_account());
         let other_mint = Wallet { mint: key(8), ..w };
         assert_ne!(other_mint.token_account(), w.token_account());
         assert_eq!(other_mint.delegate(), w.delegate());
-        let other_owner = Wallet { owner: key(7), ..w };
+        let other_owner = Wallet {
+            owner: signer_key(7),
+            ..w
+        };
         assert_ne!(other_owner.token_account(), w.token_account());
     }
 
@@ -605,10 +652,18 @@ mod tests {
             ]
         );
         let m = message(&ixs, &payer, Hash::default());
-        assert_eq!(signers(&m).unwrap(), [payer, w.agent, w.server]);
+        let needed = signers(&m).unwrap();
+        // The fee payer signs first; the message orders the agent and the server among themselves.
+        assert_eq!(needed.len(), 3);
+        assert_eq!(needed[0], payer);
+        assert!(needed.contains(&w.agent) && needed.contains(&w.server));
         let t = transaction(m, &[]).unwrap();
         assert_eq!(t.signatures, vec![Signature::default(); 3]);
-        assert!(size(&t) <= MAX_TRANSACTION_BYTES);
+        assert!(size(&t).unwrap() <= MAX_TRANSACTION_BYTES);
+        assert_eq!(
+            message_size(&t.message).unwrap(),
+            t.message.serialize().len()
+        );
         assert!(transaction(t.message.clone(), &[(key(10), Signature::default())]).is_err());
     }
 
@@ -685,7 +740,7 @@ mod tests {
             Found::Ready
         );
         let other_server = Wallet {
-            server: key(5),
+            server: signer_key(5),
             ..w
         };
         assert!(
@@ -769,5 +824,32 @@ mod tests {
             .map(|_| Instruction::new_with_bytes(MEMO_PROGRAM, longest.as_bytes(), vec![]))
             .collect();
         assert!(transaction(message(&many, &key(9), Hash::default()), &[]).is_err());
+    }
+
+    #[test]
+    fn keys_that_cannot_sign_are_refused() {
+        let w = Wallet {
+            owner: signer_key(1),
+            mint: key(2),
+            agent: SYSTEM_PROGRAM,
+            server: signer_key(4),
+        };
+        let nothing = Found::Nothing { deposit: 1 };
+        assert!(w.setup(1, 6, nothing, nothing).is_err());
+        let zero = Wallet {
+            owner: Address::new_from_array([0; 32]),
+            ..wallet()
+        };
+        assert!(zero.approve(1, 6).is_err());
+    }
+
+    #[test]
+    fn a_message_too_large_to_serialize_is_an_error() {
+        let huge = Instruction::new_with_bytes(MEMO_PROGRAM, &vec![b'm'; 70_000], vec![]);
+        let m = message(&[huge], &key(9), Hash::default());
+        assert!(message_size(&m).is_err());
+        assert!(transaction(m.clone(), &[]).is_err());
+        let signer = crate::KeySigner(crate::KEYS.derive(&[1; 32]).unwrap());
+        assert!(sign(&m, &signer).is_err());
     }
 }

@@ -241,16 +241,16 @@ fn an_x402_payment_needs_agent_server_and_facilitator_and_costs_the_known_fee() 
         )
         .unwrap();
     let message = native::message(&ixs, &payer, f.svm.latest_blockhash());
-    assert_eq!(
-        native::signers(&message).unwrap(),
-        [payer, f.wallet.agent, f.wallet.server]
-    );
+    let needed = native::signers(&message).unwrap();
+    assert_eq!(needed.len(), 3);
+    assert_eq!(needed[0], payer);
+    assert!(needed.contains(&f.wallet.agent) && needed.contains(&f.wallet.server));
     // The client signs first and leaves the facilitator's place empty.
     let agent = native::sign(&message, &f.agent).unwrap();
     let server = native::sign(&message, &f.server).unwrap();
     let partial = native::transaction(message.clone(), &[agent, server]).unwrap();
     assert_eq!(partial.signatures[0], Signature::default());
-    assert!(native::size(&partial) <= native::MAX_TRANSACTION_BYTES);
+    assert!(native::size(&partial).unwrap() <= native::MAX_TRANSACTION_BYTES);
     // Without the facilitator the ledger refuses it.
     assert_eq!(
         format!(
