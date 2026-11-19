@@ -11,9 +11,9 @@
 //!   closes (`CloseAccount`, whose deposit returns to the owner). SPL Token closes no multisig, so its
 //!   deposit stays, and a later wallet of the same agent and server reuses it.
 //!
-//! Everything here builds instructions and messages; the caller sends them. The encodings follow the
-//! SPL Token, System, Compute Budget and Memo programs; the ledger tests run them against those
-//! programs.
+//! The module builds exactly these transactions, as [`Prepared`] values: each is sized and checked
+//! when it is built, and the caller signs and sends it. The encodings follow the SPL Token, System,
+//! Compute Budget and Memo programs; the ledger tests run them against those programs.
 use allowit_core::vendor::{
     error::{Error, Result},
     runtime::Signer,
@@ -44,6 +44,8 @@ pub const MAX_COMPUTE_UNITS: u32 = 1_400_000;
 pub const MAX_TRANSACTION_BYTES: usize = 1_232;
 /// The longest payment memo, in bytes of UTF-8.
 pub const MAX_MEMO_BYTES: usize = 256;
+/// The most owner steps in one transaction.
+pub const MAX_OWNER_STEPS: usize = 4;
 
 /// One Native wallet: the owner's account of `mint` for `agent`, with the delegate of `agent` and
 /// `server`.
@@ -103,6 +105,23 @@ pub enum Found {
     Ready,
 }
 
+/// One step that the owner takes alone.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum OwnerStep {
+    /// Approve `allowance` to the delegate: the refill, which replaces the earlier allowance.
+    Approve { allowance: u64, decimals: u8 },
+    /// Revoke the delegate: no payment can follow.
+    Stop,
+    /// Move `amount` to the owner's token account `to`.
+    Recover {
+        to: Address,
+        amount: u64,
+        decimals: u8,
+    },
+    /// Close the empty token account; its deposit returns to the owner.
+    Close,
+}
+
 /// What `seen` is for an account that needs `deposit`, when `ready` tells whether a token-program
 /// account holds the expected content. Anything else at the address is refused.
 fn found(
@@ -141,15 +160,15 @@ fn seed(tag: &str, parts: &[&Address]) -> String {
 }
 
 impl Wallet {
-    /// The owner, the agent and the server are three keys. With one key as both agent and server,
-    /// one signature would meet the two-of-two delegate; the owner is never the agent or the server.
+    /// The owner, the agent and the server are three keys that can sign. With one key as both
+    /// agent and server, one signature would meet the two-of-two delegate; the owner is never the
+    /// agent or the server.
     pub fn check(&self) -> Result<()> {
         if self.agent == self.server || self.owner == self.agent || self.owner == self.server {
             return Err(Error::usage(
                 "The owner, the agent and the server are three different keys",
             ));
         }
-        // Each is a key that can sign: an Ed25519 point of full order, not a program or a PDA.
         for key in [&self.owner, &self.agent, &self.server] {
             crate::keys::signer_identity(&key.to_bytes())?;
         }
@@ -177,10 +196,9 @@ impl Wallet {
             .expect("a 32-character seed and the token program are valid")
     }
 
-    /// Whether `data` is this wallet's token account: the mint, the owner, initialized and not
-    /// frozen.
+    /// Whether `data` is this wallet's token account: the mint, the owner, initialized, not
+    /// frozen, and closable by the owner (no close authority, or the owner).
     pub fn is_token_account(&self, data: &[u8]) -> bool {
-        // The close authority (offset 129) must be none or the owner, or the owner could not close it.
         data.len() == TOKEN_ACCOUNT_LEN as usize
             && data[0..32] == self.mint.to_bytes()
             && data[32..64] == self.owner.to_bytes()
@@ -216,10 +234,11 @@ impl Wallet {
         decimals: u8,
         token: Found,
         delegate: Found,
-    ) -> Result<Vec<Instruction>> {
+        blockhash: Hash,
+    ) -> Result<Prepared> {
         self.check()?;
         let (token_address, delegate_address) = (self.token_account(), self.delegate());
-        let mut out = open(
+        let mut ixs = open(
             &self.owner,
             &token_address,
             &self.token_seed(),
@@ -227,13 +246,13 @@ impl Wallet {
             token,
         );
         if token != Found::Ready {
-            out.push(token_ix(
+            ixs.push(token_ix(
                 18,
                 vec![w(token_address), r(self.mint)],
                 &self.owner.to_bytes(),
             ));
         }
-        out.extend(open(
+        ixs.extend(open(
             &self.owner,
             &delegate_address,
             &self.delegate_seed(),
@@ -241,37 +260,22 @@ impl Wallet {
             delegate,
         ));
         if delegate != Found::Ready {
-            out.push(token_ix(
+            ixs.push(token_ix(
                 19,
                 vec![w(delegate_address), r(self.agent), r(self.server)],
                 &[2],
             ));
         }
-        out.push(self.approve(allowance, decimals)?);
-        Ok(out)
+        ixs.push(self.approve(allowance, decimals));
+        Prepared::new(&ixs, &self.owner, blockhash)
     }
 
-    /// The owner's approval of `allowance` to the delegate: the refill after a payment or a stop,
-    /// and the first approval of setup. It replaces the earlier allowance.
-    pub fn approve(&self, allowance: u64, decimals: u8) -> Result<Instruction> {
-        self.check()?;
-        Ok(token_ix(
-            13,
-            vec![
-                w(self.token_account()),
-                r(self.mint),
-                r(self.delegate()),
-                rs(self.owner),
-            ],
-            &amount_and_decimals(allowance, decimals),
-        ))
-    }
-
-    /// A payment of `amount` to the token account `destination`: compute budget, `TransferChecked`
-    /// with the delegate as authority and the agent and the server as its signers, and an optional
-    /// memo, in the order of the x402 `exact` scheme. A payment to the wallet's own account is
-    /// refused: SPL Token would accept it, move nothing and keep the allowance, and the fee would
-    /// be paid for nothing.
+    /// A payment of `amount` to the token account `destination`, with `payer` paying the fee:
+    /// compute budget, `TransferChecked` with the delegate as authority and the agent and the
+    /// server as its signers, and an optional memo, in the order of the x402 `exact` scheme. A
+    /// payment to the wallet's own account is refused: SPL Token would accept it, move nothing and
+    /// keep the allowance, and the fee would be paid for nothing.
+    #[allow(clippy::too_many_arguments)]
     pub fn payment(
         &self,
         destination: &Address,
@@ -279,19 +283,21 @@ impl Wallet {
         decimals: u8,
         budget: Budget,
         memo: Option<&str>,
-    ) -> Result<Vec<Instruction>> {
+        payer: &Address,
+        blockhash: Hash,
+    ) -> Result<Prepared> {
         self.check()?;
-        if memo.is_some_and(|m| m.len() > MAX_MEMO_BYTES) {
-            return Err(Error::usage(format!(
-                "A payment memo has at most {MAX_MEMO_BYTES} bytes"
-            )));
-        }
         if *destination == self.token_account() {
             return Err(Error::usage(
                 "A payment goes to another account than the wallet's own",
             ));
         }
-        let mut out = vec![
+        if memo.is_some_and(|m| m.len() > MAX_MEMO_BYTES) {
+            return Err(Error::usage(format!(
+                "A payment memo has at most {MAX_MEMO_BYTES} bytes"
+            )));
+        }
+        let mut ixs = vec![
             compute_unit_limit(budget.units),
             compute_unit_price(budget.micro_lamports_per_unit),
             token_ix(
@@ -308,46 +314,147 @@ impl Wallet {
             ),
         ];
         if let Some(memo) = memo {
-            out.push(Instruction::new_with_bytes(
+            ixs.push(Instruction::new_with_bytes(
                 MEMO_PROGRAM,
                 memo.as_bytes(),
                 vec![],
             ));
         }
-        Ok(out)
+        Prepared::new(&ixs, payer, blockhash)
     }
 
-    /// The owner's stop: the delegate loses its allowance. No payment can follow.
-    pub fn stop(&self) -> Instruction {
-        token_ix(5, vec![w(self.token_account()), rs(self.owner)], &[])
-    }
-
-    /// The owner's recovery of `amount` to its token account `to`.
-    pub fn recover(&self, to: &Address, amount: u64, decimals: u8) -> Result<Instruction> {
-        if *to == self.token_account() {
-            return Err(Error::usage(
-                "A recovery goes to another account than the wallet's own",
-            ));
+    /// Steps that the owner takes alone, in one transaction that the owner signs and pays.
+    pub fn owner_steps(&self, steps: &[OwnerStep], blockhash: Hash) -> Result<Prepared> {
+        self.check()?;
+        if steps.is_empty() || steps.len() > MAX_OWNER_STEPS {
+            return Err(Error::usage(format!(
+                "An owner transaction has 1 to {MAX_OWNER_STEPS} steps"
+            )));
         }
-        Ok(token_ix(
-            12,
+        let mut ixs = Vec::with_capacity(steps.len());
+        for step in steps {
+            ixs.push(match *step {
+                OwnerStep::Approve {
+                    allowance,
+                    decimals,
+                } => self.approve(allowance, decimals),
+                OwnerStep::Stop => token_ix(5, vec![w(self.token_account()), rs(self.owner)], &[]),
+                OwnerStep::Recover {
+                    to,
+                    amount,
+                    decimals,
+                } => {
+                    if to == self.token_account() {
+                        return Err(Error::usage(
+                            "A recovery goes to another account than the wallet's own",
+                        ));
+                    }
+                    token_ix(
+                        12,
+                        vec![w(self.token_account()), r(self.mint), w(to), rs(self.owner)],
+                        &amount_and_decimals(amount, decimals),
+                    )
+                }
+                OwnerStep::Close => token_ix(
+                    9,
+                    vec![w(self.token_account()), w(self.owner), rs(self.owner)],
+                    &[],
+                ),
+            });
+        }
+        Prepared::new(&ixs, &self.owner, blockhash)
+    }
+
+    fn approve(&self, allowance: u64, decimals: u8) -> Instruction {
+        token_ix(
+            13,
             vec![
                 w(self.token_account()),
                 r(self.mint),
-                w(*to),
+                r(self.delegate()),
                 rs(self.owner),
             ],
-            &amount_and_decimals(amount, decimals),
-        ))
-    }
-
-    /// The owner's close of the empty token account; its deposit returns to the owner.
-    pub fn close(&self) -> Instruction {
-        token_ix(
-            9,
-            vec![w(self.token_account()), w(self.owner), rs(self.owner)],
-            &[],
+            &amount_and_decimals(allowance, decimals),
         )
+    }
+}
+
+/// A transaction that a [`Wallet`] built: its message, bound to one blockhash, with its serialized
+/// bytes. It was sized and checked when it was built; the module builds no other transaction, so
+/// every one is small (a few instructions with fixed accounts and a bounded memo). It lapses when
+/// the blockhash expires.
+#[derive(Clone, Debug)]
+pub struct Prepared {
+    message: Message,
+    bytes: Vec<u8>,
+}
+
+impl Prepared {
+    fn new(instructions: &[Instruction], payer: &Address, blockhash: Hash) -> Result<Self> {
+        let message = Message::new_with_blockhash(instructions, Some(payer), &blockhash);
+        let bytes = message.serialize();
+        let prepared = Self { message, bytes };
+        if prepared.message.account_keys.len() < prepared.signature_count()
+            || prepared.wire_size() > MAX_TRANSACTION_BYTES
+        {
+            return Err(Error::usage(format!(
+                "A transaction has at most {MAX_TRANSACTION_BYTES} bytes"
+            )));
+        }
+        Ok(prepared)
+    }
+    fn signature_count(&self) -> usize {
+        usize::from(self.message.header.num_required_signatures)
+    }
+    pub fn message(&self) -> &Message {
+        &self.message
+    }
+    /// The bytes that every signer signs.
+    pub fn message_bytes(&self) -> &[u8] {
+        &self.bytes
+    }
+    /// The signers, in signature order; the first pays the fee.
+    pub fn signers(&self) -> &[Address] {
+        &self.message.account_keys[..self.signature_count()]
+    }
+    /// The serialized size of the signed transaction: the signature count, the signatures and the
+    /// message.
+    pub fn wire_size(&self) -> usize {
+        1 + 64 * self.signature_count() + self.bytes.len()
+    }
+    /// The signature of `signer` over the whole message.
+    pub fn sign(&self, signer: &dyn Signer) -> Result<(Address, Signature)> {
+        let identity: Address = signer
+            .identity()
+            .parse()
+            .map_err(|_| Error::usage("A Solana signer's identity is a base58 address"))?;
+        if !self.signers().contains(&identity) {
+            return Err(Error::usage(format!(
+                "{identity} does not sign this message"
+            )));
+        }
+        let signature: [u8; 64] = signer
+            .sign_bytes(&self.bytes)?
+            .try_into()
+            .map_err(|_| Error::usage("A Solana signature is 64 bytes"))?;
+        Ok((identity, Signature::from(signature)))
+    }
+    /// The transaction with `signatures` in their places. A signer without a signature keeps an
+    /// empty one, as a partly signed x402 payment leaves the facilitator's place.
+    pub fn transaction(&self, signatures: &[(Address, Signature)]) -> Result<Transaction> {
+        let needed = self.signers();
+        let mut out = vec![Signature::default(); needed.len()];
+        for (signer, signature) in signatures {
+            let at = needed
+                .iter()
+                .position(|s| s == signer)
+                .ok_or_else(|| Error::usage(format!("{signer} does not sign this message")))?;
+            out[at] = *signature;
+        }
+        Ok(Transaction {
+            signatures: out,
+            message: self.message.clone(),
+        })
     }
 }
 
@@ -438,103 +545,6 @@ fn compute_unit_price(micro_lamports: u64) -> Instruction {
     Instruction::new_with_bytes(COMPUTE_BUDGET_PROGRAM, &data, vec![])
 }
 
-/// The message of `instructions` with `payer` paying the fee, bound to `blockhash`. It lapses when
-/// the blockhash expires.
-pub fn message(instructions: &[Instruction], payer: &Address, blockhash: Hash) -> Message {
-    Message::new_with_blockhash(instructions, Some(payer), &blockhash)
-}
-
-/// The signers that `message` needs, in signature order; the first pays the fee. A message that
-/// declares more signers than it has accounts is refused.
-pub fn signers(message: &Message) -> Result<&[Address]> {
-    message
-        .account_keys
-        .get(..usize::from(message.header.num_required_signatures))
-        .ok_or_else(|| Error::usage("The message declares more signers than accounts"))
-}
-
-/// The signature of `signer` over the whole serialized `message`.
-pub fn sign(message: &Message, signer: &dyn Signer) -> Result<(Address, Signature)> {
-    let identity: Address = signer
-        .identity()
-        .parse()
-        .map_err(|_| Error::usage("A Solana signer's identity is a base58 address"))?;
-    if !signers(message)?.contains(&identity) {
-        return Err(Error::usage(format!(
-            "{identity} does not sign this message"
-        )));
-    }
-    message_size(message)?;
-    let bytes = signer.sign_bytes(&message.serialize())?;
-    let signature: [u8; 64] = bytes
-        .try_into()
-        .map_err(|_| Error::usage("A Solana signature is 64 bytes"))?;
-    Ok((identity, Signature::from(signature)))
-}
-
-/// The transaction of `message` with `signatures` in their places. A signer without a signature
-/// keeps an empty one, as a partly signed x402 payment leaves the facilitator's place.
-pub fn transaction(message: Message, signatures: &[(Address, Signature)]) -> Result<Transaction> {
-    let needed = signers(&message)?.to_vec();
-    let mut out = vec![Signature::default(); needed.len()];
-    for (signer, signature) in signatures {
-        let at = needed
-            .iter()
-            .position(|s| s == signer)
-            .ok_or_else(|| Error::usage(format!("{signer} does not sign this message")))?;
-        out[at] = *signature;
-    }
-    let transaction = Transaction {
-        signatures: out,
-        message,
-    };
-    if size(&transaction)? > MAX_TRANSACTION_BYTES {
-        return Err(Error::usage(format!(
-            "A transaction has at most {MAX_TRANSACTION_BYTES} bytes"
-        )));
-    }
-    Ok(transaction)
-}
-
-/// The length of a compact-u16 ("short vec") prefix, or `None` above its 65,535 maximum.
-fn short_len(n: usize) -> Option<usize> {
-    match n {
-        0..0x80 => Some(1),
-        0x80..0x4000 => Some(2),
-        0x4000..=0xffff => Some(3),
-        _ => None,
-    }
-}
-
-/// The serialized size of a legacy `message`, counted without serializing it. A message that
-/// cannot be serialized, or that exceeds the transaction limit with no signature at all, is
-/// refused, so a later serialization of it cannot fail.
-pub fn message_size(message: &Message) -> Result<usize> {
-    let too_large = || {
-        Error::usage(format!(
-            "A transaction has at most {MAX_TRANSACTION_BYTES} bytes"
-        ))
-    };
-    let keys = message.account_keys.len();
-    let mut total = 3 + short_len(keys).ok_or_else(too_large)? + 32 * keys + 32;
-    total += short_len(message.instructions.len()).ok_or_else(too_large)?;
-    for ix in &message.instructions {
-        total += 1 + short_len(ix.accounts.len()).ok_or_else(too_large)? + ix.accounts.len();
-        total += short_len(ix.data.len()).ok_or_else(too_large)? + ix.data.len();
-        if total > MAX_TRANSACTION_BYTES {
-            return Err(too_large());
-        }
-    }
-    Ok(total)
-}
-
-/// The serialized size of `transaction`: the signature count, the signatures and the message.
-pub fn size(transaction: &Transaction) -> Result<usize> {
-    let count = transaction.signatures.len();
-    let prefix = short_len(count).ok_or_else(|| Error::usage("Too many signatures"))?;
-    Ok(prefix + 64 * count + message_size(&transaction.message)?)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -560,6 +570,7 @@ mod tests {
             server: signer_key(4),
         }
     }
+    const NOTHING: Found = Found::Nothing { deposit: 1 };
 
     #[test]
     fn seeds_fit_and_bind_their_parts() {
@@ -637,11 +648,24 @@ mod tests {
     #[test]
     fn a_payment_needs_payer_agent_and_server_in_x402_order() {
         let w = wallet();
-        let payer = key(9);
-        let ixs = w
-            .payment(&key(8), 1_000_000, 6, Budget::PAYMENT, Some("order-1"))
+        let payer = signer_key(9);
+        let p = w
+            .payment(
+                &key(8),
+                1_000_000,
+                6,
+                Budget::PAYMENT,
+                Some("order-1"),
+                &payer,
+                Hash::default(),
+            )
             .unwrap();
-        let programs: Vec<Address> = ixs.iter().map(|i| i.program_id).collect();
+        let m = p.message();
+        let programs: Vec<Address> = m
+            .instructions
+            .iter()
+            .map(|i| m.account_keys[usize::from(i.program_id_index)])
+            .collect();
         assert_eq!(
             programs,
             [
@@ -651,56 +675,77 @@ mod tests {
                 MEMO_PROGRAM
             ]
         );
-        let m = message(&ixs, &payer, Hash::default());
-        let needed = signers(&m).unwrap();
         // The fee payer signs first; the message orders the agent and the server among themselves.
-        assert_eq!(needed.len(), 3);
-        assert_eq!(needed[0], payer);
-        assert!(needed.contains(&w.agent) && needed.contains(&w.server));
-        let t = transaction(m, &[]).unwrap();
+        assert_eq!(p.signers().len(), 3);
+        assert_eq!(p.signers()[0], payer);
+        assert!(p.signers().contains(&w.agent) && p.signers().contains(&w.server));
+        let t = p.transaction(&[]).unwrap();
         assert_eq!(t.signatures, vec![Signature::default(); 3]);
-        assert!(size(&t).unwrap() <= MAX_TRANSACTION_BYTES);
-        assert_eq!(
-            message_size(&t.message).unwrap(),
-            t.message.serialize().len()
-        );
-        assert!(transaction(t.message.clone(), &[(key(10), Signature::default())]).is_err());
+        assert_eq!(p.message_bytes(), m.serialize());
+        assert!(p.wire_size() <= MAX_TRANSACTION_BYTES);
+        assert!(p.transaction(&[(key(10), Signature::default())]).is_err());
     }
 
     #[test]
-    fn a_payment_to_the_wallets_own_account_is_refused() {
+    fn payments_and_recoveries_to_the_wallets_own_account_are_refused() {
         let w = wallet();
+        let payer = signer_key(9);
         assert!(
-            w.payment(&w.token_account(), 1, 6, Budget::PAYMENT, None)
-                .is_err()
+            w.payment(
+                &w.token_account(),
+                1,
+                6,
+                Budget::PAYMENT,
+                None,
+                &payer,
+                Hash::default()
+            )
+            .is_err()
         );
-    }
-
-    #[test]
-    fn a_message_with_more_signers_than_accounts_is_refused() {
-        let w = wallet();
-        let mut m = message(&[w.stop()], &w.owner, Hash::default());
-        m.header.num_required_signatures = 9;
-        assert!(signers(&m).is_err());
-        assert!(transaction(m, &[]).is_err());
+        let recover = OwnerStep::Recover {
+            to: w.token_account(),
+            amount: 1,
+            decimals: 6,
+        };
+        assert!(w.owner_steps(&[recover], Hash::default()).is_err());
     }
 
     #[test]
     fn the_owner_signs_setup_and_every_owner_step_alone() {
         let w = wallet();
-        let nothing = Found::Nothing { deposit: 1 };
-        for ixs in [
-            w.setup(5_000_000, 6, nothing, nothing).unwrap(),
-            w.setup(5_000_000, 6, Found::Funded { shortfall: 1 }, Found::Ready)
+        let steps = [
+            OwnerStep::Stop,
+            OwnerStep::Approve {
+                allowance: 1,
+                decimals: 6,
+            },
+            OwnerStep::Recover {
+                to: key(8),
+                amount: 1,
+                decimals: 6,
+            },
+            OwnerStep::Close,
+        ];
+        for p in [
+            w.setup(5_000_000, 6, NOTHING, NOTHING, Hash::default())
                 .unwrap(),
-            vec![w.stop()],
-            vec![w.recover(&key(8), 1, 6).unwrap()],
-            vec![w.close()],
-            vec![w.approve(1, 6).unwrap()],
+            w.setup(
+                5_000_000,
+                6,
+                Found::Funded { shortfall: 1 },
+                Found::Ready,
+                Hash::default(),
+            )
+            .unwrap(),
+            w.owner_steps(&steps, Hash::default()).unwrap(),
         ] {
-            let m = message(&ixs, &w.owner, Hash::default());
-            assert_eq!(signers(&m).unwrap(), [w.owner]);
+            assert_eq!(p.signers(), [w.owner]);
         }
+        assert!(w.owner_steps(&[], Hash::default()).is_err());
+        assert!(
+            w.owner_steps(&[OwnerStep::Stop; MAX_OWNER_STEPS + 1], Hash::default())
+                .is_err()
+        );
     }
 
     #[test]
@@ -752,8 +797,9 @@ mod tests {
     }
 
     #[test]
-    fn three_different_keys_or_nothing() {
+    fn three_different_signing_keys_or_nothing() {
         let w = wallet();
+        let payer = signer_key(9);
         for bad in [
             Wallet {
                 server: w.agent,
@@ -767,11 +813,32 @@ mod tests {
                 owner: w.server,
                 ..w
             },
+            Wallet {
+                agent: SYSTEM_PROGRAM,
+                ..w
+            },
+            Wallet {
+                owner: Address::new_from_array([0; 32]),
+                ..w
+            },
         ] {
-            let nothing = Found::Nothing { deposit: 1 };
-            assert!(bad.setup(1, 6, nothing, nothing).is_err());
-            assert!(bad.approve(1, 6).is_err());
-            assert!(bad.payment(&key(8), 1, 6, Budget::PAYMENT, None).is_err());
+            assert!(bad.setup(1, 6, NOTHING, NOTHING, Hash::default()).is_err());
+            assert!(
+                bad.owner_steps(&[OwnerStep::Stop], Hash::default())
+                    .is_err()
+            );
+            assert!(
+                bad.payment(
+                    &key(8),
+                    1,
+                    6,
+                    Budget::PAYMENT,
+                    None,
+                    &payer,
+                    Hash::default()
+                )
+                .is_err()
+            );
         }
         // A multisig whose two signers are one key is no delegate.
         let same = Wallet {
@@ -807,49 +874,46 @@ mod tests {
     }
 
     #[test]
-    fn memos_recoveries_and_sizes_are_bounded() {
+    fn memos_are_bounded_and_every_built_transaction_fits() {
         let w = wallet();
+        let payer = signer_key(9);
         let long = "m".repeat(MAX_MEMO_BYTES + 1);
         assert!(
-            w.payment(&key(8), 1, 6, Budget::PAYMENT, Some(&long))
-                .is_err()
+            w.payment(
+                &key(8),
+                1,
+                6,
+                Budget::PAYMENT,
+                Some(&long),
+                &payer,
+                Hash::default()
+            )
+            .is_err()
         );
         let longest = "m".repeat(MAX_MEMO_BYTES);
-        let ixs = w
-            .payment(&key(8), 1, 6, Budget::PAYMENT, Some(&longest))
+        let p = w
+            .payment(
+                &key(8),
+                1,
+                6,
+                Budget::PAYMENT,
+                Some(&longest),
+                &payer,
+                Hash::default(),
+            )
             .unwrap();
-        assert!(transaction(message(&ixs, &key(9), Hash::default()), &[]).is_ok());
-        assert!(w.recover(&w.token_account(), 1, 6).is_err());
-        let many: Vec<Instruction> = (0..6)
-            .map(|_| Instruction::new_with_bytes(MEMO_PROGRAM, longest.as_bytes(), vec![]))
-            .collect();
-        assert!(transaction(message(&many, &key(9), Hash::default()), &[]).is_err());
-    }
-
-    #[test]
-    fn keys_that_cannot_sign_are_refused() {
-        let w = Wallet {
-            owner: signer_key(1),
-            mint: key(2),
-            agent: SYSTEM_PROGRAM,
-            server: signer_key(4),
-        };
-        let nothing = Found::Nothing { deposit: 1 };
-        assert!(w.setup(1, 6, nothing, nothing).is_err());
-        let zero = Wallet {
-            owner: Address::new_from_array([0; 32]),
-            ..wallet()
-        };
-        assert!(zero.approve(1, 6).is_err());
-    }
-
-    #[test]
-    fn a_message_too_large_to_serialize_is_an_error() {
-        let huge = Instruction::new_with_bytes(MEMO_PROGRAM, &vec![b'm'; 70_000], vec![]);
-        let m = message(&[huge], &key(9), Hash::default());
-        assert!(message_size(&m).is_err());
-        assert!(transaction(m.clone(), &[]).is_err());
-        let signer = crate::KeySigner(crate::KEYS.derive(&[1; 32]).unwrap());
-        assert!(sign(&m, &signer).is_err());
+        assert!(p.wire_size() <= MAX_TRANSACTION_BYTES);
+        // The largest setup: both accounts funded, the shortfall transfers included.
+        let funded = Found::Funded { shortfall: 1 };
+        let p = w.setup(1, 6, funded, funded, Hash::default()).unwrap();
+        assert!(p.wire_size() <= MAX_TRANSACTION_BYTES);
+        let steps = [OwnerStep::Recover {
+            to: key(8),
+            amount: 1,
+            decimals: 6,
+        }; MAX_OWNER_STEPS];
+        assert!(
+            w.owner_steps(&steps, Hash::default()).unwrap().wire_size() <= MAX_TRANSACTION_BYTES
+        );
     }
 }
