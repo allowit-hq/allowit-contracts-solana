@@ -188,11 +188,7 @@ fn the_facilitator_checks_signs_and_submits_a_native_payment_once() {
     let before = ledger.with(|svm| svm.get_balance(&address(&fac)).unwrap());
     let checked = facilitator::verify(&wire, &accepted, &policy, 100_000, &ledger).unwrap();
     assert_eq!(
-        (
-            checked.payment.units,
-            checked.fee,
-            checked.payment.destination
-        ),
+        (checked.units, checked.fee, checked.destination),
         (2_500_000, 15_001, seller_account)
     );
     let (_, id) = facilitator::settle(&wire, &accepted, &policy, 100_000, &fac, &ledger).unwrap();

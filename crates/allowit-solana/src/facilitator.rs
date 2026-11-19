@@ -3,7 +3,8 @@
 //! A seller that names the Allowit facilitator sends it the client's partly signed payment and the
 //! accepted requirement. The facilitator checks the transaction against the requirement
 //! ([`x402::check_payment`]: the layout of an `exact` payment, exactly the required transfer, the
-//! fee payer's place empty and every client signature valid), applies its own bounds, simulates
+//! fee payer's place empty, every client signature valid and the network fee within the host's
+//! bound), applies its own bounds, simulates
 //! it, signs it as fee payer and submits it. It holds no customer funds: its key only pays the
 //! network fee, within the host's fee bound.
 //!
@@ -11,7 +12,7 @@
 //! has three signatures. The Allowit facilitator accepts three, where a facilitator on the
 //! reference default of two refuses it.
 use crate::{
-    native::{Address, LAMPORTS_PER_SIGNATURE},
+    native::Address,
     x402::{self, PaymentCheck},
 };
 use allowit_core::vendor::{
@@ -46,14 +47,6 @@ impl Policy {
     }
 }
 
-/// A payment that passed the checks, with the network fee that its settlement pays.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Checked {
-    pub payment: PaymentCheck,
-    /// The network fee, in lamports.
-    pub fee: u64,
-}
-
 /// The ledger that the facilitator reads and writes.
 pub trait Ledger {
     /// Simulate `wire` without signature checks: the fee payer's place may be empty.
@@ -64,13 +57,13 @@ pub trait Ledger {
 
 /// Check `wire`, a client's partly signed payment, against `accepted` under `policy`. `max_fee`
 /// bounds the network fee of its settlement, in lamports.
-pub fn check(wire: &[u8], accepted: &Value, policy: &Policy, max_fee: u64) -> Result<Checked> {
+pub fn check(wire: &[u8], accepted: &Value, policy: &Policy, max_fee: u64) -> Result<PaymentCheck> {
     if accepted["extra"]["feePayer"].as_str() != Some(policy.fee_payer.to_string().as_str()) {
         return Err(Error::usage(
             "The requirement names another fee payer than this facilitator.",
         ));
     }
-    let payment = x402::check_payment(wire, accepted)?;
+    let payment = x402::check_payment(wire, accepted, max_fee)?;
     if payment.signatures > policy.max_signatures {
         return Err(Error::usage(format!(
             "The payment needs {} signatures; this facilitator accepts {}.",
@@ -87,17 +80,7 @@ pub fn check(wire: &[u8], accepted: &Value, policy: &Policy, max_fee: u64) -> Re
             "The payment's compute-unit price is above this facilitator's bound.",
         ));
     }
-    let priority = (u128::from(payment.compute_units)
-        * u128::from(payment.micro_lamports_per_unit))
-    .div_ceil(1_000_000);
-    let fee = (payment.signatures as u64 * LAMPORTS_PER_SIGNATURE)
-        .saturating_add(u64::try_from(priority).unwrap_or(u64::MAX));
-    if fee > max_fee {
-        return Err(Error::usage(
-            "The payment's network fee is above this facilitator's bound.",
-        ));
-    }
-    Ok(Checked { payment, fee })
+    Ok(payment)
 }
 
 /// Check `wire` and simulate it on `ledger`, without submitting anything.
@@ -107,7 +90,7 @@ pub fn verify(
     policy: &Policy,
     max_fee: u64,
     ledger: &dyn Ledger,
-) -> Result<Checked> {
+) -> Result<PaymentCheck> {
     let checked = check(wire, accepted, policy, max_fee)?;
     ledger.simulate(wire)?;
     Ok(checked)
@@ -122,7 +105,7 @@ pub fn settle(
     max_fee: u64,
     signer: &dyn Signer,
     ledger: &dyn Ledger,
-) -> Result<(Checked, [u8; 64])> {
+) -> Result<(PaymentCheck, [u8; 64])> {
     if signer.identity() != policy.fee_payer.to_string() {
         return Err(Error::config(
             "The facilitator's signer is not its fee-payer key.",
@@ -130,7 +113,7 @@ pub fn settle(
     }
     let checked = verify(wire, accepted, policy, max_fee, ledger)?;
     // A checked payment has one to three signatures: a one-byte count, then the fee payer's place.
-    let message = &wire[1 + 64 * checked.payment.signatures..];
+    let message = &wire[1 + 64 * checked.signatures..];
     let signature: [u8; 64] = signer
         .sign_bytes(message)?
         .try_into()
@@ -204,7 +187,7 @@ mod tests {
     fn a_native_payment_passes_with_three_signatures_and_not_with_two() {
         let f = fixture(Budget::PAYMENT);
         let checked = check(&f.wire, &f.accepted, &f.policy, MAX_FEE).unwrap();
-        assert_eq!((checked.payment.units, checked.fee), (2_500_000, 15_001));
+        assert_eq!((checked.units, checked.fee), (2_500_000, 15_001));
         let two = Policy {
             max_signatures: 2,
             ..f.policy
