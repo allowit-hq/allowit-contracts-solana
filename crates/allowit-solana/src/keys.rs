@@ -7,6 +7,7 @@
 use allowit_core::vendor::{
     KeyProvider, PrivateSigner,
     error::{Error, Result},
+    runtime::Signer as RuntimeSigner,
 };
 use ed25519_dalek::{Signer as _, SigningKey, VerifyingKey};
 use zeroize::Zeroizing;
@@ -83,6 +84,22 @@ impl KeyProvider for Keys {
             return Err(Error::usage("A Solana address is its public key"));
         }
         signer_identity(&self::public_key(address)?).map(|_| ())
+    }
+}
+
+/// A key as the runtime signer of the rail's operations: its identity is the address, and it signs
+/// a whole transaction message with [`Signer::sign_bytes`](RuntimeSigner::sign_bytes).
+pub struct KeySigner(pub Box<dyn PrivateSigner>);
+
+impl RuntimeSigner for KeySigner {
+    fn identity(&self) -> &str {
+        self.0.address()
+    }
+    fn sign_hash(&self, digest: &[u8; 32]) -> Result<Vec<u8>> {
+        self.0.sign_hash(digest)
+    }
+    fn sign_bytes(&self, bytes: &[u8]) -> Result<Vec<u8>> {
+        self.0.sign_hash(bytes)
     }
 }
 

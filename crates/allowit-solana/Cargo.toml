@@ -5,10 +5,24 @@ edition = "2024"
 rust-version = "1.85"
 license = "MIT"
 publish = false
-description = "The Solana rail of Allowit: networks, tokens, explorer links and agent keys"
+description = "The Solana rail of Allowit: networks, tokens, explorer links, keys and the Native wallet"
 
 [dependencies]
 allowit-core = { workspace = true }
 bs58 = "0.5.1"
 ed25519-dalek = "2.2.0"
+sha2 = "0.10"
+solana-address = { version = "2.7", features = ["std", "sha2"] }
+solana-hash = "4"
+solana-instruction = "3.5"
+solana-message = { version = "4.6", features = ["wincode"] }
+solana-signature = "3"
+solana-transaction = "4.3"
 zeroize = "1"
+
+[dev-dependencies]
+# Ledger tests: the SPL Token, System, Compute Budget and Memo programs in process.
+litesvm = "0.18.2"
+solana-account = "4"
+# solana-keypair (through litesvm) needs five8_core's std errors, which nothing else enables.
+five8_core = { version = "0.1.2", features = ["std"] }
