@@ -2,7 +2,7 @@
 name = "allowit-interface"
 version.workspace = true
 edition = "2021"
-license = "UNLICENSED"
+license = "MIT"
 [features]
 stellar = []
 [dependencies]
