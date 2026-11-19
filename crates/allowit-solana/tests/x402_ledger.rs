@@ -154,9 +154,17 @@ fn an_exact_payment_from_a_native_wallet_settles_through_a_three_signature_facil
     )
     .unwrap();
 
-    // The wallet's payment: the agent and the server sign; the facilitator's place stays empty.
-    let prepared =
-        x402::payment(&wallet, &challenge, Budget::PAYMENT, svm.latest_blockhash()).unwrap();
+    // The wallet's payment for request `pay-0001`: the agent and the server sign; the
+    // facilitator's place stays empty. Fixture heights: LiteSVM keeps no block height, and a
+    // blockhash with 120 blocks to go is what the seller's 60 seconds admit.
+    let recent = x402::Recent {
+        blockhash: svm.latest_blockhash(),
+        last_valid_block_height: 1_120,
+        block_height: 1_000,
+    };
+    let payment = x402::payment(&wallet, &challenge, "pay-0001", Budget::PAYMENT, recent).unwrap();
+    assert_eq!(payment.expires_height, 1_120);
+    let prepared = payment.prepared;
     assert_eq!(prepared.signers()[0], address(&facilitator));
     let client = [
         prepared.sign(&agent).unwrap(),
@@ -167,6 +175,7 @@ fn an_exact_payment_from_a_native_wallet_settles_through_a_three_signature_facil
 
     // The proof header carries exactly that signed payment.
     let receipt = json!({
+        "requestId": "pay-0001",
         "status": "submitted",
         "network": DEVNET,
         "paidService": serde_json::to_value(challenge.context()).unwrap(),
@@ -209,5 +218,5 @@ fn an_exact_payment_from_a_native_wallet_settles_through_a_three_signature_facil
     // A challenge of another asset than the wallet holds is refused before signing.
     let mut other = challenge.clone();
     other.asset = address(&seller).to_string();
-    assert!(x402::payment(&wallet, &other, Budget::PAYMENT, svm.latest_blockhash()).is_err());
+    assert!(x402::payment(&wallet, &other, "pay-0002", Budget::PAYMENT, recent).is_err());
 }
