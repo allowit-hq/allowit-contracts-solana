@@ -360,6 +360,9 @@ impl Wallet {
                             "A recovery goes to another account than the wallet's own",
                         ));
                     }
+                    if amount == 0 {
+                        return Err(Error::usage("A recovery moves a positive amount"));
+                    }
                     token_ix(
                         12,
                         vec![w(self.token_account()), r(self.mint), w(to), rs(self.owner)],
@@ -753,6 +756,12 @@ mod tests {
             decimals: 6,
         };
         assert!(w.owner_steps(&[recover], Hash::default()).is_err());
+        let nothing = OwnerStep::Recover {
+            to: key(8),
+            amount: 0,
+            decimals: 6,
+        };
+        assert!(w.owner_steps(&[nothing], Hash::default()).is_err());
     }
 
     #[test]
