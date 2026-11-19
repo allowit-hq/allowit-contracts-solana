@@ -158,6 +158,14 @@ fn fixture() -> Fixture {
     }
 }
 
+fn view(account: &Option<Account>) -> Option<native::Seen<'_>> {
+    account.as_ref().map(|a| native::Seen {
+        lamports: a.lamports,
+        owner: a.owner,
+        data: &a.data,
+    })
+}
+
 fn set_up(f: &mut Fixture, allowance: u64, balance: u64) {
     let deposit = f
         .svm
@@ -165,7 +173,15 @@ fn set_up(f: &mut Fixture, allowance: u64, balance: u64) {
     let multisig = f
         .svm
         .minimum_balance_for_rent_exemption(native::MULTISIG_LEN as usize);
-    let setup = f.wallet.setup(allowance, DECIMALS, deposit, multisig);
+    let seen = |svm: &LiteSVM, at: &Address| svm.get_account(at);
+    let token = seen(&f.svm, &f.wallet.token_account());
+    let delegate = seen(&f.svm, &f.wallet.delegate());
+    let setup = f.wallet.setup(
+        allowance,
+        DECIMALS,
+        f.wallet.token_found(view(&token), deposit).unwrap(),
+        f.wallet.delegate_found(view(&delegate), multisig).unwrap(),
+    );
     send(&mut f.svm, &setup, &f.wallet.owner, &[&f.owner]).unwrap();
     let refill = mint_to(
         &f.wallet.mint,
@@ -211,16 +227,19 @@ fn an_x402_payment_needs_agent_server_and_facilitator_and_costs_the_known_fee() 
     let mut f = fixture();
     set_up(&mut f, 5 * TOKEN, 10 * TOKEN);
     let payer = address(&f.facilitator);
-    let ixs = f.wallet.payment(
-        &f.payee_account,
-        TOKEN,
-        DECIMALS,
-        Budget::PAYMENT,
-        Some(b"x402 order 1"),
-    );
+    let ixs = f
+        .wallet
+        .payment(
+            &f.payee_account,
+            TOKEN,
+            DECIMALS,
+            Budget::PAYMENT,
+            Some(b"x402 order 1"),
+        )
+        .unwrap();
     let message = native::message(&ixs, &payer, f.svm.latest_blockhash());
     assert_eq!(
-        native::signers(&message),
+        native::signers(&message).unwrap(),
         [payer, f.wallet.agent, f.wallet.server]
     );
     // The client signs first and leaves the facilitator's place empty.
@@ -267,7 +286,8 @@ fn the_server_pays_a_payment_that_allowit_submits() {
     let payer = address(&f.server);
     let ixs = f
         .wallet
-        .payment(&f.payee_account, 2 * TOKEN, DECIMALS, Budget::PAYMENT, None);
+        .payment(&f.payee_account, 2 * TOKEN, DECIMALS, Budget::PAYMENT, None)
+        .unwrap();
     let before = f.svm.get_balance(&payer).unwrap();
     send(&mut f.svm, &ixs, &payer, &[&f.server, &f.agent]).unwrap();
     assert_eq!(
@@ -286,33 +306,42 @@ fn the_ledger_refuses_what_the_policy_does_not_allow() {
     set_up(&mut f, 5 * TOKEN, 10 * TOKEN);
     let payer = address(&f.server);
     // Above the allowance.
-    let over = f.wallet.payment(
-        &f.payee_account,
-        5 * TOKEN + 1,
-        DECIMALS,
-        Budget::PAYMENT,
-        None,
-    );
+    let over = f
+        .wallet
+        .payment(
+            &f.payee_account,
+            5 * TOKEN + 1,
+            DECIMALS,
+            Budget::PAYMENT,
+            None,
+        )
+        .unwrap();
     // SPL Token error 1: insufficient funds (the delegated amount), in instruction 2.
     assert_eq!(
         send(&mut f.svm, &over, &payer, &[&f.server, &f.agent]).unwrap_err(),
         "InstructionError(2, Custom(1))"
     );
     // An agent signature over another payment does not authorize this one.
-    let ixs = f.wallet.payment(
-        &f.payee_account,
-        TOKEN,
-        DECIMALS,
-        Budget::PAYMENT,
-        Some(b"a"),
-    );
-    let other = f.wallet.payment(
-        &f.payee_account,
-        TOKEN,
-        DECIMALS,
-        Budget::PAYMENT,
-        Some(b"b"),
-    );
+    let ixs = f
+        .wallet
+        .payment(
+            &f.payee_account,
+            TOKEN,
+            DECIMALS,
+            Budget::PAYMENT,
+            Some(b"a"),
+        )
+        .unwrap();
+    let other = f
+        .wallet
+        .payment(
+            &f.payee_account,
+            TOKEN,
+            DECIMALS,
+            Budget::PAYMENT,
+            Some(b"b"),
+        )
+        .unwrap();
     let message = native::message(&ixs, &payer, f.svm.latest_blockhash());
     let other_message = native::message(&other, &payer, f.svm.latest_blockhash());
     let (agent, foreign) = native::sign(&other_message, &f.agent).unwrap();
@@ -336,13 +365,16 @@ fn the_owner_alone_stops_recovers_refills_and_closes() {
     set_up(&mut f, 5 * TOKEN, 10 * TOKEN);
     let server = address(&f.server);
     let pay = |f: &mut Fixture, memo: &[u8]| {
-        let ixs = f.wallet.payment(
-            &f.payee_account,
-            TOKEN,
-            DECIMALS,
-            Budget::PAYMENT,
-            Some(memo),
-        );
+        let ixs = f
+            .wallet
+            .payment(
+                &f.payee_account,
+                TOKEN,
+                DECIMALS,
+                Budget::PAYMENT,
+                Some(memo),
+            )
+            .unwrap();
         send(&mut f.svm, &ixs, &server, &[&f.server, &f.agent])
     };
     // Stop: no payment follows.
@@ -403,7 +435,8 @@ fn a_payment_lapses_with_its_blockhash() {
     let payer = address(&f.server);
     let ixs = f
         .wallet
-        .payment(&f.payee_account, TOKEN, DECIMALS, Budget::PAYMENT, None);
+        .payment(&f.payee_account, TOKEN, DECIMALS, Budget::PAYMENT, None)
+        .unwrap();
     let message = native::message(&ixs, &payer, f.svm.latest_blockhash());
     let signatures = [
         native::sign(&message, &f.server).unwrap(),
@@ -414,4 +447,66 @@ fn a_payment_lapses_with_its_blockhash() {
     let error = f.svm.send_transaction(tx).unwrap_err();
     assert_eq!(format!("{:?}", error.err), "BlockhashNotFound");
     assert_eq!(token_account(&f.svm, &f.payee_account).unwrap().amount, 0);
+}
+
+#[test]
+fn a_setup_reuses_the_delegate_and_opens_funded_addresses() {
+    let mut f = fixture();
+    set_up(&mut f, 5 * TOKEN, 10 * TOKEN);
+    // A second wallet of the same agent and server, for another mint: the delegate is reused.
+    let second_mint = Address::new_from_array([5; 32]);
+    mint(&mut f.svm, second_mint, &f.wallet.owner);
+    f.wallet = Wallet {
+        mint: second_mint,
+        ..f.wallet
+    };
+    // Someone funded the new token account's address before the setup.
+    // It holds less than the token account's deposit, so the setup adds the shortfall.
+    f.svm.airdrop(&f.wallet.token_account(), 1_000_000).unwrap();
+    let funded = f.svm.get_account(&f.wallet.token_account()).unwrap();
+    let deposit = f
+        .svm
+        .minimum_balance_for_rent_exemption(TOKEN_ACCOUNT_LEN as usize);
+    assert_eq!(
+        f.wallet.token_found(view(&Some(funded)), deposit).unwrap(),
+        native::Found::Funded {
+            shortfall: deposit - 1_000_000
+        }
+    );
+    set_up(&mut f, 2 * TOKEN, 3 * TOKEN);
+    let account = token_account(&f.svm, &f.wallet.token_account()).unwrap();
+    assert_eq!((account.amount, account.delegated), (3 * TOKEN, 2 * TOKEN));
+    assert_eq!(account.delegate, Some(f.wallet.delegate()));
+    let payee = Address::new_from_array([4; 32]);
+    plain_token_account(
+        &mut f.svm,
+        payee,
+        &second_mint,
+        &Address::new_from_array([3; 32]),
+    );
+    let server = address(&f.server);
+    let ixs = f
+        .wallet
+        .payment(&payee, TOKEN, DECIMALS, Budget::PAYMENT, None)
+        .unwrap();
+    send(&mut f.svm, &ixs, &server, &[&f.server, &f.agent]).unwrap();
+    assert_eq!(token_account(&f.svm, &payee).unwrap().amount, TOKEN);
+}
+
+#[test]
+fn a_closed_wallet_opens_again() {
+    let mut f = fixture();
+    set_up(&mut f, 5 * TOKEN, 0);
+    send(
+        &mut f.svm,
+        &[f.wallet.close()],
+        &f.wallet.owner,
+        &[&f.owner],
+    )
+    .unwrap();
+    assert!(token_account(&f.svm, &f.wallet.token_account()).is_none());
+    // The multisig stays; the setup reuses it and opens the token account again.
+    set_up(&mut f, TOKEN, 2 * TOKEN);
+    let account = token_account(&f.svm, &f.wallet.token_account()).unwrap();
+    assert_eq!((account.amount, account.delegated), (2 * TOKEN, TOKEN));
 }
