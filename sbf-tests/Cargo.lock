@@ -78,7 +78,6 @@ name = "allowit-native-sbf-tests"
 version = "0.1.0"
 dependencies = [
  "allowit-interface",
- "allowit-paysh-interface",
  "bincode",
  "borsh 1.6.0",
  "ed25519-dalek 2.2.0",
@@ -95,14 +94,6 @@ dependencies = [
  "solana-signature",
  "solana-transaction",
  "spl-token",
-]
-
-[[package]]
-name = "allowit-paysh-interface"
-version = "0.1.0"
-dependencies = [
- "borsh 1.6.0",
- "sha2 0.10.9",
 ]
 
 [[package]]
