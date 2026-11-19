@@ -18,13 +18,13 @@ version = "0.1.0"
 # The revision each git repository must be pinned to. scripts/build.sh checks
 # every git dependency against this table and fails on a stale pin.
 [workspace.metadata.allowit.track]
-# Core 0.13.1 (allowit-core#57) adds Signer::sign_bytes. Until its release tag
-# exists, the rail tracks that pull request's branch.
-allowit-core = { branch = "sign-bytes" }
+# Core publishes no release tags after v0.5.0, so the rail tracks the tip of its
+# default branch; scripts/build.sh --update allowit-core moves the pin.
+allowit-core = "head"
 
 [workspace.dependencies]
 # Allowit core is the only git dependency.
-allowit-core = { git = "https://github.com/allowit-hq/allowit-core.git", rev = "c75e0ffae98ee18e39228aa597462017b1f2cef6", default-features = false, features = ["vendor"] }
+allowit-core = { git = "https://github.com/allowit-hq/allowit-core.git", rev = "a6bf9dae367b0fe9c3f8e1f1e58fe84fe8f4bda4", default-features = false, features = ["vendor"] }
 allowit-interface = { path = "crates/interface" }
 allowit-native = { path = "crates/native" }
 solana-program = "=2.3.0"
