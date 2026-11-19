@@ -24,7 +24,7 @@ allowit-core = "head"
 
 [workspace.dependencies]
 # Allowit core is the only git dependency.
-allowit-core = { git = "https://github.com/allowit-hq/allowit-core.git", rev = "a6bf9dae367b0fe9c3f8e1f1e58fe84fe8f4bda4", default-features = false, features = ["vendor"] }
+allowit-core = { git = "https://github.com/allowit-hq/allowit-core.git", rev = "78f738fd5576e94d5bdb7be569d17b5c05fb4e3e", default-features = false, features = ["vendor"] }
 allowit-interface = { path = "crates/interface" }
 allowit-native = { path = "crates/native" }
 solana-program = "=2.3.0"

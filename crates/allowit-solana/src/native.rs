@@ -453,6 +453,18 @@ impl Prepared {
             .map_err(|_| Error::usage("A Solana signature is 64 bytes"))?;
         Ok((identity, Signature::from(signature)))
     }
+    /// The serialized transaction with `signatures` in their places: the bytes that a facilitator
+    /// receives and a ledger accepts.
+    pub fn wire(&self, signatures: &[(Address, Signature)]) -> Result<Vec<u8>> {
+        let transaction = self.transaction(signatures)?;
+        let mut out = Vec::with_capacity(self.wire_size());
+        out.push(transaction.signatures.len() as u8);
+        for signature in &transaction.signatures {
+            out.extend_from_slice(signature.as_ref());
+        }
+        out.extend_from_slice(&self.bytes);
+        Ok(out)
+    }
     /// The transaction with `signatures` in their places. A signer without a signature keeps an
     /// empty one, as a partly signed x402 payment leaves the facilitator's place.
     pub fn transaction(&self, signatures: &[(Address, Signature)]) -> Result<Transaction> {

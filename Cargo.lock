@@ -113,7 +113,7 @@ checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 [[package]]
 name = "allowit-core"
 version = "0.14.0"
-source = "git+https://github.com/allowit-hq/allowit-core.git?rev=a6bf9dae367b0fe9c3f8e1f1e58fe84fe8f4bda4#a6bf9dae367b0fe9c3f8e1f1e58fe84fe8f4bda4"
+source = "git+https://github.com/allowit-hq/allowit-core.git?rev=78f738fd5576e94d5bdb7be569d17b5c05fb4e3e#78f738fd5576e94d5bdb7be569d17b5c05fb4e3e"
 dependencies = [
  "libc",
  "reqwest",
@@ -163,11 +163,13 @@ name = "allowit-solana"
 version = "0.1.0"
 dependencies = [
  "allowit-core",
+ "base64 0.22.1",
  "bs58",
  "curve25519-dalek",
  "ed25519-dalek",
  "five8_core 0.1.2",
  "litesvm",
+ "serde_json",
  "sha2 0.10.9",
  "solana-account 4.7.0",
  "solana-address 2.7.0",
