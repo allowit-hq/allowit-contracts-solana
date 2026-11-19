@@ -4,7 +4,8 @@
 //! accepted requirement. The facilitator checks the transaction against the requirement
 //! ([`x402::check_payment`]: the layout of an `exact` payment, exactly the required transfer, the
 //! fee payer's place empty, every client signature valid and the network fee within the host's
-//! bound), applies its own bounds, simulates
+//! bound), applies its own bounds, checks that the ledger's block heights of the signed blockhash
+//! expire within the seller's settlement time ([`x402::check_expiry`]), simulates
 //! it, signs it as fee payer and submits it. It holds no customer funds: its key only pays the
 //! network fee, within the host's fee bound.
 //!
@@ -13,7 +14,7 @@
 //! reference default of two refuses it.
 use crate::{
     native::Address,
-    x402::{self, PaymentCheck},
+    x402::{self, PaymentCheck, Recent},
 };
 use allowit_core::vendor::{
     error::{Error, Result},
@@ -49,6 +50,9 @@ impl Policy {
 
 /// The ledger that the facilitator reads and writes.
 pub trait Ledger {
+    /// The block heights of `blockhash` as the ledger reports them now: the last block height at
+    /// which it is valid, and the current block height.
+    fn heights(&self, blockhash: &solana_hash::Hash) -> Result<Recent>;
     /// Simulate `wire` without signature checks: the fee payer's place may be empty.
     fn simulate(&self, wire: &[u8]) -> Result<()>;
     /// Submit the fully signed `wire`.
@@ -92,6 +96,13 @@ pub fn verify(
     ledger: &dyn Ledger,
 ) -> Result<PaymentCheck> {
     let checked = check(wire, accepted, policy, max_fee)?;
+    let recent = ledger.heights(&checked.blockhash)?;
+    if recent.blockhash != checked.blockhash {
+        return Err(Error::config(
+            "The ledger reported the heights of another blockhash.",
+        ));
+    }
+    x402::check_expiry(x402::settle_within(accepted)?, &recent)?;
     ledger.simulate(wire)?;
     Ok(checked)
 }

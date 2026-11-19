@@ -32,7 +32,8 @@ fn address(signer: &KeySigner) -> Address {
 }
 
 /// LiteSVM as the facilitator's ledger.
-struct Svm(RefCell<Option<LiteSVM>>);
+/// LiteSVM keeps no block height: the ledger reports `remaining` blocks to go for any blockhash.
+struct Svm(RefCell<Option<LiteSVM>>, std::cell::Cell<u64>);
 impl Svm {
     fn with<T>(&self, f: impl FnOnce(&mut LiteSVM) -> T) -> T {
         f(self.0.borrow_mut().as_mut().unwrap())
@@ -42,6 +43,13 @@ fn decode(wire: &[u8]) -> Result<Transaction> {
     wincode::deserialize::<Transaction>(wire).map_err(|_| Error::usage("undecodable"))
 }
 impl Ledger for Svm {
+    fn heights(&self, blockhash: &solana_hash::Hash) -> Result<x402::Recent> {
+        Ok(x402::Recent {
+            blockhash: *blockhash,
+            last_valid_block_height: 1_000 + self.1.get(),
+            block_height: 1_000,
+        })
+    }
     fn simulate(&self, wire: &[u8]) -> Result<()> {
         let tx = decode(wire)?;
         let mut slot = self.0.borrow_mut();
@@ -183,9 +191,13 @@ fn the_facilitator_checks_signs_and_submits_a_native_payment_once() {
         ])
         .unwrap();
 
-    let ledger = Svm(RefCell::new(Some(svm)));
+    let ledger = Svm(RefCell::new(Some(svm)), std::cell::Cell::new(120));
     let policy = Policy::allowit(address(&fac));
     let before = ledger.with(|svm| svm.get_balance(&address(&fac)).unwrap());
+    // A blockhash with more blocks to go than the seller's 60 seconds admit is refused.
+    ledger.1.set(150);
+    assert!(facilitator::verify(&wire, &accepted, &policy, 100_000, &ledger).is_err());
+    ledger.1.set(120);
     let checked = facilitator::verify(&wire, &accepted, &policy, 100_000, &ledger).unwrap();
     assert_eq!(
         (checked.units, checked.fee, checked.destination),
