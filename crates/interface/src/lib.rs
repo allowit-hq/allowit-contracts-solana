@@ -1,3 +1,6 @@
+// The hash-locked shared policy source (policy/policy_api.rs) names the other rail's build feature,
+// which this rail never sets.
+#![allow(unexpected_cfgs)]
 use borsh::{BorshDeserialize, BorshSerialize};
 #[path = "../../../policy/policy.rs"]
 pub mod policy;

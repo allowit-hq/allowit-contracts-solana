@@ -8,7 +8,6 @@ build = "../../policy/build.rs"
 crate-type = ["cdylib"]
 [features]
 no-entrypoint = []
-stellar = []
 [dependencies]
 pinocchio = { version = "=0.11.2", default-features = false }
 [lints.rust]
