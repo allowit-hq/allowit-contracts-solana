@@ -67,6 +67,12 @@ pub fn check(wire: &[u8], accepted: &Value, policy: &Policy, max_fee: u64) -> Re
             "The requirement names another fee payer than this facilitator.",
         ));
     }
+    // The facilitator is never a party of the payment it settles.
+    if accepted["payTo"].as_str() == Some(policy.fee_payer.to_string().as_str()) {
+        return Err(Error::usage(
+            "The requirement pays this facilitator; it settles no payment to itself.",
+        ));
+    }
     let payment = x402::check_payment(wire, accepted, max_fee)?;
     if payment.signatures > policy.max_signatures {
         return Err(Error::usage(format!(
@@ -107,8 +113,18 @@ pub fn verify(
     Ok(checked)
 }
 
-/// Check `wire` again, sign it with the facilitator's key as fee payer and submit it. Returns the
-/// check and the fee payer's signature, which is the transaction's id.
+/// A submitted payment: its check, the fee payer's signature, which is the transaction's id, and
+/// the ledger's answer to the submission. An error answer does not mean that nothing settled: a
+/// transaction that reached the ledger can still land, and the signature names it for a later read.
+#[derive(Debug)]
+pub struct Submitted {
+    pub payment: PaymentCheck,
+    pub signature: [u8; 64],
+    pub answer: Result<()>,
+}
+
+/// Check `wire` again, sign it with the facilitator's key as fee payer and submit it. An error
+/// means that nothing was submitted.
 pub fn settle(
     wire: &[u8],
     accepted: &Value,
@@ -116,7 +132,7 @@ pub fn settle(
     max_fee: u64,
     signer: &dyn Signer,
     ledger: &dyn Ledger,
-) -> Result<(PaymentCheck, [u8; 64])> {
+) -> Result<Submitted> {
     if signer.identity() != policy.fee_payer.to_string() {
         return Err(Error::config(
             "The facilitator's signer is not its fee-payer key.",
@@ -131,8 +147,12 @@ pub fn settle(
         .map_err(|_| Error::config("The facilitator's signature is not 64 bytes."))?;
     let mut signed = wire.to_vec();
     signed[1..65].copy_from_slice(&signature);
-    ledger.submit(&signed)?;
-    Ok((checked, signature))
+    let answer = ledger.submit(&signed);
+    Ok(Submitted {
+        payment: checked,
+        signature,
+        answer,
+    })
 }
 
 #[cfg(test)]

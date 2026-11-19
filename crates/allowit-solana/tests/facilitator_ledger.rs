@@ -203,7 +203,9 @@ fn the_facilitator_checks_signs_and_submits_a_native_payment_once() {
         (checked.units, checked.fee, checked.destination),
         (2_500_000, 15_001, seller_account)
     );
-    let (_, id) = facilitator::settle(&wire, &accepted, &policy, 100_000, &fac, &ledger).unwrap();
+    let settled = facilitator::settle(&wire, &accepted, &policy, 100_000, &fac, &ledger).unwrap();
+    settled.answer.unwrap();
+    let id = settled.signature;
     assert_eq!(
         ledger.with(|svm| amount_of(svm, &seller_account)),
         2_500_000
@@ -215,7 +217,12 @@ fn the_facilitator_checks_signs_and_submits_a_native_payment_once() {
     assert!(ledger.with(|svm| svm.get_transaction(&Signature::from(id)).is_some()));
 
     // The same payment cannot settle twice, and a facilitator on two signatures refuses it.
-    assert!(facilitator::settle(&wire, &accepted, &policy, 100_000, &fac, &ledger).is_err());
+    let again = facilitator::settle(&wire, &accepted, &policy, 100_000, &fac, &ledger);
+    assert!(again.map_or(true, |s| s.answer.is_err()));
+    // A requirement that pays the facilitator itself is refused.
+    let mut to_itself = accepted.clone();
+    to_itself["payTo"] = json!(address(&fac).to_string());
+    assert!(facilitator::verify(&wire, &to_itself, &policy, 100_000, &ledger).is_err());
     let two = Policy {
         max_signatures: 2,
         ..policy
@@ -242,5 +249,32 @@ fn the_facilitator_checks_signs_and_submits_a_native_payment_once() {
     assert_eq!(
         ledger.with(|svm| amount_of(svm, &seller_account)),
         2_500_000
+    );
+
+    // The ledger loses its answer after the transaction reached it: the settlement still names
+    // the transaction, which the ledger holds, and the seller is paid.
+    struct Lost<'a>(&'a Svm);
+    impl Ledger for Lost<'_> {
+        fn heights(&self, blockhash: &solana_hash::Hash) -> Result<x402::Recent> {
+            self.0.heights(blockhash)
+        }
+        fn simulate(&self, wire: &[u8]) -> Result<()> {
+            self.0.simulate(wire)
+        }
+        fn submit(&self, wire: &[u8]) -> Result<()> {
+            self.0.submit(wire)?;
+            Err(Error::uncertain("The ledger did not answer in time."))
+        }
+    }
+    let lost =
+        facilitator::settle(&fresh_wire, &one, &policy, 100_000, &fac, &Lost(&ledger)).unwrap();
+    assert!(lost.answer.is_err());
+    assert!(ledger.with(|svm| {
+        svm.get_transaction(&Signature::from(lost.signature))
+            .is_some()
+    }));
+    assert_eq!(
+        ledger.with(|svm| amount_of(svm, &seller_account)),
+        3_500_000
     );
 }
