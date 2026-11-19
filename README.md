@@ -75,7 +75,7 @@ cd allowit-contracts-solana
 # 1. Confirm the portable policy bundle hash is current (prints the bundle hash)
 python3 scripts/check-policy.py
 
-# 2. Host-side unit tests for the policy, interface and native crates
+# 2. Host-side unit tests for the policy and interface crates
 cargo test --workspace --locked
 
 # 3. Compile the two programs for sBPF v3
@@ -135,7 +135,7 @@ Save the signed transaction bytes before you broadcast. If the result is unknown
 
 ## Deploy to Devnet
 
-Build the exact revision the consuming SDK pins; the tip of `main` is not necessarily a release. Use fresh keys outside the checkout and check the cluster supports sBPF v3. The native-vault SDK profile verifies the source bundle, the deployed artifact bytes and the *absence* of an upgrade authority for both programs. `--final` is permanent, so compare hashes before you pass it.
+Build the exact revision that you deploy; the tip of `main` is not necessarily a release. Use fresh keys outside the checkout and check the cluster supports sBPF v3. Verify the source bundle, the deployed artifact bytes and the *absence* of an upgrade authority for both programs. `--final` is permanent, so compare hashes before you pass it.
 
 ```sh
 cluster=devnet
@@ -186,16 +186,13 @@ The [`Solana runtime smoke`](.github/workflows/integration-runtime.yml) workflow
 │   ├── policy/             Immutable helper (pinocchio, no_std, no accounts)
 │   └── vault/              Custody program: PDA state + SPL Token CPI
 ├── crates/
-│   ├── native/             Native Solana Rust SDK (allowit-native)
 │   └── interface/          Vault ABI 2 (Borsh)
-├── native/                 @allowit/native: JavaScript native vault lifecycle
 ├── sbf-tests/              Mollusk tests against the compiled programs
 ├── verification/           Hash-locked Solana verification set and obligation ledger
 ├── scripts/                build.sh, check-policy.py, policy-smoke.rs
 └── docs/                   Architecture, native vault v2
 ```
 
-- [`crates/native/`](crates/native/) is the Rust native SDK for the vault v2 lifecycle. [`native/`](native/README.md) is its JavaScript counterpart.
 - [`verification/`](verification/README.md) holds the Solana verification set: the native and published policy correspondence checks, the obligation ledger, and the refinement, adapter, trace, refusal, isolation and runtime evidence. allowit-core keeps only the core Lean model. The inputs are hash-bound: run `python3 -m unittest discover -s verification/tests`.
 - [`docs/native-vault-v2.md`](docs/native-vault-v2.md) describes the native vault v2 protocol.
 
@@ -208,13 +205,15 @@ Core owns common types, policy rules and primitives.
 flowchart TB
     UI["[allowit-engine]<br/>npm @allowit/ui<br/>Shared policy web components"]
     Engine["[allowit-sdk]<br/>crate @allowit/sdk/engine<br/>All other shared logic"]
-    Vendor["[allowit-contracts-solana]<br/>crate allowit-native + npm @allowit/native<br/>Native contracts · signing · chain semantics<br/>SVG graphics · web components"]
+    Vendor["[allowit-contracts-solana]<br/>crate allowit-interface · programs policy and vault<br/>Native contracts · signing · chain semantics<br/>SVG graphics · web components"]
     Core["[allowit-core]<br/>crate + npm @allowit/sdk/core<br/>Common types · policy rules · primitives<br/>TypeScript interfaces"]
 
     UI -->|npm| Vendor
     Engine -->|crate| Vendor
-    Vendor -->|crate + npm| Core
 ```
+
+No package here depends on Core yet: the vault interface and the programs are self-contained. The rail crate
+depends on Core and adds that edge.
 
 [Full architecture][responsibility-model].
 
@@ -226,7 +225,7 @@ flowchart TB
 
 ## Contributing
 
-Pull requests run the portable policy checks and `scripts/build.sh` ([`contracts.yml`](.github/workflows/contracts.yml)) and, when touched, the native SDKs ([`native.yml`](.github/workflows/native.yml)) and verification ([`verification.yml`](.github/workflows/verification.yml)). The compiled-program suites run nightly and on demand. Before you open a PR:
+Pull requests run the portable policy checks and `scripts/build.sh` ([`contracts.yml`](.github/workflows/contracts.yml)) and, when touched, verification ([`verification.yml`](.github/workflows/verification.yml)). The compiled-program suites run nightly and on demand. Before you open a PR:
 
 ```sh
 scripts/build.sh   # fail on a stale git pin, then build the workspace and the SBF programs
@@ -242,6 +241,6 @@ If you edit `policy/policy.rs` or `policy/policy_api.rs`, regenerate `source_has
 
 ## License
 
-Licensing is per crate. `allowit-native` and `@allowit/native` are MIT (see [`crates/native/LICENSE`](crates/native/LICENSE)). The programs and the vault interface are `UNLICENSED`. Each `Cargo.toml` states its own terms.
+Licensing is per crate. The programs and the vault interface are `UNLICENSED`. Each `Cargo.toml` states its own terms.
 
 [responsibility-model]: https://github.com/allowit-hq/allowit-project/blob/main/wiki/allowit/architecture.md#dependency-direction
