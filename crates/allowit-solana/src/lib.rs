@@ -4,6 +4,7 @@
 //! transactions.
 //!
 //! Solana Devnet is the only network until Mainnet; Solana Testnet is not served.
+pub mod facilitator;
 pub mod keys;
 pub mod native;
 pub mod networks;
