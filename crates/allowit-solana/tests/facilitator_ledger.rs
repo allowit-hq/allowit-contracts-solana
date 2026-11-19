@@ -262,6 +262,23 @@ fn the_facilitator_checks_signs_and_submits_a_native_payment_once() {
             Err(Error::uncertain("The ledger did not answer in time."))
         }
     }
+    // Heights that the ledger reports for another blockhash are refused before simulation.
+    struct OtherHash<'a>(&'a Svm);
+    impl Ledger for OtherHash<'_> {
+        fn heights(&self, blockhash: &solana_hash::Hash) -> Result<x402::Recent> {
+            let mut other = self.0.heights(blockhash)?;
+            other.blockhash = solana_hash::Hash::new_from_array([7; 32]);
+            Ok(other)
+        }
+        fn simulate(&self, _: &[u8]) -> Result<()> {
+            panic!("simulated a payment whose blockhash heights were not its own")
+        }
+        fn submit(&self, _: &[u8]) -> Result<()> {
+            panic!("submitted a payment whose blockhash heights were not its own")
+        }
+    }
+    let other = facilitator::verify(&fresh_wire, &one, &policy, 100_000, &OtherHash(&ledger));
+    assert!(other.unwrap_err().message.contains("another blockhash"));
     let lost =
         facilitator::settle(&fresh_wire, &one, &policy, 100_000, &fac, &Lost(&ledger)).unwrap();
     assert!(lost.answer.is_err());
