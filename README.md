@@ -201,21 +201,20 @@ The [`Solana runtime smoke`](.github/workflows/integration-runtime.yml) workflow
 ## Part of Allowit
 
 Vendor packages own native contracts, signing and chain semantics. SDK engine owns shared workflows.
-Core owns common types, policy rules and primitives.
+Core owns common types, policy rules and primitives. The diagram shows these roles and their dependency directions.
 
 ```mermaid
 flowchart TB
-    UI["[allowit-engine]<br/>npm @allowit/ui<br/>Shared policy web components"]
-    Engine["[allowit-sdk]<br/>crate @allowit/sdk/engine<br/>All other shared logic"]
-    Vendor["[allowit-contracts-solana]<br/>crates allowit-solana, allowit-interface · programs policy and vault<br/>Native contracts · signing · chain semantics<br/>SVG graphics · web components"]
-    Core["[allowit-core]<br/>crate + npm @allowit/sdk/core<br/>Common types · policy rules · primitives<br/>TypeScript interfaces"]
+    Engine["[allowit-sdk]<br/>SDK engine<br/>All other shared logic"]
+    Vendor["[allowit-contracts-solana]<br/>Solana vendor<br/>Native contracts · signing · chain semantics"]
+    Core["[allowit-core]<br/>Core<br/>Common types · policy rules · primitives"]
 
-    UI -->|npm| Vendor
     Engine -->|crate| Vendor
     Vendor -->|crate| Core
 ```
 
-The rail crate `allowit-solana` depends on Core; the vault interface and the programs are self-contained.
+At this revision the repository builds the rail crate `allowit-solana`, which depends on Core, and the crate
+`allowit-interface` and the policy and vault programs, which do not. No npm package is published from here.
 
 [Full architecture][responsibility-model].
 
