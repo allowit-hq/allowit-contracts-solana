@@ -247,7 +247,7 @@ The service packages under `crates/` record their source engine revision in thei
 Pull requests run the portable policy checks and `scripts/build.sh` ([`contracts.yml`](.github/workflows/contracts.yml)) and, when touched, the service package matrix ([`service-packages.yml`](.github/workflows/service-packages.yml)), the native SDKs ([`native.yml`](.github/workflows/native.yml)) and verification ([`verification.yml`](.github/workflows/verification.yml)). The compiled-program suites run nightly and on demand. Before you open a PR:
 
 ```sh
-ALLOWIT_SOLANA_NETWORK=devnet scripts/build.sh   # fail on a stale allowit-core pin, then build the workspace and the SBF programs
+scripts/build.sh   # fail on a stale allowit-core pin, then build the workspace and the SBF programs
 python3 scripts/check-policy.py
 cargo fmt --all --check
 cargo fmt --manifest-path sbf-tests/Cargo.toml --check
