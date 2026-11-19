@@ -191,6 +191,11 @@ fn free_of_reserved_keys(bytes: &[u8]) -> bool {
                             .and_then(char::from_u32);
                         (code.unwrap_or('\u{fffd}'), 6)
                     }
+                    Some(b'b') => ('\u{8}', 2),
+                    Some(b'f') => ('\u{c}', 2),
+                    Some(b'n') => ('\n', 2),
+                    Some(b'r') => ('\r', 2),
+                    Some(b't') => ('\t', 2),
                     Some(other) => (char::from(*other), 2),
                     None => break,
                 }
@@ -1011,13 +1016,21 @@ pub fn check_payment(wire: &[u8], accepted: &Value, max_fee: u64) -> Result<Paym
             "it writes other accounts than the fee payer, the source and the destination",
         ));
     }
+    // Every other account is a program or an account of an instruction: the message names no
+    // signer that the facilitator would pay for and no account that it locks for nothing.
+    let used = |i: usize| {
+        tx.instructions
+            .iter()
+            .any(|ix| ix.program == tx.keys[i] || ix.accounts.contains(&i))
+    };
+    if !(1..tx.keys.len()).all(used) {
+        return Err(invalid("it names an account that no instruction uses"));
+    }
     if read_u64(&transfer.data[1..9]) != units {
         return Err(Error::usage(
             "The payment moves another amount than the requirement.",
         ));
     }
-    // The authority signs itself, or it is a multisig whose listed signers sign.
-    let signs = |i: usize| i < tx.required;
     // A multisig lists at most its maximum of signers.
     let signers = &transfer.accounts[4..];
     if signers.len() > MAX_MULTISIG_SIGNERS {
@@ -1025,13 +1038,20 @@ pub fn check_payment(wire: &[u8], accepted: &Value, max_fee: u64) -> Result<Paym
             "the transfer lists more signers than a multisig has",
         ));
     }
-    let authorized = if signers.is_empty() {
-        signs(transfer.accounts[3])
+    // The signers are exactly the fee payer and the transfer's authority, or the fee payer and
+    // the multisig's listed signers: no signature authorizes nothing, which the facilitator
+    // would pay for.
+    let mut expected: Vec<usize> = if signers.is_empty() {
+        vec![transfer.accounts[3]]
     } else {
-        signers.iter().all(|i| signs(*i)) && !signs(transfer.accounts[3])
+        signers.to_vec()
     };
-    if !authorized {
-        return Err(invalid("the transfer's authority does not sign"));
+    expected.push(0);
+    expected.sort_unstable();
+    if expected != (0..tx.required).collect::<Vec<_>>() {
+        return Err(invalid(
+            "its signers are not exactly the fee payer and the transfer's authority",
+        ));
     }
     let compute_units = u32::from_le_bytes(limit.data[1..5].try_into().expect("4 bytes"));
     let micro_lamports_per_unit = read_u64(&price.data[1..9]);
@@ -1423,6 +1443,11 @@ mod tests {
             };
             assert!(challenge(DEVNET, RESOURCE, &reply).is_err(), "{amount}");
         }
+        // Short escapes decode as JSON decodes them: a carriage return is no letter r.
+        assert!(free_of_reserved_keys(br#"{"$se\rde_json::private::x": 1}"#));
+        assert!(!free_of_reserved_keys(
+            br#"{"$serde_json::private::x\r": 1}"#
+        ));
         // A string value may start with the prefix; a key may not, whatever the spacing.
         assert!(free_of_reserved_keys(
             br#"{"a": "$serde_json::private::RawValue"}"#
@@ -1737,6 +1762,29 @@ mod tests {
         twice[at + 5] = twice[at + 4];
         let refused = check_payment(&twice, &accepted(), MAX_FEE).unwrap_err();
         assert!(refused.message.contains("twice"), "{}", refused.message);
+        // A key that no instruction uses is refused: an extra read-only account, or a signer that
+        // the multisig does not list.
+        let mut unused = wire.clone();
+        let keys_at = header + 3;
+        unused[keys_at] += 1;
+        let end = keys_at + 1 + 32 * usize::from(wire[keys_at]);
+        unused.splice(end..end, [9u8; 32]);
+        unused[header + 2] += 1;
+        let refused = check_payment(&unused, &accepted(), MAX_FEE).unwrap_err();
+        assert!(
+            refused.message.contains("no instruction"),
+            "{}",
+            refused.message
+        );
+        let mut unlisted = wire.clone();
+        unlisted[at - 1] -= 1;
+        unlisted.remove(at + 5);
+        let refused = check_payment(&unlisted, &accepted(), MAX_FEE).unwrap_err();
+        assert!(
+            refused.message.contains("no instruction"),
+            "{}",
+            refused.message
+        );
         // A source that the runtime reserves, here the System Program, is never write-locked.
         let source = usize::from(wire[at]);
         let key_at = header + 3 + 1 + 32 * source;
@@ -1839,6 +1887,56 @@ mod tests {
         assert!(check_payment(&p.wire(&good).unwrap(), &accepted(), MAX_FEE).is_ok());
         let bad = [(at(&agent), Signature::from(weak)), good[1]];
         assert!(check_payment(&p.wire(&bad).unwrap(), &accepted(), MAX_FEE).is_err());
+    }
+
+    #[test]
+    fn a_single_authority_payment_has_no_signature_beyond_its_authority() {
+        use solana_instruction::{AccountMeta, Instruction};
+        use solana_message::Message;
+        let (fee_payer, mint) = (key(21).parse::<Address>().unwrap(), wallet().mint);
+        let (source, authority) = (signer(7), signer(8));
+        let at = |s: &KeySigner| s.identity().parse::<Address>().unwrap();
+        let destination = associated_token_account(&key(20).parse().unwrap(), &mint);
+        let wire_of = |source_signs: bool| {
+            let mut limit = vec![2u8];
+            limit.extend_from_slice(&MIN_COMPUTE_UNITS.to_le_bytes());
+            let mut price = vec![3u8];
+            price.extend_from_slice(&1u64.to_le_bytes());
+            let mut transfer = vec![12u8];
+            transfer.extend_from_slice(&2_500_000u64.to_le_bytes());
+            transfer.push(6);
+            let ixs = [
+                Instruction::new_with_bytes(COMPUTE_BUDGET_PROGRAM, &limit, vec![]),
+                Instruction::new_with_bytes(COMPUTE_BUDGET_PROGRAM, &price, vec![]),
+                Instruction::new_with_bytes(
+                    TOKEN_PROGRAM,
+                    &transfer,
+                    vec![
+                        AccountMeta::new(at(&source), source_signs),
+                        AccountMeta::new_readonly(mint, false),
+                        AccountMeta::new(destination, false),
+                        AccountMeta::new_readonly(at(&authority), true),
+                    ],
+                ),
+            ];
+            let message = Message::new_with_blockhash(&ixs, Some(&fee_payer), &Hash::default());
+            let bytes = message.serialize();
+            let count = usize::from(message.header.num_required_signatures);
+            let mut wire = vec![count as u8];
+            wire.extend_from_slice(&[0u8; 64]);
+            for key in &message.account_keys[1..count] {
+                let s = [&source, &authority]
+                    .into_iter()
+                    .find(|s| at(s) == *key)
+                    .unwrap();
+                wire.extend_from_slice(&s.sign_bytes(&bytes).unwrap());
+            }
+            wire.extend_from_slice(&bytes);
+            wire
+        };
+        assert!(check_payment(&wire_of(false), &accepted(), MAX_FEE).is_ok());
+        let refused = check_payment(&wire_of(true), &accepted(), MAX_FEE).unwrap_err();
+        assert!(refused.message.contains("signers"), "{}", refused.message);
     }
 
     #[test]
