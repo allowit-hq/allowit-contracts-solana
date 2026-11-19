@@ -236,7 +236,7 @@ cargo fmt --manifest-path sbf-tests/Cargo.toml --check
 cargo test --workspace --locked
 ```
 
-No package depends on a git repository at present; the rail crate adds Allowit core. `[workspace.metadata.allowit.track]` in the root `Cargo.toml` says which commit each git dependency must be pinned to: `"head"` (the default branch tip), `{ branch = "name" }` or `{ version = "1.2.3" }` (tag `v1.2.3`). `scripts/build.sh --update` moves a stale pin and refreshes the locks; `scripts/build.sh --update allowit-core` moves only that repository's pins. The script needs `git`, `cargo` and `jq`.
+No package depends on a git repository at present; the rail crate adds Allowit core. `[workspace.metadata.allowit.track]` in the root `Cargo.toml` says which commit each git dependency must be pinned to: `"head"` (the default branch tip), `{ branch = "name" }` or `{ version = "1.2.3" }` (tag `v1.2.3`). `scripts/build.sh --update` moves a stale pin and refreshes the locks; `scripts/build.sh --update <repo>` moves only the pins of that repository, which must be a configured git dependency. The script needs `git`, `cargo` and `jq`.
 
 If you edit `policy/policy.rs` or `policy/policy_api.rs`, regenerate `source_hash.rs` with `--write` and make the identical change in the Stellar repository. [`AGENTS.md`](AGENTS.md) describes what belongs in this repository and what does not.
 
