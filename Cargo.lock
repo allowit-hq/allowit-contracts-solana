@@ -162,6 +162,7 @@ dependencies = [
 name = "allowit-solana"
 version = "0.1.0"
 dependencies = [
+ "agave-reserved-account-keys",
  "allowit-core",
  "base64 0.22.1",
  "bs58",

@@ -26,6 +26,11 @@
 //! transaction can stop the transfer then; the operation that signs a payment accounts for that.
 //! [`check_expiry`] checks a signed blockhash against the bound from the block heights that the
 //! ledger reported for it: the operation's record of them in a proof, the facilitator's own read.
+//!
+//! A restored challenge is the record that Core keeps of what [`challenge`] read, and Core
+//! deserializes it: this module sees its terms only as values, never as the seller's bytes. It
+//! checks that they are consistent and within the proof's size bound. Whether the record is the
+//! one that this module produced is the integrity of the host's store.
 use crate::{
     keys::signer_identity,
     native::{
@@ -34,6 +39,7 @@ use crate::{
     },
     networks::{self, DEVNET},
 };
+use agave_reserved_account_keys::ReservedAccountKeys;
 use allowit_core::vendor::{
     error::{Error, Result},
     execution::Quantity,
@@ -158,6 +164,27 @@ fn free_of_reserved_keys(bytes: &[u8]) -> bool {
         }
     }
     true
+}
+
+/// The JSON of `value` when it fits in `max` bytes: the writer stops at the bound, so a large
+/// value is never encoded whole.
+fn encoded_within(value: &Value, max: usize) -> Option<Vec<u8>> {
+    struct Bounded(Vec<u8>, usize);
+    impl std::io::Write for Bounded {
+        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+            if self.0.len() + buf.len() > self.1 {
+                return Err(std::io::Error::other("over the bound"));
+            }
+            self.0.extend_from_slice(buf);
+            Ok(buf.len())
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+    let mut out = Bounded(Vec::new(), max);
+    serde_json::to_writer(&mut out, value).ok()?;
+    Some(out.0)
 }
 
 /// The requirements document of a 402 reply: the version 2 header.
@@ -364,11 +391,9 @@ fn terms(challenge: &Challenge) -> Result<Terms> {
     // A restored challenge is read again from its own terms, as from the seller's reply, and must
     // be exactly what that reading gives.
     resource_url(&challenge.resource)?;
-    let encoded = serde_json::to_vec(&challenge.terms)
-        .map_err(|_| Error::config("The payment challenge cannot be encoded."))?;
-    if !free_of_reserved_keys(&encoded) {
+    if encoded_within(&challenge.terms, MAX_TERMS_BYTES).is_none() {
         return Err(Error::usage(
-            "The payment challenge's terms hold a reserved key.",
+            "The payment challenge's terms are larger than a proof carries.",
         ));
     }
     let accepted = &challenge.terms["accepted"];
@@ -831,6 +856,15 @@ pub fn check_payment(wire: &[u8], accepted: &Value, max_fee: u64) -> Result<Paym
     if !tx.writable(transfer.accounts[0]) || !tx.writable(transfer.accounts[2]) {
         return Err(invalid("the transfer's accounts are not writable"));
     }
+    // The runtime never write-locks a reserved account, such as a builtin program or a sysvar,
+    // whatever the header says.
+    let reserved =
+        |a: Address| ReservedAccountKeys::all_keys_iter().any(|k| k.to_bytes() == a.to_bytes());
+    if reserved(account(0)) || reserved(account(2)) {
+        return Err(invalid(
+            "the transfer names an account that the runtime reserves",
+        ));
+    }
     // The fee payer, the source and the destination are the only writable accounts: the
     // transaction locks nothing else, such as the mint, for writing.
     if (0..tx.keys.len()).filter(|i| tx.writable(*i)).count() != 3 {
@@ -1281,7 +1315,7 @@ mod tests {
             assert!(refused, "{own}");
         }
         let c = parse_challenge(&document(vec![accepted()])).unwrap();
-        let restorations: [(&str, Restore); 10] = [
+        let restorations: [(&str, Restore); 9] = [
             ("amount", |c| c.amount.units = "1".into()),
             ("network", |c| {
                 c.terms["accepted"]["network"] = json!("solana:other")
@@ -1299,9 +1333,6 @@ mod tests {
             }),
             ("id", |c| c.id = Some("order-9".into())),
             ("display", |c| c.amount.asset.decimals = 2),
-            ("reserved key", |c| {
-                c.terms["accepted"]["extra"]["$serde_json::private::RawValue"] = json!("x")
-            }),
         ];
         for (what, restore) in restorations {
             let mut restored = c.clone();
@@ -1458,6 +1489,13 @@ mod tests {
         twice[at + 5] = twice[at + 4];
         let refused = check_payment(&twice, &accepted(), MAX_FEE).unwrap_err();
         assert!(refused.message.contains("twice"), "{}", refused.message);
+        // A source that the runtime reserves, here the System Program, is never write-locked.
+        let source = usize::from(wire[at]);
+        let key_at = header + 3 + 1 + 32 * source;
+        let mut system = wire.clone();
+        system[key_at..key_at + 32].fill(0);
+        let refused = check_payment(&system, &accepted(), MAX_FEE).unwrap_err();
+        assert!(refused.message.contains("reserves"), "{}", refused.message);
         // A source that is the mint, or a program, is refused before anything else about it.
         let token = parse(&wire)
             .unwrap()

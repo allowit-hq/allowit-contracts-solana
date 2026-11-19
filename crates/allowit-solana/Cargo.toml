@@ -9,6 +9,8 @@ publish = false
 description = "The Solana rail of Allowit: networks, tokens, explorer links, keys and the Native wallet"
 
 [dependencies]
+# The accounts that the runtime never write-locks: a transfer cannot use them.
+agave-reserved-account-keys = "4.3.2"
 allowit-core = { workspace = true }
 base64 = "0.22"
 bs58 = "0.5.1"
