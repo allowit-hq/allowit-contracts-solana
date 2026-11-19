@@ -183,13 +183,22 @@ fn an_exact_payment_from_a_native_wallet_settles_through_a_three_signature_facil
     );
     assert_eq!(payload["accepted"], accepted);
 
-    // The facilitator signs as fee payer and submits: 2.5 USDC reach the seller, and the
-    // facilitator pays the fee of three signatures.
+    // The facilitator decodes the bytes of the proof, signs its place as fee payer and submits
+    // them: 2.5 USDC reach the seller, and the facilitator pays the fee of three signatures.
     let before = svm.get_balance(&address(&facilitator)).unwrap();
-    let full = prepared
-        .transaction(&[prepared.sign(&facilitator).unwrap(), client[0], client[1]])
+    let received = STANDARD
+        .decode(payload["payload"]["transaction"].as_str().unwrap())
         .unwrap();
-    svm.send_transaction(full).unwrap();
+    let mut tx: Transaction = wincode::deserialize(&received).unwrap();
+    assert_eq!(tx.signatures[0], Signature::default());
+    let message = tx.message.serialize();
+    let fee_payer: [u8; 64] = facilitator
+        .sign_bytes(&message)
+        .unwrap()
+        .try_into()
+        .unwrap();
+    tx.signatures[0] = Signature::from(fee_payer);
+    svm.send_transaction(tx).unwrap();
     assert_eq!(amount_of(&svm, &seller_account), 2_500_000);
     assert_eq!(amount_of(&svm, &wallet.token_account()), 7_500_000);
     assert_eq!(

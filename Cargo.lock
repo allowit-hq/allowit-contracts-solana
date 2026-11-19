@@ -178,6 +178,7 @@ dependencies = [
  "solana-message 4.6.0",
  "solana-signature",
  "solana-transaction",
+ "wincode",
  "zeroize",
 ]
 
