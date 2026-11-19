@@ -53,6 +53,7 @@ use allowit_core::vendor::{
         SettledBy, challenge_id, resource_url,
     },
     request::request_id_valid,
+    typed_request::validate_json,
 };
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use ed25519_dalek::{Signature as EdSignature, VerifyingKey};
@@ -259,7 +260,9 @@ fn requirements(reply: &SellerReply<'_>) -> Result<Value> {
     }
     let invalid = || Error::usage("The seller's payment challenge is not valid x402 JSON.");
     let bytes = STANDARD.decode(header.trim()).map_err(|_| invalid())?;
-    if !free_of_reserved_keys(&bytes) {
+    // One unambiguous object: no key twice at any depth (a seller that reads the first of two
+    // would expect another payment than the last that Value keeps), and no reserved key.
+    if validate_json(&bytes, MAX_CHALLENGE_BYTES).is_err() || !free_of_reserved_keys(&bytes) {
         return Err(invalid());
     }
     let value: Value = serde_json::from_slice(&bytes).map_err(|_| invalid())?;
@@ -1377,6 +1380,28 @@ mod tests {
         assert!(parse_challenge(&document(vec![reserved.clone()])).is_err());
         let c = parse_challenge(&document(vec![reserved, accepted()])).unwrap();
         assert_eq!(c.pay_to, key(20));
+    }
+
+    #[test]
+    fn seller_json_with_a_key_twice_is_refused() {
+        let text = serde_json::to_string(&document(vec![accepted()])).unwrap();
+        for twice in [
+            text.replacen(
+                r#""amount":"2500000""#,
+                r#""amount":"1","amount":"2500000""#,
+                1,
+            ),
+            text.replacen(r#""extra":{"#, r#""extra":{"a":1,"a":2,"#, 1),
+        ] {
+            assert_ne!(twice, text);
+            let headers = vec![("PAYMENT-REQUIRED".to_owned(), STANDARD.encode(&twice))];
+            let reply = SellerReply {
+                status: 402,
+                headers: &headers,
+                body: b"",
+            };
+            assert!(challenge(DEVNET, RESOURCE, &reply).is_err(), "{twice}");
+        }
     }
 
     #[test]
