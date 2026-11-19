@@ -18,7 +18,7 @@
 
 ## What is this?
 
-Two native Rust programs and one shared policy source.
+Two native Rust programs, one shared policy source and the Solana rail crate.
 
 | Piece | What it does | Where |
 | --- | --- | --- |
@@ -26,6 +26,7 @@ Two native Rust programs and one shared policy source.
 | **Policy helper** | A tiny immutable program the vault calls to check approval and the daily limit. No accounts, no custody, no surprises. | [`programs/policy`](programs/policy/src/lib.rs) |
 | **Portable policy** | The `require_approval` + `enforce_daily_limit` rule, shared byte-for-byte with the [Stellar contracts](https://github.com/allowit-hq/allowit-contracts-stellar) and hashed into both builds. | [`policy/`](policy/policy.rs) |
 | **ABI crate** | Borsh layouts for the vault ([ABI 2](crates/interface/src/lib.rs)). | [`crates/interface`](crates/interface) |
+| **Rail crate** | The Solana rail of Allowit: networks, tokens, explorer links, deadlines and agent keys; it grows into the rail plugin that the SDK registers. | [`crates/allowit-solana`](crates/allowit-solana/src/lib.rs) |
 
 ### Why a custody program?
 
@@ -186,6 +187,7 @@ The [`Solana runtime smoke`](.github/workflows/integration-runtime.yml) workflow
 │   ├── policy/             Immutable helper (pinocchio, no_std, no accounts)
 │   └── vault/              Custody program: PDA state + SPL Token CPI
 ├── crates/
+│   ├── allowit-solana/     Solana rail crate (allowit-solana)
 │   ├── native/             Native Solana Rust SDK (allowit-native)
 │   └── interface/          Vault ABI 2 (Borsh)
 ├── native/                 @allowit/native: JavaScript native vault lifecycle
@@ -208,7 +210,7 @@ Core owns common types, policy rules and primitives.
 flowchart TB
     UI["[allowit-engine]<br/>npm @allowit/ui<br/>Shared policy web components"]
     Engine["[allowit-sdk]<br/>crate @allowit/sdk/engine<br/>All other shared logic"]
-    Vendor["[allowit-contracts-solana]<br/>crate allowit-native + npm @allowit/native<br/>Native contracts · signing · chain semantics<br/>SVG graphics · web components"]
+    Vendor["[allowit-contracts-solana]<br/>crates allowit-solana, allowit-native + npm @allowit/native<br/>Native contracts · signing · chain semantics<br/>SVG graphics · web components"]
     Core["[allowit-core]<br/>crate + npm @allowit/sdk/core<br/>Common types · policy rules · primitives<br/>TypeScript interfaces"]
 
     UI -->|npm| Vendor
@@ -236,7 +238,7 @@ cargo fmt --manifest-path sbf-tests/Cargo.toml --check
 cargo test --workspace --locked
 ```
 
-No package depends on a git repository at present; the rail crate adds Allowit core. `[workspace.metadata.allowit.track]` in the root `Cargo.toml` says which commit each git dependency must be pinned to: `"head"` (the default branch tip), `{ branch = "name" }` or `{ version = "1.2.3" }` (tag `v1.2.3`). `scripts/build.sh --update` moves a stale pin and refreshes the locks; `scripts/build.sh --update <repo>` moves only the pins of that repository, which must be a configured git dependency. The script needs `git`, `cargo` and `jq`.
+Allowit core (repository allowit-core) is the only git dependency; the rail crate uses it. `[workspace.metadata.allowit.track]` in the root `Cargo.toml` says which commit each git dependency must be pinned to: `"head"` (the default branch tip), `{ branch = "name" }` or `{ version = "1.2.3" }` (tag `v1.2.3`). `scripts/build.sh --update` moves a stale pin and refreshes the locks; `scripts/build.sh --update <repo>` moves only the pins of that repository, which must be a configured git dependency. The script needs `git`, `cargo` and `jq`.
 
 If you edit `policy/policy.rs` or `policy/policy_api.rs`, regenerate `source_hash.rs` with `--write` and make the identical change in the Stellar repository. [`AGENTS.md`](AGENTS.md) describes what belongs in this repository and what does not.
 
