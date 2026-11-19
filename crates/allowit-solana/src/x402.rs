@@ -499,6 +499,40 @@ fn terms(challenge: &Challenge) -> Result<Terms> {
     })
 }
 
+/// The JSON of `value` with every object's keys in sorted order and arrays in their order, so
+/// that a digest of it depends on the value, not on the map order of the serializer.
+fn canonical(value: &Value, out: &mut Vec<u8>) -> Result<()> {
+    let unencodable = |_| Error::config("The payment challenge cannot be encoded.");
+    match value {
+        Value::Object(map) => {
+            let mut keys: Vec<&String> = map.keys().collect();
+            keys.sort_unstable();
+            out.push(b'{');
+            for (i, key) in keys.into_iter().enumerate() {
+                if i > 0 {
+                    out.push(b',');
+                }
+                serde_json::to_writer(&mut *out, key).map_err(unencodable)?;
+                out.push(b':');
+                canonical(&map[key], out)?;
+            }
+            out.push(b'}');
+        }
+        Value::Array(items) => {
+            out.push(b'[');
+            for (i, item) in items.iter().enumerate() {
+                if i > 0 {
+                    out.push(b',');
+                }
+                canonical(item, out)?;
+            }
+            out.push(b']');
+        }
+        scalar => serde_json::to_writer(&mut *out, scalar).map_err(unencodable)?,
+    }
+    Ok(())
+}
+
 /// 16 bytes of the SHA-256 of `parts`, each with its length, as lowercase hex.
 fn digest(parts: &[&[u8]]) -> String {
     let mut hash = Sha256::new();
@@ -522,8 +556,8 @@ pub fn purchase_memo(challenge: &Challenge, request_id: &str) -> Result<String> 
     }
     let context = serde_json::to_vec(&challenge.context())
         .map_err(|_| Error::config("The payment challenge cannot be encoded."))?;
-    let terms = serde_json::to_vec(&challenge.terms)
-        .map_err(|_| Error::config("The payment challenge cannot be encoded."))?;
+    let mut terms = Vec::new();
+    canonical(&challenge.terms, &mut terms)?;
     Ok(format!(
         "{MEMO_PREFIX}{}:{}",
         digest(&[b"challenge", &context, &terms]),
@@ -1242,6 +1276,18 @@ mod tests {
         a["maxTimeoutSeconds"] = json!(null);
         let c = parse_challenge(&document(vec![a])).unwrap();
         assert_eq!(c.settle_within, Some(DEFAULT_SETTLE_WITHIN));
+    }
+
+    #[test]
+    fn the_memo_hashes_terms_with_sorted_keys() {
+        let value: Value =
+            serde_json::from_str(r#"{"b":1,"a":{"d":[3,{"f":1,"e":"x"}],"c":null}}"#).unwrap();
+        let mut out = Vec::new();
+        canonical(&value, &mut out).unwrap();
+        assert_eq!(
+            String::from_utf8(out).unwrap(),
+            r#"{"a":{"c":null,"d":[3,{"e":"x","f":1}]},"b":1}"#
+        );
     }
 
     #[test]
