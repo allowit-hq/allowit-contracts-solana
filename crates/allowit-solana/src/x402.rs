@@ -109,6 +109,52 @@ fn parse_address(text: &str) -> Option<Address> {
     text.parse().ok()
 }
 
+/// The key prefix that serde_json, with the `arbitrary_precision` and `raw_value` features that
+/// Core enables, reads as a number or a raw value instead of an object.
+const RESERVED_KEY: &str = "$serde_json::private::";
+
+/// Whether no JSON string in `bytes`, once unescaped, starts with [`RESERVED_KEY`], so that the
+/// parsed document keeps the literal types that the seller sent. Malformed JSON passes here and
+/// fails to parse.
+fn free_of_reserved_keys(bytes: &[u8]) -> bool {
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] != b'"' {
+            i += 1;
+            continue;
+        }
+        i += 1;
+        let mut text = String::new();
+        while i < bytes.len() && bytes[i] != b'"' {
+            let (c, step) = if bytes[i] == b'\\' {
+                match bytes.get(i + 1) {
+                    Some(b'u') => {
+                        let code = bytes
+                            .get(i + 2..i + 6)
+                            .and_then(|hex| std::str::from_utf8(hex).ok())
+                            .and_then(|hex| u32::from_str_radix(hex, 16).ok())
+                            .and_then(char::from_u32);
+                        (code.unwrap_or('\u{fffd}'), 6)
+                    }
+                    Some(other) => (char::from(*other), 2),
+                    None => break,
+                }
+            } else {
+                (char::from(bytes[i]), 1)
+            };
+            if text.len() < RESERVED_KEY.len() {
+                text.push(c);
+            }
+            i += step;
+        }
+        if text.starts_with(RESERVED_KEY) {
+            return false;
+        }
+        i += 1;
+    }
+    true
+}
+
 /// The requirements document of a 402 reply: the version 2 header.
 fn requirements(reply: &SellerReply<'_>) -> Result<Value> {
     if reply.status != 402 {
@@ -124,6 +170,9 @@ fn requirements(reply: &SellerReply<'_>) -> Result<Value> {
     }
     let invalid = || Error::usage("The seller's payment challenge is not valid x402 JSON.");
     let bytes = STANDARD.decode(header.trim()).map_err(|_| invalid())?;
+    if !free_of_reserved_keys(&bytes) {
+        return Err(invalid());
+    }
     let value: Value = serde_json::from_slice(&bytes).map_err(|_| invalid())?;
     if !value.is_object() {
         return Err(invalid());
@@ -178,11 +227,11 @@ fn requirement(resource: &str, document: &Value, accepted: &Value) -> Result<Opt
         )));
     }
     let extra = &accepted["extra"];
-    if fee_payer(accepted).is_none() {
+    let Some(named_fee_payer) = fee_payer(accepted) else {
         return Err(unsupported(
             "The seller's payment challenge names no fee payer that can sign.",
         ));
-    }
+    };
     // An omitted resource is the requested one; a stated one must be it.
     match document.get("resource") {
         None | Some(Value::Null) => {}
@@ -208,6 +257,24 @@ fn requirement(resource: &str, document: &Value, accepted: &Value) -> Result<Opt
     };
     let units = token_units(&accepted["amount"])
         .ok_or_else(|| Error::usage("The seller's payment challenge names an invalid amount."))?;
+    // The fee payer appears in no instruction of the payment: not the mint, a program or the
+    // recipient's account. Such an offer is refused here, so that a later offer can be taken.
+    let mint = parse_address(asset)
+        .ok_or_else(|| Error::usage("The seller's payment challenge names an invalid mint."))?;
+    let recipient = parse_address(pay_to).expect("checked above");
+    if [
+        mint,
+        TOKEN_PROGRAM,
+        MEMO_PROGRAM,
+        COMPUTE_BUDGET_PROGRAM,
+        associated_token_account(&recipient, &mint),
+    ]
+    .contains(&named_fee_payer)
+    {
+        return Err(unsupported(
+            "The seller's payment challenge names an account of the payment as the fee payer.",
+        ));
+    }
     // A null id is an absent one.
     let named = |key: &str| extra.get(key).filter(|value| !value.is_null());
     let id = match named("challengeId").or_else(|| named("nonce")) {
@@ -737,6 +804,13 @@ pub fn check_payment(wire: &[u8], accepted: &Value, max_fee: u64) -> Result<Paym
     if !tx.writable(transfer.accounts[0]) || !tx.writable(transfer.accounts[2]) {
         return Err(invalid("the transfer's accounts are not writable"));
     }
+    // The fee payer, the source and the destination are the only writable accounts: the
+    // transaction locks nothing else, such as the mint, for writing.
+    if (0..tx.keys.len()).filter(|i| tx.writable(*i)).count() != 3 {
+        return Err(invalid(
+            "it writes other accounts than the fee payer, the source and the destination",
+        ));
+    }
     if read_u64(&transfer.data[1..9]) != units {
         return Err(Error::usage(
             "The payment moves another amount than the requirement.",
@@ -1025,6 +1099,53 @@ mod tests {
     }
 
     #[test]
+    fn seller_json_keeps_its_literal_types() {
+        // serde_json reads these reserved keys as a raw value or a number, not as an object.
+        for amount in [
+            r#"{"$serde_json::private::RawValue": "\"2500000\""}"#,
+            r#"{"\u0024serde_json::private::RawValue": "\"2500000\""}"#,
+            r#"{"$serde_json::private::Number": "2500000"}"#,
+        ] {
+            let text = serde_json::to_string(&document(vec![accepted()]))
+                .unwrap()
+                .replace(r#""2500000""#, amount);
+            let headers = vec![("PAYMENT-REQUIRED".to_owned(), STANDARD.encode(&text))];
+            let reply = SellerReply {
+                status: 402,
+                headers: &headers,
+                body: b"",
+            };
+            assert!(challenge(DEVNET, RESOURCE, &reply).is_err(), "{amount}");
+        }
+        assert!(free_of_reserved_keys(
+            br#"{"a": "\"$serde_json::private::\""}"#
+        ));
+    }
+
+    #[test]
+    fn an_offer_whose_fee_payer_is_an_account_of_the_payment_gives_way_to_the_next() {
+        let mut mint_payer = accepted();
+        mint_payer["extra"]["feePayer"] = json!(USDC_DEVNET);
+        mint_payer["payTo"] = json!(key(22));
+        if signer_identity(&parse_address(USDC_DEVNET).unwrap().to_bytes()).is_ok() {
+            assert!(parse_challenge(&document(vec![mint_payer.clone()])).is_err());
+        }
+        for fee_payer in [
+            TOKEN_PROGRAM,
+            MEMO_PROGRAM,
+            associated_token_account(&key(22).parse().unwrap(), &USDC_DEVNET.parse().unwrap()),
+        ] {
+            let mut a = mint_payer.clone();
+            a["extra"]["feePayer"] = json!(fee_payer.to_string());
+            if signer_identity(&fee_payer.to_bytes()).is_ok() {
+                assert!(parse_challenge(&document(vec![a])).is_err(), "{fee_payer}");
+            }
+        }
+        let c = parse_challenge(&document(vec![mint_payer, accepted()])).unwrap();
+        assert_eq!(c.pay_to, key(20));
+    }
+
+    #[test]
     fn other_networks_are_skipped_and_wrong_requirements_refused() {
         let mut other = accepted();
         other["network"] = json!("solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp");
@@ -1124,8 +1245,9 @@ mod tests {
             }
             let mut a = accepted();
             a["extra"]["feePayer"] = json!(own.to_string());
-            let c = parse_challenge(&document(vec![a])).unwrap();
-            assert!(pay(&c).is_err());
+            // The challenge refuses the accounts that it knows; the payment refuses the rest.
+            let refused = parse_challenge(&document(vec![a])).map_or(true, |c| pay(&c).is_err());
+            assert!(refused, "{own}");
         }
         let c = parse_challenge(&document(vec![accepted()])).unwrap();
         let restorations: [(&str, Restore); 9] = [
@@ -1286,6 +1408,17 @@ mod tests {
         readonly[header + 2] += 2;
         let refused = check_payment(&readonly, &accepted(), MAX_FEE).unwrap_err();
         assert!(refused.message.contains("writable"), "{}", refused.message);
+        // A message that makes another account writable, a signer or the mint, is refused.
+        for (at_header, what) in [(1, "a client signer"), (2, "an unsigned account")] {
+            let mut wider = wire.clone();
+            wider[header + at_header] -= 1;
+            let refused = check_payment(&wider, &accepted(), MAX_FEE).unwrap_err();
+            assert!(
+                refused.message.contains("writes other"),
+                "{what}: {}",
+                refused.message
+            );
+        }
         // A multisig signer listed twice is refused.
         let mut twice = wire.clone();
         twice[at + 5] = twice[at + 4];
