@@ -400,6 +400,21 @@ fn requirement(resource: &str, document: &Value, accepted: &Value) -> Result<Opt
 /// The seller's challenge for `resource` on `network`: the first `exact` requirement of Solana
 /// Devnet that this rail can pay.
 pub fn challenge(network: &str, resource: &str, reply: &SellerReply<'_>) -> Result<Challenge> {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_err(|_| Error::config("The system clock is before 1970."))?
+        .as_secs();
+    challenge_at(network, resource, reply, now)
+}
+
+/// [`challenge`] at the Unix time `now`: an offer whose `expiresAt` has passed gives way to the
+/// next one.
+fn challenge_at(
+    network: &str,
+    resource: &str,
+    reply: &SellerReply<'_>,
+    now: u64,
+) -> Result<Challenge> {
     networks::network(network)?;
     resource_url(resource)?;
     let document = requirements(reply)?;
@@ -415,6 +430,11 @@ pub fn challenge(network: &str, resource: &str, reply: &SellerReply<'_>) -> Resu
     let mut refusal = None;
     for accepted in accepts {
         match requirement(resource, &document, accepted) {
+            Ok(Some(challenge)) if challenge.expires_at.is_some_and(|at| at <= now) => {
+                refusal = refusal.or(Some(Error::usage(
+                    "The seller's payment offer has expired.",
+                )));
+            }
             Ok(Some(challenge)) => return Ok(challenge),
             Ok(None) => {}
             Err(error) => refusal = refusal.or(Some(error)),
@@ -1198,6 +1218,32 @@ mod tests {
         a["maxTimeoutSeconds"] = json!(null);
         let c = parse_challenge(&document(vec![a])).unwrap();
         assert_eq!(c.settle_within, Some(DEFAULT_SETTLE_WITHIN));
+    }
+
+    #[test]
+    fn an_expired_offer_gives_way_to_a_live_one() {
+        let at = |accepts: Vec<Value>, now: u64| {
+            let (headers, body) = reply_of(&document(accepts));
+            challenge_at(
+                DEVNET,
+                RESOURCE,
+                &SellerReply {
+                    status: 402,
+                    headers: &headers,
+                    body: &body,
+                },
+                now,
+            )
+        };
+        let mut expired = accepted();
+        expired["extra"]["expiresAt"] = json!(1_000);
+        expired["payTo"] = json!(key(22));
+        assert!(at(vec![expired.clone()], 1_000).is_err());
+        assert_eq!(at(vec![expired.clone()], 999).unwrap().pay_to, key(22));
+        assert_eq!(
+            at(vec![expired, accepted()], 1_000).unwrap().pay_to,
+            key(20)
+        );
     }
 
     #[test]
