@@ -179,7 +179,11 @@ fn an_exact_payment_from_a_native_wallet_settles_through_a_three_signature_facil
         "status": "submitted",
         "network": DEVNET,
         "paidService": serde_json::to_value(challenge.context()).unwrap(),
-        x402::AUTHORIZATION_KEY: {"transaction": STANDARD.encode(&wire)},
+        x402::AUTHORIZATION_KEY: {
+            "transaction": STANDARD.encode(&wire),
+            "lastValidBlockHeight": recent.last_valid_block_height,
+            "blockHeight": recent.block_height,
+        },
     });
     let proof = x402::proof(&challenge, &receipt).unwrap();
     assert_eq!(proof.header, "PAYMENT-SIGNATURE");
