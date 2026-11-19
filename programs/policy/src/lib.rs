@@ -1,4 +1,7 @@
 #![cfg_attr(target_os = "solana", no_std)]
+// The hash-locked shared policy source (policy/policy_api.rs) names the other rail's build feature,
+// which this rail never sets.
+#![allow(unexpected_cfgs)]
 use pinocchio::{error::ProgramError, AccountView, Address, ProgramResult};
 #[path = "../../../policy/policy.rs"]
 pub mod policy;
