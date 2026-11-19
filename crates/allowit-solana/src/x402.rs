@@ -44,7 +44,6 @@ use crate::{
     },
     networks::{self, DEVNET},
 };
-use agave_reserved_account_keys::ReservedAccountKeys;
 use allowit_core::vendor::{
     error::{Error, Result},
     execution::Quantity,
@@ -84,6 +83,47 @@ pub const MAX_VALID_BLOCKS: u64 = 150;
 /// The smallest compute-unit limit of a payment: [`Budget::PAYMENT`], which the ledger test shows
 /// is enough for a Native payment with its memo.
 pub const MIN_COMPUTE_UNITS: u32 = Budget::PAYMENT.units;
+/// The accounts that the runtime reserves (Agave's reserved account keys): it never write-locks
+/// them, so none can pay a fee or move tokens. A test keeps the list equal to Agave's.
+const RESERVED: [Address; 31] = [
+    address!("AddressLookupTab1e1111111111111111111111111"),
+    address!("BPFLoader2111111111111111111111111111111111"),
+    address!("BPFLoader1111111111111111111111111111111111"),
+    address!("BPFLoaderUpgradeab1e11111111111111111111111"),
+    address!("ComputeBudget111111111111111111111111111111"),
+    address!("Config1111111111111111111111111111111111111"),
+    address!("Ed25519SigVerify111111111111111111111111111"),
+    address!("Feature111111111111111111111111111111111111"),
+    address!("LoaderV411111111111111111111111111111111111"),
+    address!("KeccakSecp256k11111111111111111111111111111"),
+    address!("Secp256r1SigVerify1111111111111111111111111"),
+    address!("StakeConfig11111111111111111111111111111111"),
+    address!("Stake11111111111111111111111111111111111111"),
+    address!("11111111111111111111111111111111"),
+    address!("Vote111111111111111111111111111111111111111"),
+    address!("ZkE1Gama1Proof11111111111111111111111111111"),
+    address!("ZkTokenProof1111111111111111111111111111111"),
+    address!("SysvarC1ock11111111111111111111111111111111"),
+    address!("SysvarEpochRewards1111111111111111111111111"),
+    address!("SysvarEpochSchedu1e111111111111111111111111"),
+    address!("SysvarFees111111111111111111111111111111111"),
+    address!("Sysvar1nstructions1111111111111111111111111"),
+    address!("SysvarLastRestartS1ot1111111111111111111111"),
+    address!("SysvarRecentB1ockHashes11111111111111111111"),
+    address!("SysvarRent111111111111111111111111111111111"),
+    address!("SysvarRewards111111111111111111111111111111"),
+    address!("SysvarS1otHashes111111111111111111111111111"),
+    address!("SysvarS1otHistory11111111111111111111111111"),
+    address!("SysvarStakeHistory1111111111111111111111111"),
+    address!("NativeLoader1111111111111111111111111111111"),
+    address!("Sysvar1111111111111111111111111111111111111"),
+];
+
+/// Whether the runtime reserves `key`.
+fn is_reserved(key: &Address) -> bool {
+    RESERVED.contains(key)
+}
+
 /// The most signers of an SPL Token multisig.
 const MAX_MULTISIG_SIGNERS: usize = 11;
 /// The largest network fee, in lamports, of a payment that a proof presents for the facilitator
@@ -234,12 +274,13 @@ fn token_units(value: &Value) -> Option<u64> {
     text.parse::<u64>().ok().filter(|units| *units > 0)
 }
 
-/// The fee payer that `accepted` names, when it is a key that can sign.
+/// The fee payer that `accepted` names, when it is a key that can sign and an account that the
+/// runtime write-locks.
 fn fee_payer(accepted: &Value) -> Option<Address> {
     accepted["extra"]["feePayer"]
         .as_str()
         .and_then(parse_address)
-        .filter(|key| signer_identity(&key.to_bytes()).is_ok())
+        .filter(|key| signer_identity(&key.to_bytes()).is_ok() && !is_reserved(key))
 }
 
 /// The seller's settlement time of `accepted`, in seconds: `maxTimeoutSeconds`, or the default.
@@ -863,9 +904,7 @@ pub fn check_payment(wire: &[u8], accepted: &Value, max_fee: u64) -> Result<Paym
     }
     // The runtime never write-locks a reserved account, such as a builtin program or a sysvar,
     // whatever the header says.
-    let reserved =
-        |a: Address| ReservedAccountKeys::all_keys_iter().any(|k| k.to_bytes() == a.to_bytes());
-    if reserved(account(0)) || reserved(account(2)) {
+    if is_reserved(&account(0)) || is_reserved(&account(2)) {
         return Err(invalid(
             "the transfer names an account that the runtime reserves",
         ));
@@ -1159,6 +1198,25 @@ mod tests {
         a["maxTimeoutSeconds"] = json!(null);
         let c = parse_challenge(&document(vec![a])).unwrap();
         assert_eq!(c.settle_within, Some(DEFAULT_SETTLE_WITHIN));
+    }
+
+    #[test]
+    fn the_reserved_accounts_are_agaves() {
+        use agave_reserved_account_keys::ReservedAccountKeys;
+        let mut ours: Vec<[u8; 32]> = RESERVED.iter().map(|k| k.to_bytes()).collect();
+        let mut agave: Vec<[u8; 32]> = ReservedAccountKeys::all_keys_iter()
+            .map(|k| k.to_bytes())
+            .collect();
+        ours.sort_unstable();
+        agave.sort_unstable();
+        assert_eq!(ours, agave);
+        // A reserved fee payer gives way to the next offer.
+        let mut reserved = accepted();
+        reserved["extra"]["feePayer"] = json!("Feature111111111111111111111111111111111111");
+        reserved["payTo"] = json!(key(22));
+        assert!(parse_challenge(&document(vec![reserved.clone()])).is_err());
+        let c = parse_challenge(&document(vec![reserved, accepted()])).unwrap();
+        assert_eq!(c.pay_to, key(20));
     }
 
     #[test]
