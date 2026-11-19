@@ -113,9 +113,9 @@ fn parse_address(text: &str) -> Option<Address> {
 /// Core enables, reads as a number or a raw value instead of an object.
 const RESERVED_KEY: &str = "$serde_json::private::";
 
-/// Whether no JSON string in `bytes`, once unescaped, starts with [`RESERVED_KEY`], so that the
-/// parsed document keeps the literal types that the seller sent. Malformed JSON passes here and
-/// fails to parse.
+/// Whether no object key in the JSON `bytes`, once unescaped, starts with [`RESERVED_KEY`], so
+/// that the parsed document keeps the literal types that the seller sent. A key is a string that a
+/// colon follows; string values may hold anything. Malformed JSON passes here and fails to parse.
 fn free_of_reserved_keys(bytes: &[u8]) -> bool {
     let mut i = 0;
     while i < bytes.len() {
@@ -147,10 +147,15 @@ fn free_of_reserved_keys(bytes: &[u8]) -> bool {
             }
             i += step;
         }
-        if text.starts_with(RESERVED_KEY) {
+        i += 1;
+        let next = bytes
+            .get(i..)
+            .unwrap_or_default()
+            .iter()
+            .find(|b| !b" \t\n\r".contains(b));
+        if next == Some(&b':') && text.starts_with(RESERVED_KEY) {
             return false;
         }
-        i += 1;
     }
     true
 }
@@ -359,6 +364,13 @@ fn terms(challenge: &Challenge) -> Result<Terms> {
     // A restored challenge is read again from its own terms, as from the seller's reply, and must
     // be exactly what that reading gives.
     resource_url(&challenge.resource)?;
+    let encoded = serde_json::to_vec(&challenge.terms)
+        .map_err(|_| Error::config("The payment challenge cannot be encoded."))?;
+    if !free_of_reserved_keys(&encoded) {
+        return Err(Error::usage(
+            "The payment challenge's terms hold a reserved key.",
+        ));
+    }
     let accepted = &challenge.terms["accepted"];
     let read = (challenge.terms["x402Version"] == 2)
         .then(|| requirement(&challenge.resource, &challenge.terms, accepted))
@@ -801,6 +813,21 @@ pub fn check_payment(wire: &[u8], accepted: &Value, max_fee: u64) -> Result<Paym
             "The payment pays the recipient's account from itself.",
         ));
     }
+    // The transfer's accounts are distinct, and none is a program of the transaction: the source
+    // is not the mint, and a multisig signer is listed once.
+    let mut distinct = transfer.accounts.clone();
+    distinct.sort_unstable();
+    distinct.dedup();
+    if distinct.len() != transfer.accounts.len()
+        || transfer
+            .accounts
+            .iter()
+            .any(|a| tx.instructions.iter().any(|ix| ix.program == tx.keys[*a]))
+    {
+        return Err(invalid(
+            "the transfer names an account twice or names a program",
+        ));
+    }
     if !tx.writable(transfer.accounts[0]) || !tx.writable(transfer.accounts[2]) {
         return Err(invalid("the transfer's accounts are not writable"));
     }
@@ -818,14 +845,11 @@ pub fn check_payment(wire: &[u8], accepted: &Value, max_fee: u64) -> Result<Paym
     }
     // The authority signs itself, or it is a multisig whose listed signers sign.
     let signs = |i: usize| i < tx.required;
-    // A multisig's listed signers are distinct client signers, at most the multisig's maximum.
+    // A multisig lists at most its maximum of signers.
     let signers = &transfer.accounts[4..];
-    let mut distinct = signers.to_vec();
-    distinct.sort_unstable();
-    distinct.dedup();
-    if distinct.len() != signers.len() || signers.len() > MAX_MULTISIG_SIGNERS {
+    if signers.len() > MAX_MULTISIG_SIGNERS {
         return Err(invalid(
-            "the transfer's multisig signers repeat or are too many",
+            "the transfer lists more signers than a multisig has",
         ));
     }
     let authorized = if signers.is_empty() {
@@ -1117,9 +1141,16 @@ mod tests {
             };
             assert!(challenge(DEVNET, RESOURCE, &reply).is_err(), "{amount}");
         }
+        // A string value may start with the prefix; a key may not, whatever the spacing.
         assert!(free_of_reserved_keys(
-            br#"{"a": "\"$serde_json::private::\""}"#
+            br#"{"a": "$serde_json::private::RawValue"}"#
         ));
+        assert!(!free_of_reserved_keys(
+            br#"{"$serde_json::private::Number" : 1}"#
+        ));
+        let mut doc = document(vec![accepted()]);
+        doc["resource"]["description"] = json!("$serde_json::private::RawValue");
+        assert!(parse_challenge(&doc).is_ok());
     }
 
     #[test]
@@ -1250,7 +1281,7 @@ mod tests {
             assert!(refused, "{own}");
         }
         let c = parse_challenge(&document(vec![accepted()])).unwrap();
-        let restorations: [(&str, Restore); 9] = [
+        let restorations: [(&str, Restore); 10] = [
             ("amount", |c| c.amount.units = "1".into()),
             ("network", |c| {
                 c.terms["accepted"]["network"] = json!("solana:other")
@@ -1268,6 +1299,9 @@ mod tests {
             }),
             ("id", |c| c.id = Some("order-9".into())),
             ("display", |c| c.amount.asset.decimals = 2),
+            ("reserved key", |c| {
+                c.terms["accepted"]["extra"]["$serde_json::private::RawValue"] = json!("x")
+            }),
         ];
         for (what, restore) in restorations {
             let mut restored = c.clone();
@@ -1423,7 +1457,24 @@ mod tests {
         let mut twice = wire.clone();
         twice[at + 5] = twice[at + 4];
         let refused = check_payment(&twice, &accepted(), MAX_FEE).unwrap_err();
-        assert!(refused.message.contains("repeat"), "{}", refused.message);
+        assert!(refused.message.contains("twice"), "{}", refused.message);
+        // A source that is the mint, or a program, is refused before anything else about it.
+        let token = parse(&wire)
+            .unwrap()
+            .keys
+            .iter()
+            .position(|k| *k == TOKEN_PROGRAM)
+            .unwrap() as u8;
+        for (source, what) in [(wire[at + 1], "twice"), (token, "program")] {
+            let mut alias = wire.clone();
+            alias[at] = source;
+            let refused = check_payment(&alias, &accepted(), MAX_FEE).unwrap_err();
+            assert!(
+                refused.message.contains(what),
+                "{what}: {}",
+                refused.message
+            );
+        }
         // A compute-unit limit below the floor cannot run the transfer.
         let starved = wallet()
             .payment(
