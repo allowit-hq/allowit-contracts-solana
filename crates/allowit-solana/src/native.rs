@@ -42,6 +42,8 @@ pub const LAMPORTS_PER_SIGNATURE: u64 = 5_000;
 pub const MAX_COMPUTE_UNITS: u32 = 1_400_000;
 /// The largest serialized transaction.
 pub const MAX_TRANSACTION_BYTES: usize = 1_232;
+/// The longest payment memo, in bytes of UTF-8.
+pub const MAX_MEMO_BYTES: usize = 256;
 
 /// One Native wallet: the owner's account of `mint` for `agent`, with the delegate of `agent` and
 /// `server`.
@@ -139,6 +141,17 @@ fn seed(tag: &str, parts: &[&Address]) -> String {
 }
 
 impl Wallet {
+    /// The owner, the agent and the server are three keys. With one key as both agent and server,
+    /// one signature would meet the two-of-two delegate; the owner is never the agent or the server.
+    pub fn check(&self) -> Result<()> {
+        if self.agent == self.server || self.owner == self.agent || self.owner == self.server {
+            return Err(Error::usage(
+                "The owner, the agent and the server are three different keys",
+            ));
+        }
+        Ok(())
+    }
+
     /// The seed of the token account: the same for every server key, so a new server delegate
     /// keeps the account.
     pub fn token_seed(&self) -> String {
@@ -163,15 +176,19 @@ impl Wallet {
     /// Whether `data` is this wallet's token account: the mint, the owner, initialized and not
     /// frozen.
     pub fn is_token_account(&self, data: &[u8]) -> bool {
+        // The close authority (offset 129) must be none or the owner, or the owner could not close it.
         data.len() == TOKEN_ACCOUNT_LEN as usize
             && data[0..32] == self.mint.to_bytes()
             && data[32..64] == self.owner.to_bytes()
             && data[108] == 1
+            && (data[129..133] == [0, 0, 0, 0]
+                || (data[129..133] == [1, 0, 0, 0] && data[133..165] == self.owner.to_bytes()))
     }
     /// Whether `data` is this wallet's delegate: an initialized multisig of exactly the agent and
     /// the server, two of two.
     pub fn is_delegate(&self, data: &[u8]) -> bool {
-        data.len() == MULTISIG_LEN as usize
+        self.check().is_ok()
+            && data.len() == MULTISIG_LEN as usize
             && data[0..3] == [2, 2, 1]
             && data[3..35] == self.agent.to_bytes()
             && data[35..67] == self.server.to_bytes()
@@ -195,7 +212,8 @@ impl Wallet {
         decimals: u8,
         token: Found,
         delegate: Found,
-    ) -> Vec<Instruction> {
+    ) -> Result<Vec<Instruction>> {
+        self.check()?;
         let (token_address, delegate_address) = (self.token_account(), self.delegate());
         let mut out = open(
             &self.owner,
@@ -225,14 +243,15 @@ impl Wallet {
                 &[2],
             ));
         }
-        out.push(self.approve(allowance, decimals));
-        out
+        out.push(self.approve(allowance, decimals)?);
+        Ok(out)
     }
 
     /// The owner's approval of `allowance` to the delegate: the refill after a payment or a stop,
     /// and the first approval of setup. It replaces the earlier allowance.
-    pub fn approve(&self, allowance: u64, decimals: u8) -> Instruction {
-        token_ix(
+    pub fn approve(&self, allowance: u64, decimals: u8) -> Result<Instruction> {
+        self.check()?;
+        Ok(token_ix(
             13,
             vec![
                 w(self.token_account()),
@@ -241,7 +260,7 @@ impl Wallet {
                 rs(self.owner),
             ],
             &amount_and_decimals(allowance, decimals),
-        )
+        ))
     }
 
     /// A payment of `amount` to the token account `destination`: compute budget, `TransferChecked`
@@ -255,8 +274,14 @@ impl Wallet {
         amount: u64,
         decimals: u8,
         budget: Budget,
-        memo: Option<&[u8]>,
+        memo: Option<&str>,
     ) -> Result<Vec<Instruction>> {
+        self.check()?;
+        if memo.is_some_and(|m| m.len() > MAX_MEMO_BYTES) {
+            return Err(Error::usage(format!(
+                "A payment memo has at most {MAX_MEMO_BYTES} bytes"
+            )));
+        }
         if *destination == self.token_account() {
             return Err(Error::usage(
                 "A payment goes to another account than the wallet's own",
@@ -279,7 +304,11 @@ impl Wallet {
             ),
         ];
         if let Some(memo) = memo {
-            out.push(Instruction::new_with_bytes(MEMO_PROGRAM, memo, vec![]));
+            out.push(Instruction::new_with_bytes(
+                MEMO_PROGRAM,
+                memo.as_bytes(),
+                vec![],
+            ));
         }
         Ok(out)
     }
@@ -290,8 +319,13 @@ impl Wallet {
     }
 
     /// The owner's recovery of `amount` to its token account `to`.
-    pub fn recover(&self, to: &Address, amount: u64, decimals: u8) -> Instruction {
-        token_ix(
+    pub fn recover(&self, to: &Address, amount: u64, decimals: u8) -> Result<Instruction> {
+        if *to == self.token_account() {
+            return Err(Error::usage(
+                "A recovery goes to another account than the wallet's own",
+            ));
+        }
+        Ok(token_ix(
             12,
             vec![
                 w(self.token_account()),
@@ -300,7 +334,7 @@ impl Wallet {
                 rs(self.owner),
             ],
             &amount_and_decimals(amount, decimals),
-        )
+        ))
     }
 
     /// The owner's close of the empty token account; its deposit returns to the owner.
@@ -445,10 +479,16 @@ pub fn transaction(message: Message, signatures: &[(Address, Signature)]) -> Res
             .ok_or_else(|| Error::usage(format!("{signer} does not sign this message")))?;
         out[at] = *signature;
     }
-    Ok(Transaction {
+    let transaction = Transaction {
         signatures: out,
         message,
-    })
+    };
+    if size(&transaction) > MAX_TRANSACTION_BYTES {
+        return Err(Error::usage(format!(
+            "A transaction has at most {MAX_TRANSACTION_BYTES} bytes"
+        )));
+    }
+    Ok(transaction)
 }
 
 /// The serialized size of `transaction`: the signature count, the signatures and the message.
@@ -552,7 +592,7 @@ mod tests {
         let w = wallet();
         let payer = key(9);
         let ixs = w
-            .payment(&key(8), 1_000_000, 6, Budget::PAYMENT, Some(b"order-1"))
+            .payment(&key(8), 1_000_000, 6, Budget::PAYMENT, Some("order-1"))
             .unwrap();
         let programs: Vec<Address> = ixs.iter().map(|i| i.program_id).collect();
         assert_eq!(
@@ -595,12 +635,13 @@ mod tests {
         let w = wallet();
         let nothing = Found::Nothing { deposit: 1 };
         for ixs in [
-            w.setup(5_000_000, 6, nothing, nothing),
-            w.setup(5_000_000, 6, Found::Funded { shortfall: 1 }, Found::Ready),
+            w.setup(5_000_000, 6, nothing, nothing).unwrap(),
+            w.setup(5_000_000, 6, Found::Funded { shortfall: 1 }, Found::Ready)
+                .unwrap(),
             vec![w.stop()],
-            vec![w.recover(&key(8), 1, 6)],
+            vec![w.recover(&key(8), 1, 6).unwrap()],
             vec![w.close()],
-            vec![w.approve(1, 6)],
+            vec![w.approve(1, 6).unwrap()],
         ] {
             let m = message(&ixs, &w.owner, Hash::default());
             assert_eq!(signers(&m).unwrap(), [w.owner]);
@@ -653,5 +694,80 @@ mod tests {
                 .is_err()
         );
         assert!(w.token_found(seen(1, key(9), &[1]), 10).is_err());
+    }
+
+    #[test]
+    fn three_different_keys_or_nothing() {
+        let w = wallet();
+        for bad in [
+            Wallet {
+                server: w.agent,
+                ..w
+            },
+            Wallet {
+                owner: w.agent,
+                ..w
+            },
+            Wallet {
+                owner: w.server,
+                ..w
+            },
+        ] {
+            let nothing = Found::Nothing { deposit: 1 };
+            assert!(bad.setup(1, 6, nothing, nothing).is_err());
+            assert!(bad.approve(1, 6).is_err());
+            assert!(bad.payment(&key(8), 1, 6, Budget::PAYMENT, None).is_err());
+        }
+        // A multisig whose two signers are one key is no delegate.
+        let same = Wallet {
+            server: w.agent,
+            ..w
+        };
+        let mut multisig = vec![0u8; MULTISIG_LEN as usize];
+        multisig[0..3].copy_from_slice(&[2, 2, 1]);
+        multisig[3..35].copy_from_slice(w.agent.as_ref());
+        multisig[35..67].copy_from_slice(w.agent.as_ref());
+        assert!(!same.is_delegate(&multisig));
+    }
+
+    #[test]
+    fn a_token_account_with_another_close_authority_is_not_reused() {
+        let w = wallet();
+        let mut data = vec![0u8; TOKEN_ACCOUNT_LEN as usize];
+        data[0..32].copy_from_slice(w.mint.as_ref());
+        data[32..64].copy_from_slice(w.owner.as_ref());
+        data[108] = 1;
+        assert!(w.is_token_account(&data));
+        data[129..133].copy_from_slice(&[1, 0, 0, 0]);
+        data[133..165].copy_from_slice(w.owner.as_ref());
+        assert!(w.is_token_account(&data));
+        data[133..165].copy_from_slice(key(9).as_ref());
+        assert!(!w.is_token_account(&data));
+        let seen = Some(Seen {
+            lamports: 1,
+            owner: TOKEN_PROGRAM,
+            data: &data,
+        });
+        assert!(w.token_found(seen, 10).is_err());
+    }
+
+    #[test]
+    fn memos_recoveries_and_sizes_are_bounded() {
+        let w = wallet();
+        let long = "m".repeat(MAX_MEMO_BYTES + 1);
+        assert!(
+            w.payment(&key(8), 1, 6, Budget::PAYMENT, Some(&long))
+                .is_err()
+        );
+        let longest = "m".repeat(MAX_MEMO_BYTES);
+        let ixs = w
+            .payment(&key(8), 1, 6, Budget::PAYMENT, Some(&longest))
+            .unwrap();
+        assert!(transaction(message(&ixs, &key(9), Hash::default()), &[]).is_ok());
+        assert!(w.recover(&w.token_account(), 1, 6).is_err());
+        let many: Vec<Instruction> = (0..6)
+            .map(|_| Instruction::new_with_bytes(MEMO_PROGRAM, longest.as_bytes(), vec![]))
+            .collect();
+        assert!(transaction(message(&many, &key(9), Hash::default()), &[]).is_err());
     }
 }

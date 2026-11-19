@@ -176,12 +176,15 @@ fn set_up(f: &mut Fixture, allowance: u64, balance: u64) {
     let seen = |svm: &LiteSVM, at: &Address| svm.get_account(at);
     let token = seen(&f.svm, &f.wallet.token_account());
     let delegate = seen(&f.svm, &f.wallet.delegate());
-    let setup = f.wallet.setup(
-        allowance,
-        DECIMALS,
-        f.wallet.token_found(view(&token), deposit).unwrap(),
-        f.wallet.delegate_found(view(&delegate), multisig).unwrap(),
-    );
+    let setup = f
+        .wallet
+        .setup(
+            allowance,
+            DECIMALS,
+            f.wallet.token_found(view(&token), deposit).unwrap(),
+            f.wallet.delegate_found(view(&delegate), multisig).unwrap(),
+        )
+        .unwrap();
     send(&mut f.svm, &setup, &f.wallet.owner, &[&f.owner]).unwrap();
     let refill = mint_to(
         &f.wallet.mint,
@@ -234,7 +237,7 @@ fn an_x402_payment_needs_agent_server_and_facilitator_and_costs_the_known_fee() 
             TOKEN,
             DECIMALS,
             Budget::PAYMENT,
-            Some(b"x402 order 1"),
+            Some("x402 order 1"),
         )
         .unwrap();
     let message = native::message(&ixs, &payer, f.svm.latest_blockhash());
@@ -329,7 +332,7 @@ fn the_ledger_refuses_what_the_policy_does_not_allow() {
             TOKEN,
             DECIMALS,
             Budget::PAYMENT,
-            Some(b"a"),
+            Some("a"),
         )
         .unwrap();
     let other = f
@@ -339,7 +342,7 @@ fn the_ledger_refuses_what_the_policy_does_not_allow() {
             TOKEN,
             DECIMALS,
             Budget::PAYMENT,
-            Some(b"b"),
+            Some("b"),
         )
         .unwrap();
     let message = native::message(&ixs, &payer, f.svm.latest_blockhash());
@@ -364,7 +367,7 @@ fn the_owner_alone_stops_recovers_refills_and_closes() {
     let mut f = fixture();
     set_up(&mut f, 5 * TOKEN, 10 * TOKEN);
     let server = address(&f.server);
-    let pay = |f: &mut Fixture, memo: &[u8]| {
+    let pay = |f: &mut Fixture, memo: &str| {
         let ixs = f
             .wallet
             .payment(
@@ -387,18 +390,18 @@ fn the_owner_alone_stops_recovers_refills_and_closes() {
     );
     // SPL Token error 4: owner mismatch, as the multisig is no longer the delegate.
     assert_eq!(
-        pay(&mut f, b"after stop").unwrap_err(),
+        pay(&mut f, "after stop").unwrap_err(),
         "InstructionError(2, Custom(4))"
     );
     // Refill: a new approval, and payments resume.
     send(
         &mut f.svm,
-        &[f.wallet.approve(3 * TOKEN, DECIMALS)],
+        &[f.wallet.approve(3 * TOKEN, DECIMALS).unwrap()],
         &f.wallet.owner,
         &[&f.owner],
     )
     .unwrap();
-    pay(&mut f, b"after refill").unwrap();
+    pay(&mut f, "after refill").unwrap();
     // Recover the whole balance to an account of the owner, then close: the deposit returns.
     let owner_account = Address::new_from_array([6; 32]);
     plain_token_account(&mut f.svm, owner_account, &f.wallet.mint, &f.wallet.owner);
@@ -412,7 +415,7 @@ fn the_owner_alone_stops_recovers_refills_and_closes() {
         .lamports;
     let before = f.svm.get_balance(&f.wallet.owner).unwrap();
     let steps = [
-        f.wallet.recover(&owner_account, left, DECIMALS),
+        f.wallet.recover(&owner_account, left, DECIMALS).unwrap(),
         f.wallet.close(),
     ];
     send(&mut f.svm, &steps, &f.wallet.owner, &[&f.owner]).unwrap();
