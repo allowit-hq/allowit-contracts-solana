@@ -2,7 +2,7 @@
 name = "allowit-policy"
 version.workspace = true
 edition = "2021"
-license = "UNLICENSED"
+license = "MIT"
 build = "../../policy/build.rs"
 [lib]
 crate-type = ["cdylib"]
