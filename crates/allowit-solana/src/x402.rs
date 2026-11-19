@@ -400,11 +400,24 @@ fn requirement(resource: &str, document: &Value, accepted: &Value) -> Result<Opt
 /// The seller's challenge for `resource` on `network`: the first `exact` requirement of Solana
 /// Devnet that this rail can pay.
 pub fn challenge(network: &str, resource: &str, reply: &SellerReply<'_>) -> Result<Challenge> {
-    let now = std::time::SystemTime::now()
+    challenge_at(network, resource, reply, unix_now()?)
+}
+
+/// The Unix time now, in seconds.
+fn unix_now() -> Result<u64> {
+    Ok(std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_err(|_| Error::config("The system clock is before 1970."))?
-        .as_secs();
-    challenge_at(network, resource, reply, now)
+        .as_secs())
+}
+
+/// Refuse `challenge` when the seller's `expiresAt` has passed at `now`: the seller no longer
+/// accepts its payment.
+fn live(challenge: &Challenge, now: u64) -> Result<()> {
+    if challenge.expires_at.is_some_and(|at| at <= now) {
+        return Err(Error::usage("The seller's payment offer has expired."));
+    }
+    Ok(())
 }
 
 /// [`challenge`] at the Unix time `now`: an offer whose `expiresAt` has passed gives way to the
@@ -430,12 +443,10 @@ fn challenge_at(
     let mut refusal = None;
     for accepted in accepts {
         match requirement(resource, &document, accepted) {
-            Ok(Some(challenge)) if challenge.expires_at.is_some_and(|at| at <= now) => {
-                refusal = refusal.or(Some(Error::usage(
-                    "The seller's payment offer has expired.",
-                )));
-            }
-            Ok(Some(challenge)) => return Ok(challenge),
+            Ok(Some(challenge)) => match live(&challenge, now) {
+                Ok(()) => return Ok(challenge),
+                Err(expired) => refusal = refusal.or(Some(expired)),
+            },
             Ok(None) => {}
             Err(error) => refusal = refusal.or(Some(error)),
         }
@@ -568,7 +579,20 @@ pub fn payment(
     budget: Budget,
     recent: Recent,
 ) -> Result<Payment> {
+    payment_at(wallet, challenge, request_id, budget, recent, unix_now()?)
+}
+
+/// [`payment`] at the Unix time `now`: an offer whose `expiresAt` has passed is never signed.
+fn payment_at(
+    wallet: &Wallet,
+    challenge: &Challenge,
+    request_id: &str,
+    budget: Budget,
+    recent: Recent,
+    now: u64,
+) -> Result<Payment> {
     let t = terms(challenge)?;
+    live(challenge, now)?;
     if [wallet.owner, wallet.agent, wallet.server].contains(&t.fee_payer) {
         return Err(Error::usage(
             "The payment challenge names one of the wallet's keys as the facilitator.",
@@ -1241,9 +1265,14 @@ mod tests {
         assert!(at(vec![expired.clone()], 1_000).is_err());
         assert_eq!(at(vec![expired.clone()], 999).unwrap().pay_to, key(22));
         assert_eq!(
-            at(vec![expired, accepted()], 1_000).unwrap().pay_to,
+            at(vec![expired.clone(), accepted()], 1_000).unwrap().pay_to,
             key(20)
         );
+        // An offer read while live is not signed once it has expired.
+        let c = at(vec![expired], 999).unwrap();
+        let pay = |now| payment_at(&wallet(), &c, REQUEST, Budget::PAYMENT, recent(), now);
+        assert!(pay(999).is_ok());
+        assert!(pay(1_000).is_err());
     }
 
     #[test]
