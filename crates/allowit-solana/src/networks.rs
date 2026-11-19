@@ -110,7 +110,7 @@ mod tests {
             "solana:testnet",
             "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
             "solana:4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z",
-            "stellar:testnet",
+            "other:testnet",
             "",
         ] {
             assert!(network(other).is_err(), "{other}");
