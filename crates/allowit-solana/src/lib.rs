@@ -7,6 +7,7 @@
 pub mod keys;
 pub mod native;
 pub mod networks;
+pub mod x402;
 
 pub use keys::{KEY_TYPE, KEYS, KeySigner, signer_identity};
 pub use networks::{
