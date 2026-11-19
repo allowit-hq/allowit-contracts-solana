@@ -2,14 +2,8 @@
 # credentials. The hash-bound verification set holds SHA-256 digests of policy
 # sources and SBF files, and Solana account addresses in the recorded test
 # vectors; the verification files cannot change without breaking their locks.
-# The PaySH golden fixture holds MPP headers signed with fixed disposable test
-# keys (see crates/paysh-stock/src/lib.rs).
 [extend]
 useDefault = true
-
-[[allowlists]]
-description = "PaySH golden MPP test vectors"
-paths = ['''^crates/paysh-stock/tests/fixtures/official-mpp-google-v0\.json$''']
 
 [[allowlists]]
 description = "Hash-bound digests and account addresses in verification/"
@@ -31,9 +25,3 @@ regexes = [
   '''^BAudUD1ESiZUrng178AsG2SRLM4DqUExojbsgAwnn6Sj$''',
 ]
 condition = "AND"
-
-[[allowlists]]
-description = "Browser storage key name in migrated app code, not a credential"
-condition = "AND"
-paths = ['''^migrated/app\.allowit\.xyz/src/delegate/delegate-wallet-diagnostics\.ts$''']
-regexes = ['''^allowit\.delegate\.wallet-diagnostic\.v1$''']
