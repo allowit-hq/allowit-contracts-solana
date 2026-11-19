@@ -287,6 +287,13 @@ impl Wallet {
         blockhash: Hash,
     ) -> Result<Prepared> {
         self.check()?;
+        // The fee payer signs too: a key that can sign, and never the agent, which holds no account.
+        crate::keys::signer_identity(&payer.to_bytes())?;
+        if *payer == self.agent {
+            return Err(Error::usage(
+                "The agent pays no fee: the facilitator or the server does",
+            ));
+        }
         if *destination == self.token_account() {
             return Err(Error::usage(
                 "A payment goes to another account than the wallet's own",
@@ -690,6 +697,28 @@ mod tests {
     fn payments_and_recoveries_to_the_wallets_own_account_are_refused() {
         let w = wallet();
         let payer = signer_key(9);
+        // The agent pays no fee, and a payer must be able to sign; the server may pay.
+        let to = key(8);
+        assert!(
+            w.payment(&to, 1, 6, Budget::PAYMENT, None, &w.agent, Hash::default())
+                .is_err()
+        );
+        assert!(
+            w.payment(
+                &to,
+                1,
+                6,
+                Budget::PAYMENT,
+                None,
+                &SYSTEM_PROGRAM,
+                Hash::default()
+            )
+            .is_err()
+        );
+        assert!(
+            w.payment(&to, 1, 6, Budget::PAYMENT, None, &w.server, Hash::default())
+                .is_ok()
+        );
         assert!(
             w.payment(
                 &w.token_account(),
