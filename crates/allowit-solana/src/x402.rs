@@ -13,6 +13,18 @@
 //! wallet's payment for it, checks a signed payment against its requirement ([`check_payment`]),
 //! and builds the proof header from the signed payment that the operation recorded. Version 1,
 //! whose network names are not CAIP-2 ids, is refused.
+//!
+//! A payment names its purchase and expires at a block height. Its memo binds the challenge and
+//! the request ID of the operation that pays it, which a retry of the operation keeps: two
+//! purchases on the same terms sign two transactions, and a retry signs the same one for the same
+//! blockhash. The proof reads the request ID from the receipt and checks the memo again.
+//!
+//! The payment's blockhash stops being valid after a block height, which is the payment's expiry.
+//! The seller's `settle_within` admits a blockhash that expires within `settle_within` seconds of
+//! blocks at [`BLOCK_MILLIS`]. The ledger binds the payment to that height, not to a time: blocks
+//! that come more slowly, or a halted network, reach it after `settle_within`, and no part of the
+//! transaction can stop the transfer then. Stellar's payment authorizations have the same bound at
+//! their expiry ledger; the operation that signs a payment accounts for it in the same way.
 use crate::{
     keys::signer_identity,
     native::{
@@ -49,9 +61,18 @@ pub const AUTHORIZATION_KEY: &str = "paymentAuthorization";
 /// The SPL Associated Token Account program.
 pub const ASSOCIATED_TOKEN_PROGRAM: Address =
     address!("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
-/// The shortest settlement time that a payment can honour: a recent blockhash is valid for about
-/// 60 seconds of blocks, and a signed payment cannot expire sooner.
-pub const MIN_SETTLE_WITHIN: u64 = 60;
+/// The settlement time of a seller that states none, in seconds.
+pub const DEFAULT_SETTLE_WITHIN: u64 = 60;
+/// The block time that bounds a payment's expiry. Slots are 400 ms, and the block height grows
+/// more slowly when slots are skipped; the longer time gives the earlier block height.
+pub const BLOCK_MILLIS: u64 = 500;
+/// The most blocks for which a blockhash stays valid.
+pub const MAX_VALID_BLOCKS: u64 = 150;
+/// The largest network fee, in lamports, of a payment that a proof presents for the facilitator
+/// to pay: three signatures and 200,000 compute units at 1,000,000 micro-lamports a unit.
+pub const MAX_FEE: u64 = 215_000;
+/// The longest request ID that a purchase memo binds.
+pub const MAX_REQUEST_ID_BYTES: usize = 128;
 /// The most signatures that an `exact` payment of this rail carries: the fee payer's, the
 /// agent's and the server's.
 pub const MAX_SIGNATURES: usize = 3;
@@ -60,6 +81,7 @@ const MAX_REQUIREMENTS: usize = 32;
 pub const MAX_TERMS_BYTES: usize = 4096;
 /// The prefix of the memo that names a purchase.
 pub const MEMO_PREFIX: &str = "allowit:x402:";
+const PURCHASE_DOMAIN: &[u8] = b"allowit-solana-x402-purchase-v1";
 
 fn unsupported(message: impl Into<String>) -> Error {
     Error::unsupported(message)
@@ -170,8 +192,10 @@ fn requirement(resource: &str, document: &Value, accepted: &Value) -> Result<Opt
     };
     let units = token_units(&accepted["amount"])
         .ok_or_else(|| Error::usage("The seller's payment challenge names an invalid amount."))?;
-    let id = match extra.get("challengeId").or_else(|| extra.get("nonce")) {
-        None | Some(Value::Null) => None,
+    // A null id is an absent one.
+    let named = |key: &str| extra.get(key).filter(|value| !value.is_null());
+    let id = match named("challengeId").or_else(|| named("nonce")) {
+        None => None,
         Some(value) => {
             let id = value.as_str().unwrap_or_default();
             challenge_id(id)
@@ -185,23 +209,16 @@ fn requirement(resource: &str, document: &Value, accepted: &Value) -> Result<Opt
             Error::usage("The seller's payment challenge has an invalid expiry.")
         })?),
     };
-    // A signed payment lives as long as its blockhash; a seller that allows less is refused.
+    // The seller's bound on the time from the payment to its settlement: the payment's blockhash
+    // expires within it (see the module documentation).
     let settle_within = match &accepted["maxTimeoutSeconds"] {
-        Value::Null => MIN_SETTLE_WITHIN,
-        value => {
-            let seconds = value
-                .as_u64()
-                .filter(|seconds| (1..=MAX_SETTLE_WITHIN).contains(seconds))
-                .ok_or_else(|| {
-                    Error::usage("The seller's payment challenge has an invalid timeout.")
-                })?;
-            if seconds < MIN_SETTLE_WITHIN {
-                return Err(unsupported(format!(
-                    "The seller allows {seconds} seconds; a Solana payment stays valid for about {MIN_SETTLE_WITHIN}."
-                )));
-            }
-            seconds
-        }
+        Value::Null => DEFAULT_SETTLE_WITHIN,
+        value => value
+            .as_u64()
+            .filter(|seconds| (1..=MAX_SETTLE_WITHIN).contains(seconds))
+            .ok_or_else(|| {
+                Error::usage("The seller's payment challenge has an invalid timeout.")
+            })?,
     };
     let mut terms = json!({"x402Version": 2, "accepted": accepted});
     if document["resource"].is_object() {
@@ -260,6 +277,7 @@ struct Terms {
     fee_payer: Address,
     units: u64,
     decimals: u8,
+    settle_within: u64,
 }
 
 fn terms(challenge: &Challenge) -> Result<Terms> {
@@ -284,6 +302,20 @@ fn terms(challenge: &Challenge) -> Result<Terms> {
             "The payment challenge's terms name another payment.",
         ));
     }
+    // The proof echoes the terms: version 2, the challenge's own resource, within the size bound.
+    let resource = &challenge.terms["resource"];
+    if challenge.terms["x402Version"] != 2
+        || !(resource.is_null() || resource["url"].as_str() == Some(challenge.resource.as_str()))
+        || serde_json::to_vec(&challenge.terms).map_or(true, |e| e.len() > MAX_TERMS_BYTES)
+    {
+        return Err(Error::usage(
+            "The payment challenge's terms are not the x402 terms of its resource.",
+        ));
+    }
+    let settle_within = challenge
+        .settle_within
+        .filter(|seconds| (1..=MAX_SETTLE_WITHIN).contains(seconds))
+        .ok_or_else(|| Error::usage("The payment challenge has no valid settlement time."))?;
     let display = token(DEVNET, &challenge.asset)
         .ok_or_else(|| unsupported("The payment challenge names an unlisted asset."))?;
     Ok(Terms {
@@ -295,37 +327,78 @@ fn terms(challenge: &Challenge) -> Result<Terms> {
             .ok_or_else(|| Error::usage("The payment challenge names no fee payer."))?,
         units: units.expect("checked"),
         decimals: display.decimals,
+        settle_within,
     })
 }
 
-/// The memo that names one purchase: two purchases of the same amount to the same recipient sign
-/// two transactions, and a retry of one purchase signs the same one.
-pub fn purchase_memo(challenge: &Challenge) -> Result<String> {
+/// 16 bytes of the SHA-256 of `parts`, each with its length, as lowercase hex.
+fn digest(parts: &[&[u8]]) -> String {
+    let mut hash = Sha256::new();
+    hash.update(PURCHASE_DOMAIN);
+    for part in parts {
+        hash.update((part.len() as u64).to_be_bytes());
+        hash.update(part);
+    }
+    hash.finalize()[..16]
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect()
+}
+
+/// Whether `id` can be a request ID that a memo binds: 1 to [`MAX_REQUEST_ID_BYTES`] visible
+/// ASCII characters.
+fn request_id_valid(id: &str) -> bool {
+    !id.is_empty() && id.len() <= MAX_REQUEST_ID_BYTES && id.bytes().all(|b| b.is_ascii_graphic())
+}
+
+/// The memo that names one purchase: `allowit:x402:<challenge>:<request>`. The first part binds the
+/// challenge's operation context and accepted terms, the second the request ID of the operation
+/// that pays it.
+pub fn purchase_memo(challenge: &Challenge, request_id: &str) -> Result<String> {
+    if !request_id_valid(request_id) {
+        return Err(Error::usage("The payment names no valid request ID."));
+    }
     let context = serde_json::to_vec(&challenge.context())
         .map_err(|_| Error::config("The payment challenge cannot be encoded."))?;
     let accepted = serde_json::to_vec(&challenge.terms["accepted"])
         .map_err(|_| Error::config("The payment challenge cannot be encoded."))?;
-    let mut hash = Sha256::new();
-    hash.update(&context);
-    hash.update([0]);
-    hash.update(&accepted);
-    let hex: String = hash.finalize()[..16]
-        .iter()
-        .map(|b| format!("{b:02x}"))
-        .collect();
-    Ok(format!("{MEMO_PREFIX}{hex}"))
+    Ok(format!(
+        "{MEMO_PREFIX}{}:{}",
+        digest(&[b"challenge", &context, &accepted]),
+        digest(&[b"request", request_id.as_bytes()])
+    ))
 }
 
-/// The Native wallet's payment of `challenge`: a transfer of exactly its amount of its mint to
-/// the associated token account of its recipient, with the purchase memo, and the seller's
-/// facilitator as fee payer. The facilitator is never one of the wallet's own keys: the wallet
-/// would then pay a fee that the facilitator pays, and sign its place.
+/// A blockhash as the ledger reported it, and the ledger's block height when it was read.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Recent {
+    pub blockhash: Hash,
+    /// The last block height at which a transaction with `blockhash` is valid.
+    pub last_valid_block_height: u64,
+    /// The ledger's block height.
+    pub block_height: u64,
+}
+
+/// A payment to sign, and the last block height at which it can settle.
+#[derive(Clone, Debug)]
+pub struct Payment {
+    pub prepared: Prepared,
+    pub expires_height: u64,
+}
+
+/// The Native wallet's payment of `challenge` for the operation of `request_id`: a transfer of
+/// exactly its amount of its mint to the associated token account of its recipient, with the
+/// purchase memo, and the seller's facilitator as fee payer. The facilitator is never one of the
+/// wallet's own keys: the wallet would then pay a fee that the facilitator pays, and sign its
+/// place. `recent` must expire within the seller's settlement time: a blockhash that is valid for
+/// longer is refused, and the caller takes an older one.
 pub fn payment(
     wallet: &Wallet,
     challenge: &Challenge,
+    request_id: &str,
     budget: Budget,
-    blockhash: Hash,
-) -> Result<Prepared> {
+    recent: Recent,
+) -> Result<Payment> {
     let t = terms(challenge)?;
     if [wallet.owner, wallet.agent, wallet.server].contains(&t.fee_payer) {
         return Err(Error::usage(
@@ -337,16 +410,31 @@ pub fn payment(
             "The payment challenge asks for another asset than the wallet holds.",
         ));
     }
-    let memo = purchase_memo(challenge)?;
-    wallet.payment(
+    let admitted = (t.settle_within.saturating_mul(1000) / BLOCK_MILLIS).min(MAX_VALID_BLOCKS);
+    let remaining = recent
+        .last_valid_block_height
+        .checked_sub(recent.block_height)
+        .filter(|blocks| *blocks > 0)
+        .ok_or_else(|| Error::usage("The payment's blockhash has expired."))?;
+    if remaining > admitted {
+        return Err(Error::usage(format!(
+            "The payment's blockhash is valid for {remaining} blocks; the seller allows {admitted}. Take an older blockhash."
+        )));
+    }
+    let memo = purchase_memo(challenge, request_id)?;
+    let prepared = wallet.payment(
         &associated_token_account(&t.pay_to, &t.mint),
         t.units,
         t.decimals,
         budget,
         Some(&memo),
         &t.fee_payer,
-        blockhash,
-    )
+        recent.blockhash,
+    )?;
+    Ok(Payment {
+        prepared,
+        expires_height: recent.last_valid_block_height,
+    })
 }
 
 /// A signed `exact` payment, parsed and checked against its requirement.
@@ -364,6 +452,8 @@ pub struct PaymentCheck {
     pub signatures: usize,
     pub compute_units: u32,
     pub micro_lamports_per_unit: u64,
+    /// The network fee that the fee payer pays, in lamports.
+    pub fee: u64,
     pub memo: Option<String>,
 }
 
@@ -417,8 +507,21 @@ struct Wire<'a> {
     signatures: Vec<[u8; 64]>,
     message: &'a [u8],
     required: usize,
+    readonly_signed: usize,
+    readonly_unsigned: usize,
     keys: Vec<Address>,
     instructions: Vec<Instruction<'a>>,
+}
+
+impl Wire<'_> {
+    /// Whether the message lets its instructions write account `i`.
+    fn writable(&self, i: usize) -> bool {
+        if i < self.required {
+            i < self.required - self.readonly_signed
+        } else {
+            i < self.keys.len() - self.readonly_unsigned
+        }
+    }
 }
 
 /// The wire format of a legacy transaction, parsed by hand and with bounds, so that no
@@ -498,6 +601,8 @@ fn parse(wire: &[u8]) -> Result<Wire<'_>> {
         signatures,
         message: &wire[message_start..],
         required,
+        readonly_signed,
+        readonly_unsigned,
         keys,
         instructions,
     })
@@ -512,8 +617,8 @@ fn read_u64(bytes: &[u8]) -> u64 {
 /// compute-unit price, one `TransferChecked` of exactly the required amount of the required mint
 /// to the recipient's associated token account, and an optional UTF-8 memo; the fee payer is the
 /// one that the requirement names and appears in no instruction; every other required signature
-/// is present and valid.
-pub fn check_payment(wire: &[u8], accepted: &Value) -> Result<PaymentCheck> {
+/// is present and valid; the network fee is at most `max_fee` lamports.
+pub fn check_payment(wire: &[u8], accepted: &Value, max_fee: u64) -> Result<PaymentCheck> {
     if accepted["scheme"] != SCHEME || accepted["network"] != DEVNET {
         return Err(unsupported(
             "The payment is not an exact payment on Solana Devnet.",
@@ -607,6 +712,14 @@ pub fn check_payment(wire: &[u8], accepted: &Value) -> Result<PaymentCheck> {
             "The payment pays another account than the recipient's associated token account.",
         ));
     }
+    if account(0) == account(2) {
+        return Err(Error::usage(
+            "The payment pays the recipient's account from itself.",
+        ));
+    }
+    if !tx.writable(transfer.accounts[0]) || !tx.writable(transfer.accounts[2]) {
+        return Err(invalid("the transfer's accounts are not writable"));
+    }
     if read_u64(&transfer.data[1..9]) != units {
         return Err(Error::usage(
             "The payment moves another amount than the requirement.",
@@ -622,6 +735,20 @@ pub fn check_payment(wire: &[u8], accepted: &Value) -> Result<PaymentCheck> {
     };
     if !authorized {
         return Err(invalid("the transfer's authority does not sign"));
+    }
+    let compute_units = u32::from_le_bytes(limit.data[1..5].try_into().expect("4 bytes"));
+    let micro_lamports_per_unit = read_u64(&price.data[1..9]);
+    let fee = crate::native::fee(
+        u8::try_from(tx.required).expect("at most three signatures"),
+        Budget {
+            units: compute_units,
+            micro_lamports_per_unit,
+        },
+    );
+    if fee > max_fee {
+        return Err(Error::usage(format!(
+            "The payment's network fee of {fee} lamports is above the bound of {max_fee}."
+        )));
     }
     if tx.signatures[0] != [0u8; 64] {
         return Err(invalid("the fee payer's place is already signed"));
@@ -642,15 +769,17 @@ pub fn check_payment(wire: &[u8], accepted: &Value) -> Result<PaymentCheck> {
         destination: account(2),
         units,
         signatures: tx.required,
-        compute_units: u32::from_le_bytes(limit.data[1..5].try_into().expect("4 bytes")),
-        micro_lamports_per_unit: read_u64(&price.data[1..9]),
+        compute_units,
+        micro_lamports_per_unit,
+        fee,
         memo,
     })
 }
 
 /// The proof of `challenge`: the signed payment that the operation recorded, for the seller's
 /// facilitator to sign as fee payer and submit. The recorded transaction is checked to pay this
-/// challenge, with its purchase memo and valid client signatures.
+/// challenge within [`MAX_FEE`], with the purchase memo of the receipt's request ID and valid
+/// client signatures.
 pub fn proof(challenge: &Challenge, receipt: &Value) -> Result<Proof> {
     terms(challenge)?;
     if !matches!(receipt["status"].as_str(), Some("submitted" | "confirmed")) {
@@ -676,6 +805,10 @@ pub fn proof(challenge: &Challenge, receipt: &Value) -> Result<Proof> {
             "The payment receipt records another purchase.",
         ));
     }
+    let request_id = receipt["requestId"]
+        .as_str()
+        .filter(|id| request_id_valid(id))
+        .ok_or_else(|| Error::config("The payment receipt names no valid request ID."))?;
     let transaction = receipt[AUTHORIZATION_KEY]["transaction"]
         .as_str()
         .unwrap_or_default();
@@ -683,13 +816,13 @@ pub fn proof(challenge: &Challenge, receipt: &Value) -> Result<Proof> {
         .then(|| STANDARD.decode(transaction).ok())
         .flatten()
         .ok_or_else(|| Error::config("The payment receipt holds no signed payment."))?;
-    let checked = check_payment(&bytes, &challenge.terms["accepted"]).map_err(|e| {
+    let checked = check_payment(&bytes, &challenge.terms["accepted"], MAX_FEE).map_err(|e| {
         Error::config(format!(
             "The payment receipt holds no signed payment of this challenge: {}",
             e.message
         ))
     })?;
-    if checked.memo != Some(purchase_memo(challenge)?) {
+    if checked.memo != Some(purchase_memo(challenge, request_id)?) {
         return Err(Error::config(
             "The payment receipt holds a payment of another purchase.",
         ));
@@ -783,14 +916,30 @@ mod tests {
             server: a(3),
         }
     }
-    /// The client's signed payment of `c`, as the operation records it.
-    fn signed(c: &Challenge) -> Vec<u8> {
-        let p = payment(&wallet(), c, Budget::PAYMENT, Hash::default()).unwrap();
+    const REQUEST: &str = "pay-0001";
+    type Restore = fn(&mut Challenge);
+    /// A blockhash with 120 blocks to go: what a seller's 60 seconds admit.
+    fn recent() -> Recent {
+        Recent {
+            blockhash: Hash::default(),
+            last_valid_block_height: 1_120,
+            block_height: 1_000,
+        }
+    }
+    /// The client's signed payment of `c` for `request`, as the operation records it.
+    fn signed_for(c: &Challenge, request: &str) -> Vec<u8> {
+        let p = payment(&wallet(), c, request, Budget::PAYMENT, recent())
+            .unwrap()
+            .prepared;
         p.wire(&[p.sign(&signer(2)).unwrap(), p.sign(&signer(3)).unwrap()])
             .unwrap()
     }
+    fn signed(c: &Challenge) -> Vec<u8> {
+        signed_for(c, REQUEST)
+    }
     fn receipt(c: &Challenge, wire: &[u8]) -> Value {
         json!({
+            "requestId": REQUEST,
             "status": "submitted",
             "network": DEVNET,
             "paidService": serde_json::to_value(c.context()).unwrap(),
@@ -810,6 +959,16 @@ mod tests {
         assert_eq!(c.settled_by, SettledBy::Seller);
         assert_eq!(c.settle_within, Some(60));
         assert_eq!(c.terms["accepted"], accepted());
+        // A null challenge id is absent: the seller's nonce names the challenge.
+        let mut a = accepted();
+        a["extra"]["challengeId"] = json!(null);
+        a["extra"]["nonce"] = json!("n-7");
+        let c = parse_challenge(&document(vec![a])).unwrap();
+        assert_eq!(c.id.as_deref(), Some("n-7"));
+        let mut a = accepted();
+        a["maxTimeoutSeconds"] = json!(null);
+        let c = parse_challenge(&document(vec![a])).unwrap();
+        assert_eq!(c.settle_within, Some(DEFAULT_SETTLE_WITHIN));
     }
 
     #[test]
@@ -832,7 +991,7 @@ mod tests {
             ("amount", json!("18446744073709551616")),
             ("payTo", json!("not base58 0OIl")),
             ("maxTimeoutSeconds", json!(0)),
-            ("maxTimeoutSeconds", json!(30)),
+            ("maxTimeoutSeconds", json!(MAX_SETTLE_WITHIN + 1)),
         ];
         for (field, value) in cases {
             let mut bad = accepted();
@@ -893,43 +1052,106 @@ mod tests {
     #[test]
     fn a_payment_never_names_a_wallet_key_as_facilitator_and_follows_its_terms() {
         let w = wallet();
+        let pay = |c: &Challenge| payment(&w, c, REQUEST, Budget::PAYMENT, recent());
         for own in [&w.owner, &w.agent, &w.server] {
             let mut a = accepted();
             a["extra"]["feePayer"] = json!(own.to_string());
             let c = parse_challenge(&document(vec![a])).unwrap();
-            assert!(payment(&w, &c, Budget::PAYMENT, Hash::default()).is_err());
+            assert!(pay(&c).is_err());
         }
         let c = parse_challenge(&document(vec![accepted()])).unwrap();
-        let mut restored = c.clone();
-        restored.amount.units = "1".into();
-        assert!(payment(&w, &restored, Budget::PAYMENT, Hash::default()).is_err());
-        let mut restored = c.clone();
-        restored.terms["accepted"]["network"] = json!("solana:other");
-        assert!(payment(&w, &restored, Budget::PAYMENT, Hash::default()).is_err());
+        let restorations: [(&str, Restore); 6] = [
+            ("amount", |c| c.amount.units = "1".into()),
+            ("network", |c| {
+                c.terms["accepted"]["network"] = json!("solana:other")
+            }),
+            ("resource", |c| {
+                c.terms["resource"]["url"] = json!("https://seller.example/other")
+            }),
+            ("version", |c| c.terms["x402Version"] = json!(1)),
+            ("size", |c| {
+                c.terms["accepted"]["extra"]["pad"] = json!("x".repeat(MAX_TERMS_BYTES))
+            }),
+            ("settle_within", |c| c.settle_within = None),
+        ];
+        for (what, restore) in restorations {
+            let mut restored = c.clone();
+            restore(&mut restored);
+            assert!(pay(&restored).is_err(), "{what}");
+        }
+        for id in ["", " x", &"x".repeat(MAX_REQUEST_ID_BYTES + 1)] {
+            assert!(
+                payment(&w, &c, id, Budget::PAYMENT, recent()).is_err(),
+                "{id:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_payment_expires_within_the_sellers_settlement_time() {
+        let w = wallet();
+        let c = parse_challenge(&document(vec![accepted()])).unwrap();
+        let at = |remaining: u64, block_height: u64| Recent {
+            blockhash: Hash::default(),
+            last_valid_block_height: block_height + remaining,
+            block_height,
+        };
+        // 60 seconds admit 120 blocks of 500 ms: a fresh blockhash's 150 blocks are too many.
+        let p = payment(&w, &c, REQUEST, Budget::PAYMENT, at(120, 1_000)).unwrap();
+        assert_eq!(p.expires_height, 1_120);
+        let refused = payment(&w, &c, REQUEST, Budget::PAYMENT, at(150, 1_000)).unwrap_err();
+        assert!(
+            refused.message.contains("older blockhash"),
+            "{}",
+            refused.message
+        );
+        let expired = Recent {
+            blockhash: Hash::default(),
+            last_valid_block_height: 1_000,
+            block_height: 1_000,
+        };
+        assert!(payment(&w, &c, REQUEST, Budget::PAYMENT, expired).is_err());
+        let mut a = accepted();
+        a["maxTimeoutSeconds"] = json!(10);
+        let short = parse_challenge(&document(vec![a])).unwrap();
+        assert!(payment(&w, &short, REQUEST, Budget::PAYMENT, at(20, 1_000)).is_ok());
+        assert!(payment(&w, &short, REQUEST, Budget::PAYMENT, at(21, 1_000)).is_err());
     }
 
     #[test]
     fn distinct_purchases_sign_distinct_payments_and_a_retry_the_same() {
         let first = parse_challenge(&document(vec![accepted()])).unwrap();
+        // The same terms without a seller id: two operations, two transactions.
+        assert_ne!(
+            signed_for(&first, "pay-0001"),
+            signed_for(&first, "pay-0002")
+        );
+        assert_ne!(
+            purchase_memo(&first, "pay-0001").unwrap(),
+            purchase_memo(&first, "pay-0002").unwrap()
+        );
+        // A retry of one operation signs the same transaction.
+        assert_eq!(signed(&first), signed(&first));
         let mut a = accepted();
         a["extra"]["challengeId"] = json!("order-2");
         let second = parse_challenge(&document(vec![a])).unwrap();
-        assert_ne!(
-            purchase_memo(&first).unwrap(),
-            purchase_memo(&second).unwrap()
-        );
         assert_ne!(signed(&first), signed(&second));
-        assert_eq!(signed(&first), signed(&first));
-        assert!(purchase_memo(&first).unwrap().len() <= MAX_MEMO_BYTES);
+        let longest = "x".repeat(MAX_REQUEST_ID_BYTES);
+        assert!(purchase_memo(&first, &longest).unwrap().len() <= MAX_MEMO_BYTES);
     }
 
     #[test]
     fn a_signed_payment_is_checked_against_its_requirement() {
         let c = parse_challenge(&document(vec![accepted()])).unwrap();
         let wire = signed(&c);
-        let checked = check_payment(&wire, &accepted()).unwrap();
-        assert_eq!((checked.units, checked.signatures), (2_500_000, 3));
-        assert_eq!(checked.memo, Some(purchase_memo(&c).unwrap()));
+        let checked = check_payment(&wire, &accepted(), MAX_FEE).unwrap();
+        assert_eq!(
+            (checked.units, checked.signatures, checked.fee),
+            (2_500_000, 3, 15_001)
+        );
+        assert_eq!(checked.memo, Some(purchase_memo(&c, REQUEST).unwrap()));
+        // The facilitator's fee bound counts the signatures and the priority fee.
+        assert!(check_payment(&wire, &accepted(), 15_000).is_err());
         for (field, value) in [
             ("amount", json!("2500001")),
             ("payTo", json!(key(22))),
@@ -938,24 +1160,45 @@ mod tests {
         ] {
             let mut bad = accepted();
             bad[field] = value;
-            assert!(check_payment(&wire, &bad).is_err(), "{field}");
+            assert!(check_payment(&wire, &bad, MAX_FEE).is_err(), "{field}");
         }
         let mut other_fee_payer = accepted();
         other_fee_payer["extra"]["feePayer"] = json!(key(22));
-        assert!(check_payment(&wire, &other_fee_payer).is_err());
+        assert!(check_payment(&wire, &other_fee_payer, MAX_FEE).is_err());
         for at in [wire.len() - 1, wire.len() - 60, 200] {
             let mut bad = wire.clone();
             bad[at] ^= 1;
-            assert!(check_payment(&bad, &accepted()).is_err(), "{at}");
+            assert!(check_payment(&bad, &accepted(), MAX_FEE).is_err(), "{at}");
         }
         let mut signed_place = wire.clone();
         signed_place[1] = 1;
-        assert!(check_payment(&signed_place, &accepted()).is_err());
+        assert!(check_payment(&signed_place, &accepted(), MAX_FEE).is_err());
         let mut longer = wire.clone();
         longer.push(0);
-        assert!(check_payment(&longer, &accepted()).is_err());
-        assert!(check_payment(&wire[..wire.len() - 1], &accepted()).is_err());
-        assert!(check_payment(&[], &accepted()).is_err());
+        assert!(check_payment(&longer, &accepted(), MAX_FEE).is_err());
+        assert!(check_payment(&wire[..wire.len() - 1], &accepted(), MAX_FEE).is_err());
+        assert!(check_payment(&[], &accepted(), MAX_FEE).is_err());
+
+        // A transfer from the recipient's account to itself credits nothing.
+        let accounts = parse(&wire).unwrap().instructions[2].accounts.clone();
+        let pattern: Vec<u8> = std::iter::once(accounts.len() as u8)
+            .chain(accounts.iter().map(|i| *i as u8))
+            .collect();
+        let at = wire
+            .windows(pattern.len())
+            .position(|w| w == pattern.as_slice())
+            .unwrap()
+            + 1;
+        let mut to_itself = wire.clone();
+        to_itself[at] = to_itself[at + 2];
+        let refused = check_payment(&to_itself, &accepted(), MAX_FEE).unwrap_err();
+        assert!(refused.message.contains("itself"), "{}", refused.message);
+        // A message that makes the transfer's accounts read-only moves nothing.
+        let header = 1 + 64 * 3;
+        let mut readonly = wire.clone();
+        readonly[header + 2] += 2;
+        let refused = check_payment(&readonly, &accepted(), MAX_FEE).unwrap_err();
+        assert!(refused.message.contains("writable"), "{}", refused.message);
     }
 
     #[test]
@@ -967,6 +1210,7 @@ mod tests {
         let decoded: Value = serde_json::from_slice(&STANDARD.decode(&p.value).unwrap()).unwrap();
         assert_eq!(decoded["x402Version"], 2);
         assert_eq!(decoded["accepted"], accepted());
+        assert_eq!(decoded["resource"]["url"], RESOURCE);
         assert_eq!(
             STANDARD
                 .decode(decoded["payload"]["transaction"].as_str().unwrap())
@@ -978,6 +1222,8 @@ mod tests {
             ("status", json!("prepared")),
             ("network", json!("solana:other")),
             ("paidService", json!(null)),
+            ("requestId", json!(null)),
+            ("requestId", json!("pay-0002")),
         ] {
             let mut bad = good.clone();
             bad[field] = value;
@@ -989,5 +1235,9 @@ mod tests {
         a["extra"]["challengeId"] = json!("order-2");
         let other = parse_challenge(&document(vec![a])).unwrap();
         assert!(proof(&c, &receipt(&c, &signed(&other))).is_err());
+        // A restored challenge whose echoed resource differs presents no proof.
+        let mut restored = c.clone();
+        restored.terms["resource"]["url"] = json!("https://seller.example/other");
+        assert!(proof(&restored, &receipt(&c, &wire)).is_err());
     }
 }
