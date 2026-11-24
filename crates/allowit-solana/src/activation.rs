@@ -180,6 +180,47 @@ pub fn approval(
     })
 }
 
+/// The params of a policy document, a generation reply (its `policy`) or a public profile of
+/// this rail, with the token that their amounts count. The SDK prints them.
+pub fn draft_params(
+    network: &str,
+    document: &Value,
+) -> Result<allowit_core::vendor::plugin::DraftParams> {
+    let network = crate::networks::network(network)?.id;
+    let document = document.get("policy").unwrap_or(document);
+    let config = &document["config"];
+    let binding = &document["runtime"]["instanceBinding"];
+    let (params, mint, symbol) = if config.is_object() {
+        (
+            &config["params"],
+            config["mint"].as_str(),
+            config["assetSymbol"].as_str(),
+        )
+    } else {
+        (
+            &binding["portable"]["params"],
+            binding["assetIssuer"]
+                .as_str()
+                .or_else(|| binding["asset"].as_str()),
+            binding["assetSymbol"].as_str(),
+        )
+    };
+    let params = params.as_object().ok_or_else(|| invalid("params"))?;
+    let token = crate::networks::tokens(network)
+        .iter()
+        .find(|t| mint.is_some() && t.issuer == mint && Some(t.code) == symbol)
+        .ok_or_else(|| invalid("its token is not a token that the rail lists"))?;
+    Ok(allowit_core::vendor::plugin::DraftParams {
+        params: params.iter().map(|(k, v)| (k.clone(), v.clone())).collect(),
+        asset: allowit_core::vendor::input::asset::AssetDisplay {
+            symbol: token.code.into(),
+            decimals: token.decimals,
+            name: token.code.into(),
+            native: token.native,
+        },
+    })
+}
+
 /// What the client retains of one approval, under its request id.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]

@@ -68,10 +68,6 @@ pub const WRAPPED_SOL_MINT: &str = "So11111111111111111111111111111111111111112"
 /// The name of the rail's text-message signature: a Solana wallet's `signMessage`.
 pub const MESSAGE_SIGNATURE_METHOD: &str = "solana-sign-message";
 
-/// The agent's client is in the plugin and tested against the rail's own runtime on a ledger.
-/// The shared tests of these features need a replay transport in the fixtures and a POSIX
-/// journal, which this revision does not have.
-const UNTESTED_CLIENT: &str = "the Solana client has no replay fixture for the shared tests yet; its own ledger tests cover it";
 const NOT_YET_CLIENT: &str =
     "the Solana rail's client workflow is not in this revision; the server's runtime is";
 
@@ -84,15 +80,6 @@ fn not_yet(what: &str) -> Error {
 static TEST_SUPPORT: TestSupport = TestSupport {
     network: DEVNET,
     skips: &[
-        (Feature::Transfer, UNTESTED_CLIENT),
-        (Feature::Recover, UNTESTED_CLIENT),
-        // The setup client is in `owner_client`. Its shared tests need the POSIX journal and
-        // have not run for this rail: the skip goes when they pass on Linux or macOS.
-        (Feature::OwnerSetup, UNTESTED_CLIENT),
-        // `activation::export` gives the profile; its shared tests need the POSIX journal.
-        (Feature::Export, UNTESTED_CLIENT),
-        (Feature::Limits, NOT_YET_CLIENT),
-        (Feature::DraftDisplay, NOT_YET_CLIENT),
         (Feature::EditParams, NOT_YET_CLIENT),
         (Feature::Verify, NOT_YET_CLIENT),
         (Feature::PairedExport, NOT_YET_CLIENT),
@@ -109,9 +96,6 @@ static TEST_SUPPORT: TestSupport = TestSupport {
             Feature::Fund,
             "the owner funds a Native wallet by its own approval",
         ),
-        // The plan gives a Native wallet two owner signatures: the setup and the policy approval.
-        // `activation` is the client's approval; its shared tests need the POSIX journal.
-        (Feature::Activate, UNTESTED_CLIENT),
         (
             Feature::UpdateParams,
             "the server keeps a Native wallet's params",
@@ -337,6 +321,13 @@ impl RailPlugin for Plugin {
         Err(Error::unsupported(
             "The Solana Devnet faucet takes no RPC request; fund the key through its web form",
         ))
+    }
+    fn draft_params(
+        &self,
+        network: &str,
+        document: &Value,
+    ) -> Result<allowit_core::vendor::plugin::DraftParams> {
+        crate::activation::draft_params(network, document)
     }
     fn decode_profile(
         &self,
@@ -828,6 +819,56 @@ fn fixture_bundle() -> Bundle {
     }
 }
 
+/// A Devnet ledger without the fixture wallet, for the shared tests that run offline: the
+/// finalized bank at block height 1,000, a blockhash valid to height 1,150, the deposits of a
+/// token account and a multisig, no account and no signature. Any other method is refused.
+struct OfflineLedger;
+impl Transport for OfflineLedger {
+    fn call(&self, method: &str, params: Value) -> Result<Value> {
+        let context = json!({"slot": 1_200});
+        Ok(match method {
+            "getEpochInfo" => json!({"blockHeight": 1_000, "absoluteSlot": 1_200, "epoch": 0}),
+            "getLatestBlockhash" => json!({"context": context, "value": {
+                "blockhash": solana_hash::Hash::new_from_array([7; 32]).to_string(),
+                "lastValidBlockHeight": 1_150}}),
+            "getMinimumBalanceForRentExemption" => {
+                let len = params[0].as_u64().unwrap_or(0);
+                json!((len + 128) * 6_960)
+            }
+            "getAccountInfo" => json!({"context": context, "value": null}),
+            "getSignatureStatuses" => json!({"context": context, "value": [null]}),
+            _ => {
+                return Err(Error::config(format!(
+                    "The offline Solana ledger has no answer for {method}"
+                )));
+            }
+        })
+    }
+}
+
+/// A generation reply for the fixture wallet: a Native policy with a per-payment and a daily
+/// limit in Devnet USDC.
+fn fixture_generation(config: &WalletConfig) -> Value {
+    let source = "pub fn execute(ctx: &AllowitContext) -> allowit::Result { Ok(()) }";
+    let hash = crate::config::hex32::encode(&source_hash(source));
+    json!({"policy": {
+        "id": "fixture-policy", "revision": 1, "network": DEVNET, "code": source,
+        "sourceHash": hash, "irHash": "",
+        "runtime": {"instanceBinding": {
+            "route": "native", "policyInstance": "05".repeat(32), "moduleDigest": "00".repeat(32),
+            "wallet": config.wallet, "asset": config.mint, "assetSymbol": config.asset_symbol,
+            "assetIssuer": config.mint, "maxFeeUnits": config.max_fee_lamports,
+            "portable": {
+                "language": "allowit-portable-v1", "sourceHash": hash, "tier": "native",
+                "rules": ["payment_limit", "daily_spending_limit"],
+                "params": {"payment_limit": {"Int": "5000000"},
+                    "daily_spending_limit": {"Int": "20000000"}},
+                "paramsHash": "", "unresolved": [],
+            },
+        }},
+    }})
+}
+
 fn fixtures() -> Fixtures {
     let bundle = fixture_bundle();
     let mut invalid = bundle.config.owner.clone();
@@ -840,8 +881,8 @@ fn fixtures() -> Fixtures {
         token: networks::tokens(DEVNET)[0],
         agent_seed: [2; 32],
         public_profile: serde_json::to_vec(&bundle).expect("a profile encodes"),
-        owner_generation: Value::Null,
-        chain: None,
+        owner_generation: fixture_generation(&bundle.config),
+        chain: Some(Arc::new(OfflineLedger)),
         live: None,
         wallet_code: Vec::new(),
     }
@@ -1092,12 +1133,29 @@ mod tests {
     }
 
     #[test]
-    fn what_the_client_does_not_do_yet_is_refused_and_named_as_skipped() {
+    fn the_native_wallets_features_run_the_shared_tests_and_the_rest_are_named_as_skipped() {
         let support = PLUGIN.test_support();
-        for feature in [Feature::Transfer, Feature::OwnerSetup, Feature::Recover] {
-            assert!(support.skip(feature).is_some());
+        for feature in [
+            Feature::Transfer,
+            Feature::Recover,
+            Feature::OwnerSetup,
+            Feature::Activate,
+            Feature::Export,
+            Feature::Limits,
+            Feature::DraftDisplay,
+            Feature::ExplorerLinks,
+            Feature::PaidService,
+        ] {
+            assert!(support.skip(feature).is_none(), "{feature:?}");
         }
-        assert!(support.skip(Feature::ExplorerLinks).is_none());
+        for feature in [
+            Feature::Deploy,
+            Feature::Swap,
+            Feature::CustomBuild,
+            Feature::Verify,
+        ] {
+            assert!(support.skip(feature).is_some(), "{feature:?}");
+        }
         PLUGIN
             .execution()
             .check(DEVNET, "transfer", USDC_DEVNET, None, false)
@@ -1120,5 +1178,47 @@ mod tests {
                 .check(DEVNET, "transfer", USDC_DEVNET, None, true)
                 .is_err()
         );
+    }
+
+    /// The offline ledger of the fixtures answers the rail's own reads, and the fixtures' drafts
+    /// print their params in USDC.
+    #[test]
+    fn the_fixtures_serve_the_rails_reads_and_print_their_params() {
+        use crate::owner::{Ledger as _, Status};
+        let fx = fixtures();
+        let ledger = Rpc(fx.chain.clone().expect("an offline ledger"));
+        assert_eq!(ledger.recent().unwrap().last_valid_height, 1_150);
+        assert_eq!(ledger.deposit(165).unwrap(), 2_039_280);
+        assert_eq!(ledger.deposit(355).unwrap(), 3_361_680);
+        let wallet: solana_address::Address = fx.wallet.parse().unwrap();
+        assert_eq!(ledger.account(&wallet).unwrap(), None);
+        assert_eq!(ledger.observe(&[7; 64]).unwrap().status, Status::Unknown);
+        assert!(ledger.submit(&[0]).is_err());
+
+        let draft = PLUGIN.draft_params(DEVNET, &fx.owner_generation).unwrap();
+        assert_eq!(draft.asset.symbol, "USDC");
+        assert_eq!(draft.asset.decimals, 6);
+        assert_eq!(draft.params.len(), 2);
+        let profile: Value = serde_json::from_slice(&fx.public_profile).unwrap();
+        assert_eq!(
+            PLUGIN.draft_params(DEVNET, &profile).unwrap().asset.symbol,
+            "USDC"
+        );
+        assert!(PLUGIN.draft_params(DEVNET, &json!({})).is_err());
+        assert!(
+            PLUGIN
+                .draft_params("unknown:none", &fx.owner_generation)
+                .is_err()
+        );
+        // The generation reply is a policy that the owner's approval reads.
+        let config = &fixture_bundle().config;
+        crate::activation::approval(
+            DEVNET,
+            &fx.owner_generation["policy"],
+            &config.owner,
+            &config.agent,
+            &config.server,
+        )
+        .unwrap();
     }
 }
