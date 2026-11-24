@@ -1,4 +1,0 @@
-# Policy identity hashes the literal source bytes. Preserve the release bytes
-# when cloning on Windows with core.autocrlf enabled.
-/policy/*.rs text eol=lf
-/scripts/*.sh text eol=lf
