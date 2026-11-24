@@ -53,6 +53,21 @@ pub struct VaultState {
     pub params: Vec<Param>,
 }
 
+/// Little-endian input to a Custom check CPI, with figures before this transfer.
+#[derive(BorshDeserialize, BorshSerialize)]
+pub struct CustomCheckInput {
+    pub abi: u8,
+    pub amount: u64,
+    pub recipient: [u8; 32],
+    pub mint: [u8; 32],
+    pub now: i64,
+    pub day: u64,
+    pub calls: u64,
+    pub spent: i128,
+    pub day_spent: i128,
+    pub day_total: i128,
+}
+
 #[derive(BorshDeserialize, BorshSerialize, Clone, Debug, Eq, PartialEq)]
 pub enum VaultInstruction {
     /// State, owner, mint, vault ATA, System, Token, Associated Token.
@@ -67,6 +82,7 @@ pub enum VaultInstruction {
         params: Vec<Param>,
     },
     /// State, agent, server, mint, vault ATA, destination, Token.
+    /// Custom adds the check program and its optional writable wallet state.
     Execute {
         amount: u64,
         nonce: u64,
@@ -75,16 +91,12 @@ pub enum VaultInstruction {
         expires_at: i64,
     },
     /// State, owner.
-    SetPause {
-        paused: bool,
-        version: u32,
-    },
-    Stop {
-        version: u32,
-    },
-    Recover {
-        amount: u64,
-    },
+    SetPause { paused: bool, version: u32 },
+    /// State, owner, mint, vault ATA, owner's destination, Token.
+    Stop { version: u32 },
+    /// State, owner, mint, vault ATA, owner's destination, Token.
+    Recover { amount: u64 },
+    /// State, writable owner and System.
     UpdatePolicy {
         version: u32,
         agent: [u8; 32],
@@ -95,9 +107,7 @@ pub enum VaultInstruction {
         params: Vec<Param>,
     },
     /// State, owner, mint, vault ATA, owner's destination, Token.
-    Close {
-        version: u32,
-    },
+    Close { version: u32 },
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

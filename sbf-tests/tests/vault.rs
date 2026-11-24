@@ -19,7 +19,11 @@ use spl_associated_token_account_interface::address::get_associated_token_addres
 use spl_token_interface::state::{Account as TokenAccount, AccountState, Mint};
 use std::collections::BTreeMap;
 
+#[path = "vault/stage2.rs"]
+mod stage2;
+
 const PROGRAM: Pubkey = Pubkey::new_from_array([10; 32]);
+const CHECK_PROGRAM: Pubkey = Pubkey::new_from_array([23; 32]);
 const OWNER: Pubkey = Pubkey::new_from_array([11; 32]);
 const AGENT: Pubkey = Pubkey::new_from_array([12; 32]);
 const SERVER: Pubkey = Pubkey::new_from_array([13; 32]);
@@ -41,10 +45,15 @@ struct Fixture {
     state: Pubkey,
     bump: u8,
     ata: Pubkey,
+    mint: Pubkey,
 }
 
 impl Fixture {
     fn new() -> Self {
+        Self::with_mint(MINT)
+    }
+
+    fn with_mint(mint: Pubkey) -> Self {
         assert!(
             std::env::var_os("SBF_OUT_DIR").is_some(),
             "SBF_OUT_DIR must name the actual SBF output directory"
@@ -56,7 +65,7 @@ impl Fixture {
         svm.sysvars.clock.slot = SLOT;
         let (state, bump) =
             Pubkey::find_program_address(&[VAULT_SEED, OWNER.as_ref(), &INSTANCE], &PROGRAM);
-        let ata = get_associated_token_address_with_program_id(&state, &MINT, &token::ID);
+        let ata = get_associated_token_address_with_program_id(&state, &mint, &token::ID);
         let accounts = BTreeMap::from([
             (
                 OWNER,
@@ -69,10 +78,10 @@ impl Fixture {
             (SERVER, Account::default()),
             (state, Account::default()),
             (ata, Account::default()),
-            (DESTINATION, token_destination(RECIPIENT)),
-            (OWNER_DESTINATION, token_destination(OWNER)),
+            (DESTINATION, token_destination(RECIPIENT, mint)),
+            (OWNER_DESTINATION, token_destination(OWNER, mint)),
             (
-                MINT,
+                mint,
                 token::create_account_for_mint(Mint {
                     mint_authority: COption::Some(OWNER),
                     supply: 0,
@@ -98,48 +107,61 @@ impl Fixture {
             state,
             bump,
             ata,
+            mint,
         }
     }
 
-    fn initialize(&mut self, kind: u8, rules: Vec<u8>, params: Vec<Param>) {
-        let ix = self.instruction(
+    fn initialize_instruction(&self, kind: u8, rules: Vec<u8>, params: Vec<Param>) -> Instruction {
+        self.instruction(
             VaultInstruction::Initialize {
                 instance_id: INSTANCE,
                 kind,
                 agent: AGENT.to_bytes(),
                 server: SERVER.to_bytes(),
                 source_hash: SOURCE_HASH,
-                check_program: [0; 32],
+                check_program: if kind == allowit_vault::CUSTOM {
+                    CHECK_PROGRAM.to_bytes()
+                } else {
+                    [0; 32]
+                },
                 rules,
                 params,
             },
             vec![
                 rw(self.state, false),
                 rw(OWNER, true),
-                ro(MINT, false),
+                ro(self.mint, false),
                 rw(self.ata, false),
                 ro(system_program::ID, false),
                 ro(token::ID, false),
                 ro(associated_token::ID, false),
             ],
-        );
+        )
+    }
+
+    fn initialize(&mut self, kind: u8, rules: Vec<u8>, params: Vec<Param>) {
+        let ix = self.initialize_instruction(kind, rules, params);
         self.run("initialize", &ix, Ok(()));
     }
 
     fn funded(kind: u8, rules: Vec<u8>, params: Vec<Param>) -> Self {
         let mut fixture = Self::new();
         fixture.initialize(kind, rules, params);
+        fixture.fund();
+        fixture
+    }
+
+    fn fund(&mut self) {
         let mint = spl_token_interface::instruction::mint_to(
             &token::ID,
-            &MINT,
-            &fixture.ata,
+            &self.mint,
+            &self.ata,
             &OWNER,
             &[],
             DEPOSIT,
         )
         .unwrap();
-        fixture.run("fund via SPL MintTo", &mint, Ok(()));
-        fixture
+        self.run("fund via SPL MintTo", &mint, Ok(()));
     }
 
     fn simple() -> Self {
@@ -163,7 +185,7 @@ impl Fixture {
                 rw(self.state, false),
                 ro(AGENT, true),
                 ro(SERVER, true),
-                ro(MINT, false),
+                ro(self.mint, false),
                 rw(self.ata, false),
                 rw(DESTINATION, false),
                 ro(token::ID, false),
@@ -179,17 +201,62 @@ impl Fixture {
     }
 
     fn close(&self, version: u32) -> Instruction {
+        self.owner_transfer(VaultInstruction::Close { version }, OWNER_DESTINATION)
+    }
+
+    fn owner_transfer(&self, instruction: VaultInstruction, destination: Pubkey) -> Instruction {
         self.instruction(
-            VaultInstruction::Close { version },
+            instruction,
             vec![
                 rw(self.state, false),
                 rw(OWNER, true),
-                ro(MINT, false),
+                ro(self.mint, false),
                 rw(self.ata, false),
-                rw(OWNER_DESTINATION, false),
+                rw(destination, false),
                 ro(token::ID, false),
             ],
         )
+    }
+
+    fn update(&self, version: u32, rules: Vec<u8>, params: Vec<Param>) -> Instruction {
+        self.instruction(
+            VaultInstruction::UpdatePolicy {
+                version,
+                agent: AGENT.to_bytes(),
+                server: SERVER.to_bytes(),
+                source_hash: [22; 32],
+                check_program: [0; 32],
+                rules,
+                params,
+            },
+            vec![
+                rw(self.state, false),
+                rw(OWNER, true),
+                ro(system_program::ID, false),
+            ],
+        )
+    }
+
+    fn payment(&mut self, label: &str, amount: u64, expected: Result<(), ProgramError>) {
+        let state = self.vault();
+        let now = self.svm.sysvars.clock.unix_timestamp;
+        let ix = self.execute(amount, state.nonce, state.version, now + 1);
+        self.run(label, &ix, expected);
+    }
+
+    fn add_check(&mut self) {
+        let dir = std::env::var_os("SBF_OUT_DIR").unwrap();
+        let file = std::path::Path::new(&dir).join("allowit_vault_test_check.so");
+        let elf = std::fs::read(file).expect("build the test-check SBF program first");
+        self.svm.add_program_with_loader_and_elf(
+            &CHECK_PROGRAM,
+            &mollusk_svm::program::loader_keys::LOADER_V2,
+            &elf,
+        );
+        self.accounts.insert(
+            CHECK_PROGRAM,
+            mollusk_svm::program::create_program_account_loader_v2(&elf),
+        );
     }
 
     fn run(&mut self, label: &str, ix: &Instruction, expected: Result<(), ProgramError>) {
@@ -240,9 +307,9 @@ fn rw(key: Pubkey, signer: bool) -> AccountMeta {
     AccountMeta::new(key, signer)
 }
 
-fn token_destination(owner: Pubkey) -> Account {
+fn token_destination(owner: Pubkey, mint: Pubkey) -> Account {
     token::create_account_for_token_account(TokenAccount {
-        mint: MINT,
+        mint,
         owner,
         amount: 0,
         delegate: COption::None,

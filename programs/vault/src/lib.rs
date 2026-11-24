@@ -7,6 +7,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use solana_account_info::AccountInfo;
 use solana_clock::Clock;
 use solana_cpi::{invoke, invoke_signed};
+use solana_instruction::{AccountMeta, Instruction};
 use solana_program_error::{ProgramError, ProgramResult};
 use solana_program_pack::Pack;
 use solana_pubkey::Pubkey;
@@ -46,9 +47,6 @@ pub fn process_instruction(
             rules,
             params,
         } => {
-            if kind == CUSTOM {
-                return Err(VaultError::UnsupportedOperation.into());
-            }
             let mut state = VaultState {
                 abi: ABI,
                 bump: 0,
@@ -97,9 +95,37 @@ pub fn process_instruction(
             store(state_account, &state)
         }
         VaultInstruction::Close { version } => close(program_id, accounts, version),
-        VaultInstruction::Stop { .. }
-        | VaultInstruction::Recover { .. }
-        | VaultInstruction::UpdatePolicy { .. } => Err(VaultError::UnsupportedOperation.into()),
+        VaultInstruction::Stop { version } => {
+            owner_transfer(program_id, accounts, OwnerTransfer::Stop(version))
+        }
+        VaultInstruction::Recover { amount } => {
+            owner_transfer(program_id, accounts, OwnerTransfer::Recover(amount))
+        }
+        VaultInstruction::UpdatePolicy {
+            version,
+            agent,
+            server,
+            source_hash,
+            check_program,
+            rules,
+            params,
+        } => {
+            let [state_account, owner, system_account] = accounts else {
+                return Err(VaultError::InvalidInvocation.into());
+            };
+            let mut state = load(program_id, state_account)?;
+            require_signer(owner, &state.owner)?;
+            next_version(&state, version)?;
+            state.version = version;
+            state.agent = agent;
+            state.server = server;
+            state.source_hash = source_hash;
+            state.check_program = check_program;
+            state.rules = rules;
+            state.params = params;
+            validate_policy(&state)?;
+            resize_state(state_account, owner, system_account, &state)
+        }
     }
 }
 
@@ -112,22 +138,9 @@ fn initialize(
     else {
         return Err(VaultError::InvalidInvocation.into());
     };
-    let owner_key = owner.key.to_bytes();
-    require_signer(owner, &owner_key)?;
-    if [owner_key, state.agent, state.server].contains(&[0; 32])
-        || owner_key == state.agent
-        || owner_key == state.server
-        || state.agent == state.server
-    {
-        return Err(VaultError::InvalidActor.into());
-    }
-    if !matches!(state.kind, SIMPLE | STANDARD)
-        || state.check_program != [0; 32]
-        || (state.kind != STANDARD && (!state.rules.is_empty() || !state.params.is_empty()))
-    {
-        return Err(VaultError::InvalidParam.into());
-    }
-    policy::params(&state.rules, &state.params)?;
+    require_signer(owner, &owner.key.to_bytes())?;
+    state.owner = owner.key.to_bytes();
+    validate_policy(state)?;
     validate_mint(mint, token_program)?;
     if !system_program::check_id(system_account.key) || !ata_program::check_id(ata.key) {
         return Err(ProgramError::IncorrectProgramId);
@@ -147,7 +160,6 @@ fn initialize(
         return Err(VaultError::InvalidState.into());
     }
     let clock = Clock::get()?;
-    state.owner = owner_key;
     state.mint = mint.key.to_bytes();
     state.bump = bump;
     state.created_slot = clock.slot;
@@ -203,6 +215,62 @@ fn initialize(
     )
 }
 
+fn validate_policy(state: &VaultState) -> ProgramResult {
+    if [state.owner, state.agent, state.server].contains(&[0; 32])
+        || state.owner == state.agent
+        || state.owner == state.server
+        || state.agent == state.server
+    {
+        return Err(VaultError::InvalidActor.into());
+    }
+    if !matches!(state.kind, SIMPLE | STANDARD | CUSTOM)
+        || (state.kind == CUSTOM) != (state.check_program != [0; 32])
+        || (state.kind != STANDARD && (!state.rules.is_empty() || !state.params.is_empty()))
+    {
+        return Err(VaultError::InvalidParam.into());
+    }
+    policy::params(&state.rules, &state.params)?;
+    Ok(())
+}
+
+fn resize_state<'a>(
+    account: &AccountInfo<'a>,
+    owner: &AccountInfo<'a>,
+    system_account: &AccountInfo<'a>,
+    state: &VaultState,
+) -> ProgramResult {
+    if !system_program::check_id(system_account.key) {
+        return Err(ProgramError::IncorrectProgramId);
+    }
+    let bytes = borsh::to_vec(state).map_err(|_| VaultError::InvalidState)?;
+    let old_len = account.data_len();
+    let new_len = bytes.len();
+    if new_len != old_len {
+        let deposit = Rent::get()?.minimum_balance(new_len);
+        let current = account.lamports();
+        if new_len > old_len {
+            let top_up = deposit.saturating_sub(current);
+            if top_up != 0 {
+                invoke(
+                    &system::transfer(owner.key, account.key, top_up),
+                    &[owner.clone(), account.clone(), system_account.clone()],
+                )?;
+            }
+        } else if current > deposit {
+            let refund = current - deposit;
+            let owner_balance = owner
+                .lamports()
+                .checked_add(refund)
+                .ok_or(VaultError::Overflow)?;
+            **owner.try_borrow_mut_lamports()? = owner_balance;
+            **account.try_borrow_mut_lamports()? = deposit;
+        }
+        account.resize(new_len)?;
+    }
+    account.try_borrow_mut_data()?.copy_from_slice(&bytes);
+    Ok(())
+}
+
 fn execute(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
@@ -212,13 +280,17 @@ fn execute(
     created_slot: u64,
     expires_at: i64,
 ) -> ProgramResult {
-    let [state_account, agent, server, mint, vault_ata, destination, token_program] = accounts
+    let [state_account, agent, server, mint, vault_ata, destination, token_program, check_accounts @ ..] =
+        accounts
     else {
         return Err(VaultError::InvalidInvocation.into());
     };
     let mut state = load(program_id, state_account)?;
     require_signer(agent, &state.agent)?;
     require_signer(server, &state.server)?;
+    if state.kind != CUSTOM && !check_accounts.is_empty() {
+        return Err(VaultError::InvalidInvocation.into());
+    }
     if state.paused {
         return Err(VaultError::Paused.into());
     }
@@ -242,8 +314,19 @@ fn execute(
         token_program,
     )?;
     state.figures = match state.kind {
-        SIMPLE => simple_figures(&state.figures, amount, now)?,
+        SIMPLE => transfer_figures(&state.figures, amount, now)?,
         STANDARD => policy::evaluate(&state, &recipient, amount, now, expires_at)?,
+        CUSTOM => {
+            check_custom(
+                state_account,
+                &state,
+                check_accounts,
+                &recipient,
+                amount,
+                now,
+            )?;
+            transfer_figures(&state.figures, amount, now)?
+        }
         _ => return Err(VaultError::UnsupportedOperation.into()),
     };
     if amount > balance {
@@ -251,6 +334,115 @@ fn execute(
     }
     state.nonce = state.nonce.checked_add(1).ok_or(VaultError::Overflow)?;
     store(state_account, &state)?;
+    transfer(
+        state_account,
+        &state,
+        mint,
+        vault_ata,
+        destination,
+        token_program,
+        amount,
+    )
+}
+
+fn check_custom<'a>(
+    state_account: &AccountInfo<'a>,
+    state: &VaultState,
+    accounts: &[AccountInfo<'a>],
+    recipient: &Pubkey,
+    amount: u64,
+    now: u64,
+) -> ProgramResult {
+    let (program, check_state) = match accounts {
+        [program] => (program, None),
+        [program, check_state] => (program, Some(check_state)),
+        _ => return Err(VaultError::InvalidInvocation.into()),
+    };
+    if program.key.to_bytes() != state.check_program || !program.executable {
+        return Err(ProgramError::IncorrectProgramId);
+    }
+
+    let mut metas = vec![AccountMeta::new_readonly(*state_account.key, true)];
+    let mut infos = vec![state_account.clone()];
+    if let Some(check_state) = check_state {
+        // A check program's optional wallet state is keyed by the vault state PDA.
+        let expected = Pubkey::find_program_address(&[state_account.key.as_ref()], program.key).0;
+        if *check_state.key != expected || !check_state.is_writable {
+            return Err(VaultError::InvalidInvocation.into());
+        }
+        metas.push(AccountMeta::new(*check_state.key, false));
+        infos.push(check_state.clone());
+    }
+    infos.push(program.clone());
+
+    let day = now / DAY;
+    let (day_spent, day_total) = daily_figures(&state.figures, day);
+    let data = borsh::to_vec(&CustomCheckInput {
+        abi: ABI,
+        amount,
+        recipient: recipient.to_bytes(),
+        mint: state.mint,
+        now: i64::try_from(now).map_err(|_| VaultError::InvalidState)?,
+        day,
+        calls: state.figures.calls,
+        spent: state.figures.spent,
+        day_spent,
+        day_total,
+    })
+    .map_err(|_| VaultError::InvalidState)?;
+    let instruction = Instruction {
+        program_id: *program.key,
+        accounts: metas,
+        data,
+    };
+    let bump = [state.bump];
+    invoke_signed(&instruction, &infos, &[&state_seeds(state, &bump)])
+}
+
+enum OwnerTransfer {
+    Stop(u32),
+    Recover(u64),
+}
+
+fn owner_transfer(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    action: OwnerTransfer,
+) -> ProgramResult {
+    let [state_account, owner, mint, vault_ata, destination, token_program] = accounts else {
+        return Err(VaultError::InvalidInvocation.into());
+    };
+    let mut state = load(program_id, state_account)?;
+    require_signer(owner, &state.owner)?;
+    if let OwnerTransfer::Stop(version) = action {
+        next_version(&state, version)?;
+    }
+    let (balance, recipient) = transfer_accounts(
+        state_account,
+        &state,
+        mint,
+        vault_ata,
+        destination,
+        token_program,
+    )?;
+    if recipient != *owner.key {
+        return Err(VaultError::InvalidRecipient.into());
+    }
+    let amount = match action {
+        OwnerTransfer::Stop(version) => {
+            state.paused = true;
+            state.version = version;
+            store(state_account, &state)?;
+            balance
+        }
+        OwnerTransfer::Recover(amount) => amount,
+    };
+    if amount > balance {
+        return Err(VaultError::InsufficientFunds.into());
+    }
+    if amount == 0 {
+        return Ok(());
+    }
     transfer(
         state_account,
         &state,
@@ -444,14 +636,18 @@ fn timestamp(clock: &Clock) -> Result<u64, ProgramError> {
     u64::try_from(clock.unix_timestamp).map_err(|_| VaultError::InvalidState.into())
 }
 
-fn simple_figures(figures: &Figures, amount: u64, now: u64) -> Result<Figures, ProgramError> {
-    let amount = i128::from(amount);
-    let day = now / DAY;
-    let (day_spent, day_total) = if figures.day == day {
+fn daily_figures(figures: &Figures, day: u64) -> (i128, i128) {
+    if figures.day == day {
         (figures.day_spent, figures.day_total)
     } else {
         (0, 0)
-    };
+    }
+}
+
+fn transfer_figures(figures: &Figures, amount: u64, now: u64) -> Result<Figures, ProgramError> {
+    let amount = i128::from(amount);
+    let day = now / DAY;
+    let (day_spent, day_total) = daily_figures(figures, day);
     Ok(Figures {
         calls: figures.calls.checked_add(1).ok_or(VaultError::Overflow)?,
         spent: figures
