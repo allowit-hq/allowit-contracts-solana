@@ -5,7 +5,8 @@
 //! checks that the server advertises the wallet profile for the network, reads the owner's
 //! installation, asks for the draft, and accepts only a draft of that installation: the same
 //! wallet, token and fee ceiling, a source whose hash is its own, the first revision. A reply
-//! that fails a check is uncertain, never a draft: the server may have stored it.
+//! that fails a check is uncertain, never a draft: the server may have stored it. A request for
+//! a new wallet is refused after the sign-in, so a server's own typed refusal comes first.
 use crate::config::{self, WalletConfig, hex32};
 use crate::networks;
 use allowit_core::{
@@ -164,12 +165,9 @@ pub fn check_generated(
         .map_err(|_| changed("does not list its open values"))
 }
 
-/// What the request itself must satisfy before the owner signs in: a Solana network, the Native
-/// kind, and an installation to generate for.
-pub fn preflight<'a>(
-    r: &'a GenerateRequest,
-    signer_network: &str,
-) -> Result<(&'static str, &'a str)> {
+/// What the request itself must satisfy before the owner signs in: a Solana network of the owner
+/// key and the Native kind.
+pub fn preflight(r: &GenerateRequest, signer_network: &str) -> Result<&'static str> {
     r.validate_with_network(|network| networks::network(network).map(|_| ()))?;
     let network = networks::network(&r.network)?.id;
     if signer_network != network {
@@ -182,17 +180,24 @@ pub fn preflight<'a>(
             "The Solana rail generates policies for the Native wallet kind only",
         ));
     }
-    let Target::Installation(id) = &r.target else {
-        return Err(Error::usage(
+    Ok(network)
+}
+
+/// The installation that a draft is generated for. A Native wallet exists before its policy, so
+/// a request for a new wallet names none. It is refused after the sign-in: a server that refuses
+/// the owner or the kind answers first, with its own typed refusal.
+pub fn target(r: &GenerateRequest) -> Result<&str> {
+    match &r.target {
+        Target::Installation(id) => Ok(id),
+        Target::NewWallet => Err(Error::usage(
             "A Native wallet on Solana exists before its policy: set the wallet up first, then generate a policy for its installation",
-        ));
-    };
-    Ok((network, id))
+        )),
+    }
 }
 
 /// Ask the backend for a policy draft of the owner's installation.
 pub fn generate(cx: &GenerateContext<'_>, r: &GenerateRequest) -> Result<GeneratedDraft> {
-    let (network, id) = preflight(r, cx.signer.network())?;
+    let network = preflight(r, cx.signer.network())?;
     let owner = cx.signer.address().to_owned();
     let mut session = owner_session::Client::new(cx.backend, cx.origin, &owner)?;
     let origin = cx.origin.to_owned();
@@ -208,6 +213,7 @@ pub fn generate(cx: &GenerateContext<'_>, r: &GenerateRequest) -> Result<Generat
         }
         Ok(STANDARD.encode(cx.signer.sign_hash(challenge.message.as_bytes())?))
     })?;
+    let id = target(r)?;
     let now = (cx.clock)()?;
     let discovery: Value =
         session.owner_request(Method::Get, "/api/micro/runtime", None, now, false)?;
@@ -329,7 +335,7 @@ mod tests {
     }
 
     #[test]
-    fn a_request_for_a_new_wallet_another_kind_or_another_network_stops_before_the_sign_in() {
+    fn another_kind_or_network_stops_before_the_sign_in_and_a_new_wallet_after_it() {
         let request = |target, kind| GenerateRequest {
             prompt: "Pay for data".into(),
             network: DEVNET.into(),
@@ -339,13 +345,17 @@ mod tests {
         };
         let id = "11".repeat(32);
         let ok = request(Target::Installation(id.clone()), Some(WalletKind::Native));
-        assert_eq!(preflight(&ok, DEVNET).unwrap(), (DEVNET, id.as_str()));
+        assert_eq!(preflight(&ok, DEVNET).unwrap(), DEVNET);
+        assert_eq!(target(&ok).unwrap(), id);
         assert!(preflight(&ok, "solana:other").is_err());
-        let new = preflight(&request(Target::NewWallet, None), DEVNET).unwrap_err();
+        // A new-wallet request passes the preflight and is refused after the sign-in.
+        let new = request(Target::NewWallet, None);
+        preflight(&new, DEVNET).unwrap();
+        let refused = target(&new).unwrap_err();
         assert!(
-            new.message.contains("set the wallet up first"),
+            refused.message.contains("set the wallet up first"),
             "{}",
-            new.message
+            refused.message
         );
         let kind = request(Target::Installation(id), Some(WalletKind::Standard));
         assert!(preflight(&kind, DEVNET).is_err());
