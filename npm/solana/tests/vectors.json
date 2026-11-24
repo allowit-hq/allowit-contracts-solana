@@ -1,0 +1,85 @@
+{
+  "agent": "9hSR6S7WPtxmTojgo6GG3k4yDPecgJY292j7xrsUGWBu",
+  "allowance": "5000000",
+  "blockhash": "US517G5965aydkZ46HS38QLi7UQiSojurfbQfKCELFx",
+  "configuration": {
+    "agent": "9hSR6S7WPtxmTojgo6GG3k4yDPecgJY292j7xrsUGWBu",
+    "assetSymbol": "USDC",
+    "decimals": 6,
+    "maxFeeLamports": 20000,
+    "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "moduleDigest": "0000000000000000000000000000000000000000000000000000000000000000",
+    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "owner": "AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9",
+    "params": {},
+    "policyInstance": "61a78c6b5d3b59419544dd5bac4f6df2511cb9add80abc20ffbfcd14cfc30f1d",
+    "policySource": "",
+    "route": "native",
+    "server": "GyGKxMyg1p9SsHfm15MkNUu1u9TN2JtTspcdmrtGUdse",
+    "sourceHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "wallet": "J89o5zy3bqLBz6BKW5jpJiVjxQkoHVvdhApjuHsarebV"
+  },
+  "consent": {
+    "message": "Allowit: I approve this policy source for my wallet.\n{\"agent\":\"9hSR6S7WPtxmTojgo6GG3k4yDPecgJY292j7xrsUGWBu\",\"irHash\":\"abababababababababababababababababababababababababababababababab\",\"language\":\"allowit-portable-v1\",\"maxFeeLamports\":20000,\"mint\":\"4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU\",\"moduleDigest\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"network\":\"solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1\",\"params\":{\"payment_limit\":{\"Int\":\"1000000\"}},\"paramsHash\":\"cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd\",\"policyId\":\"policy-1\",\"policyInstance\":\"61a78c6b5d3b59419544dd5bac4f6df2511cb9add80abc20ffbfcd14cfc30f1d\",\"revision\":3,\"route\":\"native\",\"rules\":[\"payment_limit\"],\"server\":\"GyGKxMyg1p9SsHfm15MkNUu1u9TN2JtTspcdmrtGUdse\",\"source\":\"\",\"sourceHash\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"tier\":null,\"wallet\":\"J89o5zy3bqLBz6BKW5jpJiVjxQkoHVvdhApjuHsarebV\"}",
+    "signature": "fu0Ak49t9QF1zmNhFRv4F51maiblBCmdu3WUtvZb2gC8J9i3K4KFnrXPJ5RLhV5GcHJVo41baQSJSq2+zufuDQ=="
+  },
+  "delegate": "BYdj1hpEBHBfxwYss4JbsPcud34KhMRfQEWNc74Xd7vv",
+  "delegateSeed": "d:e1dafff3ce94de64131759d532e48d",
+  "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+  "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+  "owner": "AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9",
+  "refill": {
+    "hash": "6172a2cca4518584d34a332f9e56b99576c7c00b4089777d972f7d5f6a0101c2",
+    "message": "AQAEBoqI4910CfGV/VLbLTy6XXLKZwm/HZQSG/N0iAG0D29c/muv/w/AgwsxEmugrf1xXvDpCx7+bxQu9k49jtUq0fwFSlNamSkhBk0k6HFg2jh8fDW13bySu4HkH6hAQQVEjQbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpO0Qss5EhV/E6kz0BNCgtAytf/s0Botvxt3kGCN8ALqecr2YQ+YrtUHpsO/CD/Ov3Ou3+1HLphrnOj+8HL+r5bwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHAgMEAQQFAAoNwM9qAAAAAAAGAgASYWxsb3dpdDpvd25lcjpmdW5k"
+  },
+  "server": "GyGKxMyg1p9SsHfm15MkNUu1u9TN2JtTspcdmrtGUdse",
+  "setups": [
+    {
+      "delegate": {
+        "nothing": 2810840
+      },
+      "hash": "6112ed122b389ae2cddfe32be8506e970c09318d01c32b699c4628eb53b56959",
+      "message": "AQAGCYqI4910CfGV/VLbLTy6XXLKZwm/HZQSG/N0iAG0D29cnK9mEPmK7VB6bDvwg/zr9zrt/tRy6Ya5zo/vBy/q+W/+a6//D8CDCzESa6Ct/XFe8OkLHv5vFC72Tj2O1SrR/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABUpTWpkpIQZNJOhxYNo4fHw1td28kruB5B+oQEEFRI0G3fbh12Whk9nL4UbO63msHLSF7V9bN5E6jPWFfv8AqTtELLORIVfxOpM9ATQoLQMrX/7NAaLb8bd5BgjfAC6ngTl3Dqh9F19Wo1Rmw0x+zMuNipG07jeiXfYPW4/Js5TtSSjGKNHCxurpAziQWZVhKVknOlxj+TY2wUYUrIc30QcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBgMDAAIAfAMAAACKiOPddAnxlf1S2y08ul1yymcJvx2UEhvzdIgBtA9vXCAAAAAAAAAAdDo5MGVlZjU4NzdjYmVlYWExNmI4ZWU1MzNhNmEyZmY4thYAAAAAAKUAAAAAAAAABt324ddloZPZy+FGzut5rBy0he1fWzeROoz1hX7/AKkFAgIGIRKKiOPddAnxlf1S2y08ul1yymcJvx2UEhvzdIgBtA9vXAMDAAEAfAMAAACKiOPddAnxlf1S2y08ul1yymcJvx2UEhvzdIgBtA9vXCAAAAAAAAAAZDplMWRhZmZmM2NlOTRkZTY0MTMxNzU5ZDUzMmU0OGTY4yoAAAAAAGMBAAAAAAAABt324ddloZPZy+FGzut5rBy0he1fWzeROoz1hX7/AKkFAwEHCAITAgUEAgYBAAoNQEtMAAAAAAAGBAAqYWxsb3dpdDp3YWxsZXQtMDEyMzQ1Njc4OWFiY2RlZi0xODAwMDAwMDAw",
+      "token": {
+        "nothing": 1488440
+      }
+    },
+    {
+      "delegate": "ready",
+      "hash": "1f921fec2d77edb93c156cb4ce9ff5b42a5ca9c640a8e05043054e0e3c86aae4",
+      "message": "AQAFB4qI4910CfGV/VLbLTy6XXLKZwm/HZQSG/N0iAG0D29c/muv/w/AgwsxEmugrf1xXvDpCx7+bxQu9k49jtUq0fwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAVKU1qZKSEGTSTocWDaOHx8NbXdvJK7geQfqEBBBUSNBt324ddloZPZy+FGzut5rBy0he1fWzeROoz1hX7/AKk7RCyzkSFX8TqTPQE0KC0DK1/+zQGi2/G3eQYI3wAup5yvZhD5iu1Qemw78IP86/c67f7UcumGuc6P7wcv6vlvBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcEAgMAAQB8AwAAAIqI4910CfGV/VLbLTy6XXLKZwm/HZQSG/N0iAG0D29cIAAAAAAAAAB0OjkwZWVmNTg3N2NiZWVhYTE2YjhlZTUzM2E2YTJmZvAdHwAAAAAApQAAAAAAAAAG3fbh12Whk9nL4UbO63msHLSF7V9bN5E6jPWFfv8AqQQCAQUhEoqI4910CfGV/VLbLTy6XXLKZwm/HZQSG/N0iAG0D29cBAQBBQYACg1AS0wAAAAAAAYDACphbGxvd2l0OndhbGxldC0wMTIzNDU2Nzg5YWJjZGVmLTE4MDAwMDAwMDA=",
+      "token": {
+        "nothing": 2039280
+      }
+    },
+    {
+      "delegate": {
+        "funded": 0
+      },
+      "hash": "f8ad9b2c044317c0d0fe78bffe17246e38e608019abe6949ee6d3d0e92eadbe7",
+      "message": "AQAGCYqI4910CfGV/VLbLTy6XXLKZwm/HZQSG/N0iAG0D29cnK9mEPmK7VB6bDvwg/zr9zrt/tRy6Ya5zo/vBy/q+W/+a6//D8CDCzESa6Ct/XFe8OkLHv5vFC72Tj2O1SrR/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABUpTWpkpIQZNJOhxYNo4fHw1td28kruB5B+oQEEFRI0G3fbh12Whk9nL4UbO63msHLSF7V9bN5E6jPWFfv8AqTtELLORIVfxOpM9ATQoLQMrX/7NAaLb8bd5BgjfAC6ngTl3Dqh9F19Wo1Rmw0x+zMuNipG07jeiXfYPW4/Js5TtSSjGKNHCxurpAziQWZVhKVknOlxj+TY2wUYUrIc30QcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwMCAAIMAgAAAOgDAAAAAAAAAwICAHQJAAAAiojj3XQJ8ZX9UtstPLpdcspnCb8dlBIb83SIAbQPb1wgAAAAAAAAAHQ6OTBlZWY1ODc3Y2JlZWFhMTZiOGVlNTMzYTZhMmZmpQAAAAAAAAAG3fbh12Whk9nL4UbO63msHLSF7V9bN5E6jPWFfv8AqQUCAgYhEoqI4910CfGV/VLbLTy6XXLKZwm/HZQSG/N0iAG0D29cAwIBAHQJAAAAiojj3XQJ8ZX9UtstPLpdcspnCb8dlBIb83SIAbQPb1wgAAAAAAAAAGQ6ZTFkYWZmZjNjZTk0ZGU2NDEzMTc1OWQ1MzJlNDhkYwEAAAAAAAAG3fbh12Whk9nL4UbO63msHLSF7V9bN5E6jPWFfv8AqQUDAQcIAhMCBQQCBgEACg1AS0wAAAAAAAYEACphbGxvd2l0OndhbGxldC0wMTIzNDU2Nzg5YWJjZGVmLTE4MDAwMDAwMDA=",
+      "token": {
+        "funded": 1000
+      }
+    },
+    {
+      "delegate": {
+        "nothing": 3361680
+      },
+      "hash": "8605900b06462afaed3614ca0ffd148e642227d72d1e46e052f715eeb7ad6d65",
+      "message": "AQAGCYqI4910CfGV/VLbLTy6XXLKZwm/HZQSG/N0iAG0D29cnK9mEPmK7VB6bDvwg/zr9zrt/tRy6Ya5zo/vBy/q+W/+a6//D8CDCzESa6Ct/XFe8OkLHv5vFC72Tj2O1SrR/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABUpTWpkpIQZNJOhxYNo4fHw1td28kruB5B+oQEEFRI0G3fbh12Whk9nL4UbO63msHLSF7V9bN5E6jPWFfv8AqTtELLORIVfxOpM9ATQoLQMrX/7NAaLb8bd5BgjfAC6ngTl3Dqh9F19Wo1Rmw0x+zMuNipG07jeiXfYPW4/Js5TtSSjGKNHCxurpAziQWZVhKVknOlxj+TY2wUYUrIc30QcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBAMDAAEAfAMAAACKiOPddAnxlf1S2y08ul1yymcJvx2UEhvzdIgBtA9vXCAAAAAAAAAAZDplMWRhZmZmM2NlOTRkZTY0MTMxNzU5ZDUzMmU0OGSQSzMAAAAAAGMBAAAAAAAABt324ddloZPZy+FGzut5rBy0he1fWzeROoz1hX7/AKkFAwEHCAITAgUEAgYBAAoNQEtMAAAAAAAGBAAqYWxsb3dpdDp3YWxsZXQtMDEyMzQ1Njc4OWFiY2RlZi0xODAwMDAwMDAw",
+      "token": "ready"
+    },
+    {
+      "delegate": "ready",
+      "hash": "6e3f5a897c9199826f63b16ec15c5a41b027bb8f57923f7f80613bba6b180cd9",
+      "message": "AQAEBoqI4910CfGV/VLbLTy6XXLKZwm/HZQSG/N0iAG0D29c/muv/w/AgwsxEmugrf1xXvDpCx7+bxQu9k49jtUq0fwFSlNamSkhBk0k6HFg2jh8fDW13bySu4HkH6hAQQVEjQbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpO0Qss5EhV/E6kz0BNCgtAytf/s0Botvxt3kGCN8ALqecr2YQ+YrtUHpsO/CD/Ov3Ou3+1HLphrnOj+8HL+r5bwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHAgMEAQQFAAoNQEtMAAAAAAAGAgAqYWxsb3dpdDp3YWxsZXQtMDEyMzQ1Njc4OWFiY2RlZi0xODAwMDAwMDAw",
+      "token": "ready"
+    }
+  ],
+  "signedSetup": "AQ/0pHsD2152nWcGhuYNaV47vNfwuJX1Ys6do+R86EkfU7owLEFMvGO/qGWL8Treux1bGLJ65/9fo5HjkAF1nwkBAAYJiojj3XQJ8ZX9UtstPLpdcspnCb8dlBIb83SIAbQPb1ycr2YQ+YrtUHpsO/CD/Ov3Ou3+1HLphrnOj+8HL+r5b/5rr/8PwIMLMRJroK39cV7w6Qse/m8ULvZOPY7VKtH8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFSlNamSkhBk0k6HFg2jh8fDW13bySu4HkH6hAQQVEjQbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpO0Qss5EhV/E6kz0BNCgtAytf/s0Botvxt3kGCN8ALqeBOXcOqH0XX1ajVGbDTH7My42KkbTuN6Jd9g9bj8mzlO1JKMYo0cLG6ukDOJBZlWEpWSc6XGP5NjbBRhSshzfRBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcGAwMAAgB8AwAAAIqI4910CfGV/VLbLTy6XXLKZwm/HZQSG/N0iAG0D29cIAAAAAAAAAB0OjkwZWVmNTg3N2NiZWVhYTE2YjhlZTUzM2E2YTJmZji2FgAAAAAApQAAAAAAAAAG3fbh12Whk9nL4UbO63msHLSF7V9bN5E6jPWFfv8AqQUCAgYhEoqI4910CfGV/VLbLTy6XXLKZwm/HZQSG/N0iAG0D29cAwMAAQB8AwAAAIqI4910CfGV/VLbLTy6XXLKZwm/HZQSG/N0iAG0D29cIAAAAAAAAABkOmUxZGFmZmYzY2U5NGRlNjQxMzE3NTlkNTMyZTQ4ZNjjKgAAAAAAYwEAAAAAAAAG3fbh12Whk9nL4UbO63msHLSF7V9bN5E6jPWFfv8AqQUDAQcIAhMCBQQCBgEACg1AS0wAAAAAAAYEACphbGxvd2l0OndhbGxldC0wMTIzNDU2Nzg5YWJjZGVmLTE4MDAwMDAwMDA=",
+  "signedSetupSignature": "KW8ZFo7QWDums1FiKwn3YvBTTRxGyF1KGJEUAPZSb4jTS9ZGVW7Wb2GxnNBrNYroDE2VWmrAR3s5zWPpdzdTsMA",
+  "tag": "allowit:wallet-0123456789abcdef-1800000000",
+  "tokenAccount": "J89o5zy3bqLBz6BKW5jpJiVjxQkoHVvdhApjuHsarebV",
+  "tokenSeed": "t:90eef5877cbeeaa16b8ee533a6a2ff"
+}

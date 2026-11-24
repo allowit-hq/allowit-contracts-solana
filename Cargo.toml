@@ -1,0 +1,22 @@
+[workspace]
+members = ["crates/allowit-solana"]
+resolver = "2"
+
+# Every package in this repository builds at this version.
+[workspace.package]
+version = "0.1.0"
+
+[workspace.dependencies]
+# Allowit Core is the only git dependency. A package of this repository never depends on the SDK.
+allowit-core = { git = "https://github.com/allowit-hq/allowit-core.git", rev = "2631c66a47465268d160eee66c9f8d1a3c2300d5", default-features = false, features = ["vendor"] }
+
+[profile.release]
+overflow-checks = true
+
+[profile.dev]
+debug = 0
+incremental = false
+
+[profile.test]
+debug = 0
+incremental = false
