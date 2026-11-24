@@ -334,6 +334,20 @@ impl RailPlugin for Plugin {
         network: &str,
         bytes: &[u8],
     ) -> Result<(Description, Box<dyn ProfileBinding>)> {
+        // A public profile holds no key. A document that carries signing material is refused by
+        // that name, before anything of it is read or shown.
+        let secret = |value: &Value| {
+            ["signingSeed", "secretKey", "privateKey", "seed"]
+                .iter()
+                .any(|key| value.get(key).is_some())
+        };
+        if serde_json::from_slice::<Value>(bytes)
+            .is_ok_and(|document| secret(&document) || secret(&document["config"]))
+        {
+            return Err(Error::config(
+                "The public Solana wallet profile must not contain signing material",
+            ));
+        }
         let bundle: Bundle = serde_json::from_slice(bytes)
             .map_err(|_| Error::config("Invalid Solana wallet profile"))?;
         bundle.validate()?;
@@ -359,8 +373,8 @@ impl RailPlugin for Plugin {
         };
         Ok((description, Box::new(bundle)))
     }
-    fn generate(&self, _: &GenerateContext<'_>, _: &GenerateRequest) -> Result<GeneratedDraft> {
-        Err(not_yet("ask a backend for a policy draft"))
+    fn generate(&self, cx: &GenerateContext<'_>, r: &GenerateRequest) -> Result<GeneratedDraft> {
+        crate::generation::generate(cx, r)
     }
     fn execution(&self) -> &'static dyn ExecutionProvider {
         &EXECUTION
@@ -1220,5 +1234,41 @@ mod tests {
             &config.server,
         )
         .unwrap();
+    }
+
+    #[test]
+    fn a_profile_that_carries_signing_material_is_refused_by_that_name() {
+        let fx = fixtures();
+        let mut profile: Value = serde_json::from_slice(&fx.public_profile).unwrap();
+        PLUGIN.decode_profile(DEVNET, &fx.public_profile).unwrap();
+        for at in ["/signingSeed", "/config/secretKey"] {
+            let mut with = profile.clone();
+            let (parent, key) = at.rsplit_once('/').unwrap();
+            let target = if parent.is_empty() {
+                &mut with
+            } else {
+                with.pointer_mut(parent).unwrap()
+            };
+            target[key] = json!("must-remain-local");
+            let Err(refused) = PLUGIN.decode_profile(DEVNET, &serde_json::to_vec(&with).unwrap())
+            else {
+                panic!("{at}: a profile with a key is decoded");
+            };
+            assert!(
+                refused
+                    .message
+                    .contains("must not contain signing material"),
+                "{}",
+                refused.message
+            );
+            assert!(!refused.message.contains("must-remain-local"));
+        }
+        // Any other unknown field is still no profile.
+        profile["extra"] = json!(1);
+        assert!(
+            PLUGIN
+                .decode_profile(DEVNET, &serde_json::to_vec(&profile).unwrap())
+                .is_err()
+        );
     }
 }
