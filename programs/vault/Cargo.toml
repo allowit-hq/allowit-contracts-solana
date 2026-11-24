@@ -8,7 +8,6 @@ build = "../../policy/build.rs"
 crate-type = ["cdylib"]
 [features]
 no-entrypoint = []
-stellar = []
 [dependencies]
 solana-program.workspace = true
 borsh.workspace = true

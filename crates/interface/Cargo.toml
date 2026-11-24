@@ -3,7 +3,5 @@ name = "allowit-interface"
 version.workspace = true
 edition = "2021"
 license = "MIT"
-[features]
-stellar = []
 [dependencies]
 borsh.workspace = true
