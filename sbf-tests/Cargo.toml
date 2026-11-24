@@ -1,0 +1,30 @@
+[package]
+name = "allowit-vault-sbf-tests"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[dev-dependencies]
+allowit-vault = { path = "../programs/vault", features = ["no-entrypoint"] }
+borsh = "=1.6.0"
+mollusk-svm = "=0.17.1"
+mollusk-svm-programs-token = { version = "=0.17.1", default-features = false, features = ["token", "associated-token"] }
+solana-account = "5"
+solana-instruction = "=4.0.0"
+solana-program-error = "=3.0.1"
+solana-program-option = "3"
+solana-program-pack = "3"
+solana-pubkey = { version = "=4.3.0", features = ["curve25519"] }
+solana-sdk-ids = "=3.1.0"
+spl-associated-token-account-interface = "=2.0.0"
+spl-token-interface = "=3.0.0"
+
+[profile.dev]
+debug = 0
+incremental = false
+
+[profile.test]
+debug = 0
+incremental = false
