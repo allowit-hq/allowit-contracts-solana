@@ -66,7 +66,7 @@ pub(crate) fn network(cx: &Context<'_>) -> Result<&'static str> {
         ("server authority", cx.authority.network()),
     ] {
         if other != network {
-            return Err(Error::config(format!(
+            return Err(Error::usage(format!(
                 "The {role} belongs to another network than the wallet setup"
             )));
         }
@@ -74,7 +74,7 @@ pub(crate) fn network(cx: &Context<'_>) -> Result<&'static str> {
     // Refused before the owner signs anything, the sign-in included: one key in two roles
     // would make the wallet's two-of-two delegate the owner's own.
     if cx.signer.address() == cx.authority.public_key() {
-        return Err(Error::config(
+        return Err(Error::usage(
             "The owner's key is the server authority's key: a wallet needs two separate keys",
         ));
     }
