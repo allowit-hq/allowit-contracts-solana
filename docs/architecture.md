@@ -41,10 +41,6 @@ Owner paths stay independent of the evaluator:
 
 The vault moves classic SPL tokens through `transfer_checked`. It has no general "call any program" interface.
 
-## The PaySH profile
-
-[PaySH](paysh.md) is a separate program for paying services. It verifies an evaluator's Ed25519 signature over a domain-separated request, then independently enforces owner configuration, service admission, replay receipts, budgets and the exact payment or admitted swap. Anyone can relay an accepted request unless the owner set `owner_only`. Owner pause and recovery bypass evaluator approval. PaySH and the native vault keep different ABIs, signing rules, counters and recovery paths.
-
 ## Owner control and program upgrades
 
 A vault owner controls only what the custody program admits. The owner does not control the loader upgrade authority of a shared program, and an upgrade authority can replace the custody checks for every PDA that program controls. An immutable policy helper cannot protect against a compromised custody-program upgrade authority.

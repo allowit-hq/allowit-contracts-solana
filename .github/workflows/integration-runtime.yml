@@ -71,8 +71,7 @@ jobs:
           set -euo pipefail
           cargo build-sbf --manifest-path programs/policy/Cargo.toml --arch v3 --optimize-size --tools-version v1.57 -- --locked
           cargo build-sbf --manifest-path programs/vault/Cargo.toml --arch v3 --optimize-size --tools-version v1.57 -- --locked
-          cargo build-sbf --manifest-path programs/paysh/Cargo.toml --arch v3 --optimize-size --tools-version v1.57 -- --locked
-      - name: Smoke compiled vault and PaySH token transfers
+      - name: Smoke compiled vault token transfers
         shell: bash
         env:
           SBF_OUT_DIR: ${{ github.workspace }}/target/deploy
@@ -80,13 +79,11 @@ jobs:
           set -euo pipefail
           cargo test --manifest-path sbf-tests/Cargo.toml --locked --test vault real_cpi_transfer_daily_limits_nonce_and_day_rollover -- --exact --nocapture 2>&1 | tee "$RUNNER_TEMP/smoke.log"
           grep -F "1 passed; 0 failed" "$RUNNER_TEMP/smoke.log"
-          cargo test --manifest-path sbf-tests/Cargo.toml --locked --test paysh pays_fee_then_pays_vendor_and_consumes_nonce -- --exact --nocapture 2>&1 | tee "$RUNNER_TEMP/smoke.log"
-          grep -F "1 passed; 0 failed" "$RUNNER_TEMP/smoke.log"
       - name: Full local runtime regressions
         if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.full)
         env:
           SBF_OUT_DIR: ${{ github.workspace }}/target/deploy
-        run: cargo test --manifest-path sbf-tests/Cargo.toml --locked --test vault --test paysh
+        run: cargo test --manifest-path sbf-tests/Cargo.toml --locked --test vault
 
   native_release:
     if: github.event_name == 'workflow_dispatch'

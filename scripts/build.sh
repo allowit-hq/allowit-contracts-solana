@@ -158,6 +158,6 @@ done
 [ "$mode" = check ] && exit 0
 
 cargo build --workspace --all-targets --locked
-for program in paysh policy vault; do
+for program in policy vault; do
   cargo build-sbf --manifest-path "programs/$program/Cargo.toml" --arch v3 --optimize-size --tools-version v1.57 -- --locked
 done
