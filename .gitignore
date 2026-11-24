@@ -6,12 +6,6 @@
 .DS_Store
 node_modules/
 
-# Retained task outputs belong to ackrate-project instance/artifacts.
+# Retained task outputs belong to the allowit-project knowledge repository.
 /artifacts/
 /evidence/
-
-# Generated outputs.
-/dist-native/
-/programs/mandate/dist/
-__pycache__/
-*.py[cod]

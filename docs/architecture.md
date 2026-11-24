@@ -1,6 +1,6 @@
 # Wallet signing and contract custody
 
-Allowit keeps three jobs apart: deciding whether a request fits the policy, signing the transaction, and holding the money. This page explains why, and what each Solana program here does and does not guarantee. The [Stellar contracts](https://github.com/allowit-hq/allowit-contracts-stellar/blob/main/docs/architecture.md) apply the same owner-control principle on Soroban.
+Allowit keeps three jobs apart: deciding whether a request fits the policy, signing the transaction, and holding the money. This page explains why, and states the rules that a custody program of this rail keeps. The [Stellar contracts](https://github.com/allowit-hq/allowit-contracts-stellar/blob/main/docs/architecture.md) apply the same owner-control principle on Soroban.
 
 ## Two ways to hold assets
 
@@ -20,34 +20,9 @@ flowchart LR
 
 Both routes share the policy's meaning and bind to the exact action. They do not share custody authority. A server co-signature, an evaluator's request signature and a threshold signature are three different mechanisms and are never interchangeable.
 
-## The Solana native vault
-
-The [vault program](../programs/vault/src/lib.rs) speaks [ABI 2](../crates/interface/src/lib.rs). Three keys matter, and they must be distinct:
-
-- **Owner**: creates, funds, approves, tunes, withdraws and closes the vault.
-- **Executor**: submits automated transfers.
-- **Server authority**: co-signs each automated transfer after the off-chain evaluation.
-
-A `Transfer` needs the executor and the server authority as signers on the same transaction. The vault then checks approval, mint, the per-action and daily limits, nonce, revision, instance identity and expiry. It checks that the recipient holds the vault's mint and refuses to pay any token account the vault owns. Because the transaction signature covers the recipient, the recipient is bound exactly. Any further recipient rule lives off-chain unless custody code enforces it. The server's commitment attests that the off-chain assessment happened; it does not prove the assessment was semantically right.
-
-For the daily limit, the vault invokes its pinned, immutable [policy helper](../programs/policy/src/lib.rs) with no custody accounts at all. The helper evaluates the [portable policy](../policy/policy.rs), approval plus the daily limit, and returns a decision, a binding and the source hash. The vault checks the binding and source, recomputes the expected cumulative spend on its own, and only then commits counters and token movement in one atomic step. The helper never runs owner-authored code and never calls the off-chain engine.
-
-Owner paths stay independent of the evaluator:
-
-- `Withdraw`, `Close`, `Approve(false)` and `SetActionLimit` need no evaluator signature and do not invoke the helper. `Approve(false)` still names the configured policy account.
-- `SetDailyLimit` and `Approve(true)` invoke the pinned helper to validate the limit.
-- `SetPolicy` verifies and invokes the newly supplied immutable helper before pinning it, and clears approval.
-- Funding and policy changes preserve what has already been spent today.
-
-The vault moves classic SPL tokens through `transfer_checked`. It has no general "call any program" interface.
-
-## The PaySH profile
-
-[PaySH](paysh.md) is a separate program for paying services. It verifies an evaluator's Ed25519 signature over a domain-separated request, then independently enforces owner configuration, service admission, replay receipts, budgets and the exact payment or admitted swap. Anyone can relay an accepted request unless the owner set `owner_only`. Owner pause and recovery bypass evaluator approval. PaySH and the native vault keep different ABIs, signing rules, counters and recovery paths.
-
 ## Owner control and program upgrades
 
-A vault owner controls only what the custody program admits. The owner does not control the loader upgrade authority of a shared program, and an upgrade authority can replace the custody checks for every PDA that program controls. An immutable policy helper cannot protect against a compromised custody-program upgrade authority.
+A vault owner controls only what the custody program admits. The owner does not control the loader upgrade authority of a shared program, and an upgrade authority can replace the custody checks for every PDA that program controls.
 
 Owner-contained custody therefore means one of:
 
@@ -60,7 +35,7 @@ Engine administration must control only the engine: never custody upgrades, owne
 
 ## Rules for new contract operations
 
-Anything added to these programs keeps the following invariants:
+A custody program of this rail keeps the following invariants:
 
 - One complete policy source per admitted profile. Record which checks run locally and which depend on engine approval. Preserve branch and decision semantics.
 - Authorization binds network, program, instance, owner configuration, policy revision, operation identity, exact accounts, target, arguments, assets, amounts, fees and expiry.
