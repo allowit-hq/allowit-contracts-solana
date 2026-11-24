@@ -7,7 +7,6 @@ Vendor packages own native chain semantics. SDK engine owns shared authoring, va
 [Allowit core](https://github.com/allowit-hq/allowit-core) owns common types, policy rules and primitives.
 [Architecture](../README.md#part-of-allowit).
 
-The owner-signed wallet allowance in [`programs/mandate/`](../programs/mandate/) is a separate profile.
 [`crates/native/`](../crates/native/) supplies the Rust native adapter.
 
 Node 22 or later is required. Install with `npm ci` in this directory and run

@@ -92,7 +92,7 @@ SBF_OUT_DIR="$PWD/target/deploy" cargo test --manifest-path sbf-tests/Cargo.toml
 The PaySH swap tests also need a Whirlpool program. `bash scripts/build-whirlpool-test.sh` downloads a pinned Orca source archive, checks its SHA-256 and builds it into `target/whirlpool-fixture/`. Then add `--test paysh_whirlpool` to step 4, or drop the `--test` flags to run every suite. If you move the fixture with `WHIRLPOOL_FIXTURE_DIR`, point the tests at the built program with `WHIRLPOOL_SBF_PATH=<dir>/target/deploy/whirlpool.so`.
 
 > [!TIP]
-> Every crate and program except the mandate program is a member of the root Cargo workspace. Test one with `cargo test --locked -p <package>`. See [Host service packages](docs/services.md).
+> Every crate and program is a member of the root Cargo workspace. Test one with `cargo test --locked -p <package>`. See [Host service packages](docs/services.md).
 
 ## Using the vault
 
@@ -191,8 +191,7 @@ The [`Solana runtime smoke`](.github/workflows/integration-runtime.yml) workflow
 ├── programs/
 │   ├── policy/             Immutable helper (pinocchio, no_std, no accounts)
 │   ├── vault/              Custody program: PDA state + SPL Token CPI
-│   ├── paysh/              Upgradeable PaySH execution profile
-│   └── mandate/            Mandate allowance program (allowit-solana) and its Mollusk tests
+│   └── paysh/              Upgradeable PaySH execution profile
 ├── crates/
 │   ├── native/             Native Solana Rust SDK (allowit-native)
 │   ├── interface/          Vault ABI 2 (Borsh)
@@ -212,7 +211,6 @@ The [`Solana runtime smoke`](.github/workflows/integration-runtime.yml) workflow
 └── docs/                   Architecture, PaySH profile, host service packages, native vault v2
 ```
 
-- [`programs/mandate/`](programs/mandate/README.md) is the owner-approved mandate allowance program. It evaluates compiled policy IR with Allowit core and spends through SPL Token `transfer_checked`. It and its Mollusk harness `programs/mandate/sbf-tests/` each keep their own Cargo lockfile.
 - [`crates/native/`](crates/native/) is the Rust native SDK for the vault v2 lifecycle. [`native/`](native/README.md) is its JavaScript counterpart.
 - [`verification/`](verification/README.md) holds the Solana verification set: the native and published policy correspondence checks, the obligation ledger, and the refinement, adapter, trace, refusal, isolation and runtime evidence. allowit-core keeps only the core Lean model. The inputs are hash-bound: run `python3 -m unittest discover -s verification/tests`.
 - [`docs/native-vault-v2.md`](docs/native-vault-v2.md) describes the native vault v2 protocol.
@@ -246,10 +244,10 @@ The service packages under `crates/` record their source engine revision in thei
 
 ## Contributing
 
-Pull requests run the portable policy checks and `scripts/build.sh` ([`contracts.yml`](.github/workflows/contracts.yml)) and, when touched, the service package matrix ([`service-packages.yml`](.github/workflows/service-packages.yml)), the native SDKs ([`native.yml`](.github/workflows/native.yml)), the mandate program ([`mandate.yml`](.github/workflows/mandate.yml)) and verification ([`verification.yml`](.github/workflows/verification.yml)). The compiled-program suites run nightly and on demand. Before you open a PR:
+Pull requests run the portable policy checks and `scripts/build.sh` ([`contracts.yml`](.github/workflows/contracts.yml)) and, when touched, the service package matrix ([`service-packages.yml`](.github/workflows/service-packages.yml)), the native SDKs ([`native.yml`](.github/workflows/native.yml)) and verification ([`verification.yml`](.github/workflows/verification.yml)). The compiled-program suites run nightly and on demand. Before you open a PR:
 
 ```sh
-ALLOWIT_SOLANA_NETWORK=devnet scripts/build.sh   # fail on a stale allowit-core pin, then build the workspace and the SBF programs
+scripts/build.sh   # fail on a stale allowit-core pin, then build the workspace and the SBF programs
 python3 scripts/check-policy.py
 cargo fmt --all --check
 cargo fmt --manifest-path sbf-tests/Cargo.toml --check

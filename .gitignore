@@ -12,6 +12,5 @@ node_modules/
 
 # Generated outputs.
 /dist-native/
-/programs/mandate/dist/
 __pycache__/
 *.py[cod]
