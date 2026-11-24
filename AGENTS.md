@@ -4,4 +4,4 @@ Keep contract implementation, technical build/API documentation and release inpu
 
 # Build and pins
 
-`rust-toolchain.toml` pins the Rust release. Pins point one way: this repository may depend on allowit-core, and allowit-sdk depends on the rail crate here. Never add a git dependency on allowit-sdk or a `[patch]` section.
+`rust-toolchain.toml` pins the Rust release. Pins point one way. A package of this repository may depend on allowit-core. It never depends on allowit-sdk: allowit-sdk is the side that depends on the rail crate. Never add a `[patch]` section.
