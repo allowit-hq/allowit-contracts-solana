@@ -2,7 +2,7 @@
 name = "allowit-vendor-open-meteo"
 version.workspace = true
 edition = "2024"
-license = "LicenseRef-Proprietary"
+license = "MIT"
 publish = false
 
 [package.metadata.allowit-source]

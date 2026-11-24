@@ -262,6 +262,6 @@ If you edit `policy/policy.rs` or `policy/policy_api.rs`, regenerate `source_has
 
 ## License
 
-Licensing is per crate. `allowit-paysh-interface`, `allowit-solana-vendor`, `allowit-native`, `@allowit/native` and the mandate program `allowit-solana` are MIT (see [`crates/solana-vendor/LICENSE`](crates/solana-vendor/LICENSE)). The other programs and the vault interface are `UNLICENSED`; the host service packages extracted from the Allowit engine are `LicenseRef-Proprietary`. Each `Cargo.toml` states its own terms.
+MIT. See [LICENSE](LICENSE).
 
 [responsibility-model]: https://github.com/allowit-hq/allowit-project/blob/main/wiki/allowit/architecture.md#dependency-direction

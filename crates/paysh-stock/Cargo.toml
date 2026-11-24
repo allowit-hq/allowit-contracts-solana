@@ -3,7 +3,7 @@ name = "allowit-vendor-paysh-stock"
 version.workspace = true
 edition = "2024"
 rust-version = "1.98"
-license = "LicenseRef-Proprietary"
+license = "MIT"
 publish = false
 
 [package.metadata.allowit-source]

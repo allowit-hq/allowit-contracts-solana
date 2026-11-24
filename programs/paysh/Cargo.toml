@@ -2,7 +2,7 @@
 name = "allowit-paysh"
 version.workspace = true
 edition = "2021"
-license = "UNLICENSED"
+license = "MIT"
 [lib]
 crate-type = ["cdylib"]
 [features]
