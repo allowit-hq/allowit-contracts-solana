@@ -7,7 +7,7 @@ import {readWire, wire} from '../dist/message.js';
 import {checkAsset, messageHash, prepareSetup, sendSetup, signedSetupOf} from '../dist/native-wallet.js';
 import {expiredRecord, ownerChain, transaction} from '../dist/owner-chain.js';
 import {signatureOf} from '../dist/signatures.js';
-import {USDC, forgedRefill, node, v} from './helpers.mjs';
+import {USDC, forgedRefill, installation, node, roles, v} from './helpers.mjs';
 
 const secret = Uint8Array.from({length: 32}, (_, i) => i + 1);
 const owner = base58(ed25519.getPublicKey(secret));
@@ -63,17 +63,17 @@ test('the token of signed setup bytes and of a refill step is checked against th
   mismatch(() => checkAsset(signed, v.network, {symbol: 'SOL', issuer: null}), /not a token/);
   mismatch(() => checkAsset(signed, v.network, {symbol: 'USDC', issuer: v.agent}), /not a token/);
   // The refill step that the server prepares is the crate's owner step: one approval and a memo.
-  checkAsset(v.refill.message, v.network, USDC);
-  mismatch(() => checkAsset(v.setups[0].message, v.network, USDC), /neither/);
-  mismatch(() => checkAsset('AAAA', v.network, USDC), /neither/);
+  ownerChain.keypairSetup.checkAsset(v.refill.message, v.network, USDC, installation);
+  mismatch(() => checkAsset(v.setups[0].message, v.network, USDC, installation), /neither/);
+  mismatch(() => checkAsset('AAAA', v.network, USDC, installation), /neither/);
   mismatch(() => checkAsset(signed, 'solana:other', USDC), /not a token/);
 });
 
 test('a refill step is checked against the wallet that its memo names, and every other approval is refused', async () => {
-  const mismatch = (payload, pattern) => assert.throws(() => checkAsset(payload, v.network, USDC), error => error.code === 'asset_mismatch' && pattern.test(error.message));
+  const mismatch = (payload, pattern) => assert.throws(() => checkAsset(payload, v.network, USDC, installation), error => error.code === 'asset_mismatch' && pattern.test(error.message));
   // The forger makes the crate's refill byte for byte, so the cases below differ from it only where they say.
   assert.equal(await forgedRefill(), v.refill.message);
-  checkAsset(await forgedRefill(), v.network, USDC);
+  checkAsset(await forgedRefill(), v.network, USDC, installation);
   // An approval of another delegate, here a key of the attacker, on the wallet itself.
   mismatch(await forgedRefill({delegate: v.recipient}), /neither/);
   // The same approval on another token account of the owner.
@@ -83,6 +83,25 @@ test('a refill step is checked against the wallet that its memo names, and every
   mismatch(await forgedRefill({memo: `allowit:steps:${v.agent}:${v.recipient}:allowit:owner:fund`}), /neither/);
   // A stop, a recovery or a close is no refill.
   for (const step of v.ownerSteps) mismatch(step.message, /neither/);
+});
+
+test('a refill step holds only for the wallet, the agent and the server of the installation of the request', async () => {
+  const {ownerStepsMessage} = await import('../dist/native-wallet.js');
+  const {base64} = await import('../dist/bytes.js');
+  const {messageBytes} = await import('../dist/message.js');
+  const built = changed => base64(messageBytes(ownerStepsMessage({...roles, ...changed}, [{kind: 'approve', allowance: 7_000_000n, decimals: 6}], 'allowit:owner:fund', v.blockhash)));
+  const refused = (payload, stated, pattern) => assert.throws(() => checkAsset(payload, v.network, USDC, stated), error => error.code === 'asset_mismatch' && pattern.test(error.message));
+  assert.equal(built({}), v.refill.message);
+  // H1: the memo names the real agent and a server X, and the approval names the delegate of {agent, X}. The token
+  // account's seed leaves the server out, so the account is the real wallet: the step would replace its delegate.
+  refused(built({server: v.recipient}), installation, /installation/);
+  // H2: the memo names an agent X and the real server: the approval is on the owner's wallet of agent X.
+  refused(built({agent: v.recipient}), installation, /installation/);
+  // The installation of another wallet, or none: a refill is checked against the wallet of the request only.
+  refused(v.refill.message, {...installation, server: v.recipient}, /installation/);
+  refused(v.refill.message, {...installation, wallet: v.delegate}, /installation/);
+  refused(v.refill.message, undefined, /installation/);
+  refused(v.refill.message, {wallet: v.tokenAccount, agent: v.agent}, /installation/);
 });
 
 /** A node that holds `held` for the setup's signature; `sent` collects what was sent. */

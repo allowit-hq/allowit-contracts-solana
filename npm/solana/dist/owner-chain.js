@@ -67,7 +67,8 @@ export const ownerChain = Object.freeze({
     /** The owner's approval of a Native policy: one message signature, and no transaction. */
     approval: Object.freeze({
         read: (message, network) => policyApproval(message, network),
-        holds: (fields, wallet, reviewed) => approvalHolds(fields, wallet, reviewed),
+        /** `installation` is the installation of `wallet` that the host states: its agent and server. Without it, no approval holds. */
+        holds: (fields, wallet, reviewed, installation) => approvalHolds(fields, wallet, reviewed, installation),
         step: (message) => approvalStep(message),
         walletOwner: (network, wallet) => walletOwner(network, wallet),
         signedBy: approvalSignedBy,

@@ -4,9 +4,9 @@ import test from 'node:test';
 import {ed25519} from '@noble/curves/ed25519';
 import {base58, base64, unbase64, utf8} from '../dist/bytes.js';
 import {compile, messageBytes, readWire, verify, wire} from '../dist/message.js';
-import {approvalStep, canonical, messageHash, ownerStepsOf, prepareSetup} from '../dist/native-wallet.js';
+import {approvalStep, canonical, messageHash, ownerStepsMessage, ownerStepsOf, prepareSetup} from '../dist/native-wallet.js';
 import {signatureOf} from '../dist/signatures.js';
-import {USDC, forgedRefill, node, v} from './helpers.mjs';
+import {USDC, forgedRefill, installation, node, roles, v} from './helpers.mjs';
 
 class FakeNode extends EventTarget {
   constructor(tag) {
@@ -274,7 +274,7 @@ test('a step that the server prepared is described instruction by instruction', 
     `Let the wallet's agent and the server spend up to 7 USDC from the wallet ${v.tokenAccount}. This replaces the earlier allowance and moves no tokens.`,
     'A note that names this request.',
   ]);
-  const text = element('owner-sign', {network, step, summary: []}).textContent;
+  const text = element('owner-sign', {network, step, summary: [], expected: installation}).textContent;
   assert.match(text, /spend up to 7 USDC/);
   assert.equal(stepMessage({...step, hash: 'ab'.repeat(32)}), null);
   assert.equal(ownerStep({...step, hash: 'AB'.repeat(32)}), null);
@@ -285,7 +285,7 @@ test('a step that the server prepared is described instruction by instruction', 
 
 test('an owner step is shown only when every instruction acts on the wallet that its memo names', async () => {
   const later = Math.floor(Date.now() / 1000) + 60;
-  const shown = payload => element('owner-sign', {network, step: {action: 'fund', payload, hash: messageHash(unbase64(payload)), expiresAt: later}, summary: [], owner: v.owner}).textContent;
+  const shown = (payload, expected = installation) => element('owner-sign', {network, step: {action: 'fund', payload, hash: messageHash(unbase64(payload)), expiresAt: later}, summary: [], owner: v.owner, expected}).textContent;
   const invalid = 'This owner step is invalid.';
   assert.match(shown(await forgedRefill()), /spend up to 7 USDC/);
   // An approval of another delegate on the wallet, or of the wallet's delegate on another token account of the owner.
@@ -305,6 +305,25 @@ test('an owner step is shown only when every instruction acts on the wallet that
   assert.match(all, /Stop the wallet.*Move 2\.5 USDC.*Close the empty wallet/);
 });
 
+test('an owner step is shown only for the wallet, the agent and the server of the installation of the request', () => {
+  const later = Math.floor(Date.now() / 1000) + 60;
+  const shown = (payload, expected) => element('owner-sign', {network, step: {action: 'fund', payload, hash: messageHash(unbase64(payload)), expiresAt: later}, summary: [], owner: v.owner, expected}).textContent;
+  const built = changed => base64(messageBytes(ownerStepsMessage({...roles, ...changed}, [{kind: 'approve', allowance: 7_000_000n, decimals: 6}], 'allowit:owner:fund', v.blockhash)));
+  const invalid = 'This owner step is invalid.';
+  // The true refill names the wallet, its agent and its server, which the owner reads before signing.
+  const text = shown(v.refill.message, installation);
+  assert.ok(text.includes(v.tokenAccount) && text.includes(v.agent) && text.includes(v.server), text);
+  assert.match(text, /Server/);
+  // H1: another server X on the real wallet; H2: another agent X, whose wallet is another wallet of the owner.
+  assert.equal(shown(built({server: v.recipient}), installation), invalid);
+  assert.equal(shown(built({agent: v.recipient}), installation), invalid);
+  // Without the installation of the request, or with another one, nothing is shown for signing.
+  assert.equal(shown(v.refill.message, undefined), invalid);
+  assert.equal(shown(v.refill.message, {wallet: v.tokenAccount}), invalid);
+  assert.equal(shown(v.refill.message, {...installation, server: v.recipient}), invalid);
+  assert.equal(shown(v.refill.message, {...installation, wallet: v.delegate}), invalid);
+});
+
 test('the approval step signs the approval message of the reviewed policy', async () => {
   const source = 'pub fn execute() {}', params = {payment_limit: {Int: '1000000'}};
   const {sha256, hex} = await import('../dist/bytes.js');
@@ -314,8 +333,10 @@ test('the approval step signs the approval message of the reviewed policy', asyn
   const step = approvalStep(message);
   const page = wallet();
   try {
-    const node = element('owner-sign', {network, step, summary: [], owner, expected: {policyId: 'policy-1', wallet: v.tokenAccount, sourceHash: fields.sourceHash}});
+    const node = element('owner-sign', {network, step, summary: [], owner, expected: {policyId: 'policy-1', sourceHash: fields.sourceHash, ...installation}});
     assert.match(node.textContent, /It moves no funds\./);
+    // The owner reads the agent and the server that the approval names.
+    assert.ok(node.textContent.includes(v.agent) && node.textContent.includes(v.server), node.textContent);
     const seen = events(node, 'allowit-signed', 'allowit-error');
     await click(node, 'Sign the approval');
     assert.equal(seen[0][0], 'allowit-signed');
@@ -325,10 +346,20 @@ test('the approval step signs the approval message of the reviewed policy', asyn
   } finally {page.remove();}
   // Another policy than the page reviewed, or a text that is no approval, is not shown for signing.
   const invalid = data => assert.equal(element('owner-sign', data).textContent, 'This owner step is invalid.');
-  invalid({network, step, summary: [], expected: {policyId: 'policy-2'}});
-  invalid({network, step, summary: [], expected: {wallet: v.delegate}});
-  invalid({network, step: approvalStep('Send all funds'), summary: []});
-  invalid({network, step: {...step, payload: base64(utf8(`${message} `))}, summary: []});
+  invalid({network, step, summary: [], expected: {...installation, policyId: 'policy-2'}});
+  invalid({network, step, summary: [], expected: {...installation, wallet: v.delegate}});
+  invalid({network, step: approvalStep('Send all funds'), summary: [], expected: installation});
+  invalid({network, step: {...step, payload: base64(utf8(`${message} `))}, summary: [], expected: installation});
+  // An approval is shown only for the installation of the request: none, another one, or an approval that names
+  // another server T or another agent on the real wallet is not shown for signing.
+  invalid({network, step, summary: []});
+  invalid({network, step, summary: [], expected: {policyId: 'policy-1', wallet: v.tokenAccount}});
+  invalid({network, step, summary: [], expected: {...installation, server: v.recipient}});
+  for (const change of [{server: v.recipient}, {agent: v.recipient}]) {
+    const other = `Allowit: I approve this policy source for my wallet.
+${JSON.stringify({...fields, ...change})}`;
+    invalid({network, step: approvalStep(other), summary: [], expected: installation});
+  }
 });
 
 test('the binding review reports whether an installation is of this network', async () => {

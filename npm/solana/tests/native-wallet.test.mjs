@@ -6,7 +6,7 @@ import {address, canSign, messageBytes, readMessage, readWire, verify} from '../
 import {APPROVE_POLICY, SET_UP_WALLET, approvalHolds, approvalMessage, approvalSignedBy, approvalStep, canonical, messageHash,
   policyApproval, prepareSetup, setupMessage, setupOf, signedSetupOf, walletConfiguration, walletOf, walletOwner} from '../dist/native-wallet.js';
 
-import {USDC, found, node, roles, v} from './helpers.mjs';
+import {USDC, installation, found, node, roles, v} from './helpers.mjs';
 
 test('base58 and base64 read only the one encoding of their bytes', () => {
   const key = address(v.owner);
@@ -208,10 +208,10 @@ test('an approval holds only for exactly the reviewed policy, wallet and token',
   const {message, source, params} = approvalOf();
   const read = policyApproval(message, v.network);
   const reviewed = {source, params, asset: USDC};
-  assert.equal(approvalHolds(read, v.tokenAccount, reviewed), true);
-  assert.equal(approvalHolds(read, v.tokenAccount, {...reviewed, rules: ['payment_limit'], tier: null}), true);
+  assert.equal(approvalHolds(read, v.tokenAccount, reviewed, installation), true);
+  assert.equal(approvalHolds(read, v.tokenAccount, {...reviewed, rules: ['payment_limit'], tier: null}, installation), true);
   const refused = (change, wallet = v.tokenAccount, policy = reviewed) =>
-    assert.equal(approvalHolds(policyApproval(approvalOf(change).message, v.network), wallet, policy), false, JSON.stringify(change));
+    assert.equal(approvalHolds(policyApproval(approvalOf(change).message, v.network), wallet, policy, installation), false, JSON.stringify(change));
   refused({}, v.delegate);
   refused({}, v.tokenAccount, {...reviewed, source: `${source} `});
   refused({}, v.tokenAccount, {...reviewed, params: {payment_limit: {Int: '1000001'}}});
@@ -229,7 +229,23 @@ test('an approval holds only for exactly the reviewed policy, wallet and token',
   refused({extra: 1});
   refused({toString: 1});
   // The server's own digests may be any value: a Native wallet enforces none of them.
-  assert.equal(approvalHolds(policyApproval(approvalOf({irHash: 'ef'.repeat(32)}).message, v.network), v.tokenAccount, reviewed), true);
+  assert.equal(approvalHolds(policyApproval(approvalOf({irHash: 'ef'.repeat(32)}).message, v.network), v.tokenAccount, reviewed, installation), true);
+});
+
+test('an approval holds only for the agent and the server of the installation of the request', () => {
+  const {source, params} = approvalOf();
+  const reviewed = {source, params, asset: USDC};
+  const holds = (change, stated) => approvalHolds(policyApproval(approvalOf(change).message, v.network), v.tokenAccount, reviewed, stated);
+  assert.equal(holds({}, installation), true);
+  // An approval that names another server T on the real wallet: the wallet's address binds the agent, not the server.
+  assert.equal(holds({server: v.recipient}, installation), false);
+  // Another agent, the installation's server named as the agent, or the approval of another installation.
+  assert.equal(holds({agent: v.recipient}, installation), false);
+  assert.equal(holds({}, {...installation, server: v.recipient}), false);
+  assert.equal(holds({}, {...installation, wallet: v.delegate}), false);
+  // Without the installation of the request, no approval holds: its agent and server would come from the approval itself.
+  assert.equal(holds({}, undefined), false);
+  assert.equal(holds({}, {wallet: v.tokenAccount}), false);
 });
 
 test('the owner of a wallet is the owner of its token account in the finalized bank', async () => {

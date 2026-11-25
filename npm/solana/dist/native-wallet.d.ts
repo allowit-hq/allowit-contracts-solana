@@ -195,13 +195,28 @@ export declare function signedSetupOf(signedPayload: string, network: string): {
     blockhash: string;
 } | null;
 /**
+ * The installation of the wallet of a request, as the host states it: the wallet and the agent and server of its
+ * delegate. An owner step or a policy approval is checked against it, never against the roles that the step or the
+ * approval names itself: the wallet's address binds its owner, token and agent, and leaves the server out.
+ */
+export interface Installation {
+    wallet: string;
+    agent: string;
+    server: string;
+}
+/** The installation in `value`, or null for anything else: a wallet address and two different keys that can sign. */
+export declare function installationOf(value: unknown): Installation | null;
+/** Whether owner steps act on the wallet of `installation`, with its agent and server: their delegate is then its delegate. */
+export declare function stepsHold(facts: OwnerStepsFacts, installation: unknown): boolean;
+/**
  * Checks the token of a wallet's bytes against `asset`, the token of the reviewed policy: Core's
  * `keypairSetup.checkAsset`. `payload` is signed setup bytes, which must set up a wallet of that token, or the refill
  * step that the server prepared, which must approve it. Throws an error whose `code` is `asset_mismatch` otherwise,
  * for a payload that is neither, and when `asset` is no token that the network lists. A refill step must approve the
- * delegate of the wallet that its memo names, on that wallet: `ownerStepsOf` reads it.
+ * delegate of the wallet that its memo names, on that wallet (`ownerStepsOf`), and that wallet, agent and server must
+ * be the ones of `installation`, the wallet of the request: without it, no refill step holds.
  */
-export declare function checkAsset(payload: string, network: string, asset?: WalletAsset | null): void;
+export declare function checkAsset(payload: string, network: string, asset?: WalletAsset | null, installation?: Installation | null): void;
 /**
  * Sends signed setup bytes and waits until the finalized bank holds them. The slot of the successful transaction, or
  * null without a certain answer: a refused send, a failed transaction and a wait that ends early are all null, and the
@@ -240,11 +255,12 @@ export declare function policyApproval(message: unknown, network: string): Polic
  * Whether a policy approval of `wallet` is exactly what the owner reviewed. Every field that the wallet signs is
  * checked. The policy and its revision come from the service. The source, rules, values and tier must be the reviewed
  * ones, and a Native wallet has no tier. The network, wallet and route must be the wallet's own, the token must be the
- * token of the reviewed policy, and the fee ceiling is at most the rail's. The agent and the server must be two keys:
- * which keys they are is decided by the wallet address, which binds the agent, and by the delegate that the ledger
- * holds, which binds both. Any other field, or any other value, is refused.
+ * token of the reviewed policy, and the fee ceiling is at most the rail's. The agent and the server must be the ones of
+ * `installation`, the installation of `wallet` that the host states: the wallet address binds the agent and leaves
+ * the server out, so an approval's own agent and server prove nothing. Without the installation, no approval holds.
+ * Any other field, or any other value, is refused.
  */
-export declare function approvalHolds(approval: PolicyApproval, wallet: string, reviewed: ReviewedPolicy): boolean;
+export declare function approvalHolds(approval: PolicyApproval, wallet: string, reviewed: ReviewedPolicy, installation?: Installation | null): boolean;
 /** The step that asks the owner's wallet to approve a policy. It signs the message and moves nothing. */
 export declare function approvalStep(message: string, now?: number): {
     action: string;

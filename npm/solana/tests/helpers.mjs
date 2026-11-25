@@ -4,6 +4,8 @@ import {readFileSync} from 'node:fs';
 export const v = JSON.parse(readFileSync(new URL('./vectors.json', import.meta.url), 'utf8'));
 export const roles = {owner: v.owner, mint: v.mint, agent: v.agent, server: v.server};
 export const USDC = {symbol: 'USDC', issuer: v.mint};
+/** The installation of the wallet of the request, as the host states it: the wallet and its agent and server. */
+export const installation = {wallet: v.tokenAccount, agent: v.agent, server: v.server};
 export const found = value => value === 'ready' ? 'ready' : 'nothing' in value ? {nothing: BigInt(value.nothing)} : {funded: BigInt(value.funded)};
 
 /** A fake RPC node: `answers` maps a method to its result, or to a function of the params. */

@@ -326,16 +326,29 @@ export function signedSetupOf(signedPayload, network) {
     return { hash, owner: setup.owner, wallet: setup.wallet, agent: setup.agent, server: setup.server, validUntil: setup.validUntil,
         asset: { symbol: listed.symbol, issuer: listed.id }, amount: plainDecimal(setup.allowance, listed.decimals), signature: signed.signatures[0], blockhash: setup.blockhash };
 }
+/** The installation in `value`, or null for anything else: a wallet address and two different keys that can sign. */
+export function installationOf(value) {
+    if (!object(value))
+        return null;
+    const { wallet, agent, server } = value;
+    return typeof wallet === 'string' && address(wallet) && canSign(agent) && canSign(server) && agent !== server
+        ? { wallet, agent: agent, server: server } : null;
+}
+/** Whether owner steps act on the wallet of `installation`, with its agent and server: their delegate is then its delegate. */
+export function stepsHold(facts, installation) {
+    const stated = installationOf(installation);
+    return stated !== null && facts.wallet === stated.wallet && facts.agent === stated.agent && facts.server === stated.server;
+}
 /**
- * The token of the refill step of a wallet, as the server builds it: owner steps of one approval of the wallet's own
- * delegate, on the wallet that the memo's roles name. Null for any other payload, an approval of another delegate or of
- * another token account among them. The payload is the base64 text of the message.
+ * The refill step of a wallet, as the server builds it: owner steps of one approval of the wallet's own delegate, on
+ * the wallet that the memo's roles name. Null for any other payload, an approval of another delegate or of another
+ * token account among them. The payload is the base64 text of the message.
  */
-function refillMintOf(payload, network) {
+function refillOf(payload, network) {
     const bytes = unbase64(payload);
     const parsed = bytes ? readMessage(bytes) : null;
     const facts = bytes && parsed ? ownerStepsOf(bytes, parsed, network) : null;
-    return facts && facts.steps.length === 1 && facts.steps[0].kind === 'approve' ? facts.mint : null;
+    return facts && facts.steps.length === 1 && facts.steps[0].kind === 'approve' ? facts : null;
 }
 const assetLabel = (asset) => asset.issuer === null ? asset.symbol : `${asset.symbol} (mint ${asset.issuer})`;
 /**
@@ -343,9 +356,10 @@ const assetLabel = (asset) => asset.issuer === null ? asset.symbol : `${asset.sy
  * `keypairSetup.checkAsset`. `payload` is signed setup bytes, which must set up a wallet of that token, or the refill
  * step that the server prepared, which must approve it. Throws an error whose `code` is `asset_mismatch` otherwise,
  * for a payload that is neither, and when `asset` is no token that the network lists. A refill step must approve the
- * delegate of the wallet that its memo names, on that wallet: `ownerStepsOf` reads it.
+ * delegate of the wallet that its memo names, on that wallet (`ownerStepsOf`), and that wallet, agent and server must
+ * be the ones of `installation`, the wallet of the request: without it, no refill step holds.
  */
-export function checkAsset(payload, network, asset) {
+export function checkAsset(payload, network, asset, installation) {
     const refused = (message) => Object.assign(new Error(message), { code: 'asset_mismatch' });
     const id = canonicalNetwork(network);
     let expected;
@@ -364,11 +378,15 @@ export function checkAsset(payload, network, asset) {
             throw refused(`The signed wallet setup is for ${assetLabel(setup.asset)}, and the reviewed policy pays in ${assetLabel(want)}. It stays saved; resume the policy of that setup.`);
         return;
     }
-    const mint = refillMintOf(payload, network);
-    if (!mint)
+    const refill = refillOf(payload, network);
+    if (!refill)
         throw refused('These bytes are neither a signed wallet setup nor a wallet refill step of this network, so their token cannot be read. Nothing was signed; a saved setup stays saved.');
-    if (mint !== expected.mint)
-        throw refused(`The refill step approves the token ${mint}, and the reviewed policy pays in ${assetLabel(want)}. Nothing was signed.`);
+    if (!installationOf(installation))
+        throw refused('The installation of this policy (its wallet, agent and server) was not given, so the refill step that the Allowit server prepared cannot be checked against it. Nothing was signed.');
+    if (!stepsHold(refill, installation))
+        throw refused(`The refill step that the Allowit server prepared names the wallet ${refill.wallet} with the agent ${refill.agent} and the server ${refill.server}, which is not the installation of this policy. Nothing was signed; prepare the refill again.`);
+    if (refill.mint !== expected.mint)
+        throw refused(`The refill step approves the token ${refill.mint}, and the reviewed policy pays in ${assetLabel(want)}. Nothing was signed.`);
 }
 /**
  * Sends signed setup bytes and waits until the finalized bank holds them. The slot of the successful transaction, or
@@ -460,11 +478,12 @@ const SERVER_FIELDS = new Set(['irHash', 'moduleDigest', 'policyInstance']);
  * Whether a policy approval of `wallet` is exactly what the owner reviewed. Every field that the wallet signs is
  * checked. The policy and its revision come from the service. The source, rules, values and tier must be the reviewed
  * ones, and a Native wallet has no tier. The network, wallet and route must be the wallet's own, the token must be the
- * token of the reviewed policy, and the fee ceiling is at most the rail's. The agent and the server must be two keys:
- * which keys they are is decided by the wallet address, which binds the agent, and by the delegate that the ledger
- * holds, which binds both. Any other field, or any other value, is refused.
+ * token of the reviewed policy, and the fee ceiling is at most the rail's. The agent and the server must be the ones of
+ * `installation`, the installation of `wallet` that the host states: the wallet address binds the agent and leaves
+ * the server out, so an approval's own agent and server prove nothing. Without the installation, no approval holds.
+ * Any other field, or any other value, is refused.
  */
-export function approvalHolds(approval, wallet, reviewed) {
+export function approvalHolds(approval, wallet, reviewed, installation) {
     let held;
     try {
         held = listedToken(approval.network, reviewed.asset);
@@ -472,12 +491,15 @@ export function approvalHolds(approval, wallet, reviewed) {
     catch {
         return false;
     }
+    const stated = installationOf(installation);
+    if (!stated || stated.wallet !== wallet)
+        return false;
     const f = approval.fields;
     const expected = {
         policyId: approval.policyId, revision: approval.revision, network: approval.network, wallet, route: 'native', mint: held.mint,
         source: reviewed.source, sourceHash: hex(sha256(utf8(reviewed.source))), params: reviewed.params,
         paramsHash: hex(sha256(utf8(canonical(reviewed.params)))), rules: reviewed.rules === undefined ? f.rules : reviewed.rules,
-        tier: null, language: f.language, agent: f.agent, server: f.server, maxFeeLamports: f.maxFeeLamports,
+        tier: null, language: f.language, agent: stated.agent, server: stated.server, maxFeeLamports: f.maxFeeLamports,
     };
     const keys = Object.keys(f).filter(key => !SERVER_FIELDS.has(key));
     // Only the fields of `expected` itself count: a name that every object inherits is no field of an approval.

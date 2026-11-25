@@ -1,7 +1,7 @@
 import { base64, unbase64 } from '../bytes.js';
 import { address, canSign, readMessage, readWire } from '../message.js';
 import { assets, canonicalNetwork } from '../networks.js';
-import { APPROVE_POLICY, SET_UP_WALLET, approvalMessage, messageHash, ownerStepsOf, plainDecimal, policyApproval, setupOf } from '../native-wallet.js';
+import { APPROVE_POLICY, SET_UP_WALLET, approvalMessage, installationOf, messageHash, ownerStepsOf, plainDecimal, policyApproval, setupOf, stepsHold } from '../native-wallet.js';
 import { reviewAnswer } from '../review-answer.js';
 import { remember } from '../signatures.js';
 import { base, emit, expiry, h } from './base.js';
@@ -138,15 +138,20 @@ export function ownerSignElement() {
             if (step.action === APPROVE_POLICY) {
                 // This step signs a message, never a transaction: the owner's approval of the exact source and values of
                 // one policy on one wallet. Only an approval message of this network is signed, and the owner reads what it
-                // names. `data.expected` binds it to the policy that the page reviewed.
+                // names. `data.expected` binds it to the policy that the page reviewed and to the installation of the request:
+                // its wallet, agent and server, which the approval must name.
                 const message = approvalMessage(step), fields = policyApproval(message, id);
                 const expected = data.expected && typeof data.expected === 'object' ? data.expected : null;
+                const stated = installationOf(expected);
                 const differs = (key) => expected?.[key] !== undefined && expected[key] !== fields?.[key];
-                if (message === null || !fields || differs('policyId') || differs('sourceHash') || differs('paramsHash') || differs('wallet')) {
+                if (message === null || !fields || !stated || differs('policyId') || differs('sourceHash') || differs('paramsHash')
+                    || fields.wallet !== stated.wallet || fields.fields.agent !== stated.agent || fields.fields.server !== stated.server) {
                     invalid();
                     return;
                 }
                 rows.push(h('dt', {}, 'Wallet'), h('dd', {}, link(id, 'address', fields.wallet, fields.wallet)));
+                rows.push(h('dt', {}, 'Agent'), h('dd', {}, link(id, 'address', stated.agent, stated.agent)));
+                rows.push(h('dt', {}, 'Server'), h('dd', {}, link(id, 'address', stated.server, stated.server)));
                 rows.push(h('dt', {}, 'Policy source hash'), h('dd', { class: 'mono' }, fields.sourceHash));
                 rows.push(h('dt', {}, 'Values hash'), h('dd', { class: 'mono' }, fields.paramsHash));
                 rows.push(h('dt', {}, 'What you sign'), h('dd', {}, 'A message that approves this policy for the wallet. The server then checks every payment of your agent against it. It moves no funds.'));
@@ -181,14 +186,17 @@ export function ownerSignElement() {
                     : `The network fee of ${sol(5000n)}. The accounts of this wallet exist already.`));
             }
             else {
-                // Every other transaction is owner steps on the wallet that its memo names, and nothing else.
+                // Every other transaction is owner steps on the wallet that its memo names, and nothing else. That wallet, its
+                // agent and its server must be the installation of the request, `data.expected`: the memo's own roles prove
+                // nothing, since the wallet's address leaves the server out.
                 const steps = ownerStepsOf(tx.bytes, tx.parsed, id);
-                if (!steps) {
+                if (!steps || !stepsHold(steps, data.expected)) {
                     invalid();
                     return;
                 }
                 rows.push(h('dt', {}, 'Wallet'), h('dd', {}, link(id, 'address', steps.wallet, steps.wallet)));
                 rows.push(h('dt', {}, 'Agent'), h('dd', {}, link(id, 'address', steps.agent, steps.agent)));
+                rows.push(h('dt', {}, 'Server'), h('dd', {}, link(id, 'address', steps.server, steps.server)));
                 rows.push(h('dt', {}, 'What you sign'), h('dd', {}, h('ul', {}, ...describe(steps, id).map(line => h('li', {}, line)))));
                 rows.push(h('dt', {}, 'You pay'), h('dd', {}, `The network fee of ${sol(5000n)}.`));
             }
