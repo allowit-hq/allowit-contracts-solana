@@ -425,7 +425,7 @@ fn e_standard_payment_limit() {
     f.run(
         "standard execute above limit",
         &ix,
-        Err(ProgramError::Custom(1102)),
+        denied(VaultError::PolicyDenied),
     );
     assert_eq!(f.balance(DESTINATION), 5 * USDC);
     let vault = f.vault();
@@ -464,6 +464,8 @@ fn f_set_pause_requires_next_version() {
 #[test]
 fn g_close_returns_tokens_and_all_lamports() {
     let mut f = Fixture::simple();
+    // A wallet closes from the slot after its creation.
+    f.svm.sysvars.clock.slot = SLOT + 1;
     let ix = f.close(1);
     f.run("close", &ix, Ok(()));
     assert_eq!(f.balance(OWNER_DESTINATION), DEPOSIT);

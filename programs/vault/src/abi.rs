@@ -110,10 +110,14 @@ pub enum VaultInstruction {
     Close { version: u32 },
 }
 
+/// Vault error codes, all below 100, with the numbers and meanings of the Stellar wallet's
+/// `AllowitWalletError`. As on Stellar, a denial by a standard rule collapses to `PolicyDenied`; a
+/// Core error about owner params, state, overflow or an unsupported operation keeps its own code.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u32)]
 pub enum VaultError {
     InvalidState = 1,
+    /// Invalid owner params or rules, or a param that a rule cannot decode.
     InvalidParam = 2,
     UnsupportedAsset = 3,
     InvalidActor = 4,
@@ -126,6 +130,8 @@ pub enum VaultError {
     InsufficientFunds = 14,
     UnsupportedOperation = 16,
     InvalidInvocation = 17,
+    /// A standard rule denied the request.
+    PolicyDenied = 18,
 }
 
 impl From<VaultError> for solana_program_error::ProgramError {

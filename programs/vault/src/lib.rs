@@ -461,6 +461,12 @@ fn close(program_id: &Pubkey, accounts: &[AccountInfo], version: u32) -> Program
     let state = load(program_id, state_account)?;
     require_signer(owner, &state.owner)?;
     next_version(&state, version)?;
+    // A wallet closed in its creation slot could be created again at the same address with the
+    // same `created_slot`, version 0 and nonce 0: a request signed for the first would then run
+    // on the second. Every later slot gives a new instance another `created_slot`.
+    if Clock::get()?.slot == state.created_slot {
+        return Err(VaultError::InvalidState.into());
+    }
     let (balance, recipient) = transfer_accounts(
         state_account,
         &state,

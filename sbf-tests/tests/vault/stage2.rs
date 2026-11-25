@@ -13,8 +13,9 @@ fn addresses(keys: &[Pubkey]) -> Param {
     Param::Addresses(keys.iter().map(Pubkey::to_bytes).collect())
 }
 
-fn core_denied(code: u32) -> Result<(), ProgramError> {
-    Err(ProgramError::Custom(1000 + code))
+/// As on Stellar, a standard rule's denial collapses to `PolicyDenied`.
+fn policy_denied() -> Result<(), ProgramError> {
+    denied(VaultError::PolicyDenied)
 }
 
 #[test]
@@ -22,16 +23,16 @@ fn standard_lifetime_spending_limit() {
     let mut f = standard(1, Param::Amount(i128::from(5 * USDC)));
     f.payment("lifetime first spend", 2 * USDC, Ok(()));
     f.payment("lifetime reaches ceiling", 3 * USDC, Ok(()));
-    f.payment("lifetime over ceiling", 1, core_denied(103));
+    f.payment("lifetime over ceiling", 1, policy_denied());
     assert_eq!(f.vault().figures.spent, i128::from(5 * USDC));
     assert_eq!(f.vault().nonce, 2);
 }
 
-fn check_daily_limit(index: u8, error: u32) {
+fn check_daily_limit(index: u8) {
     let mut f = standard(index, Param::Amount(i128::from(5 * USDC)));
     f.payment("daily first spend", 3 * USDC, Ok(()));
     f.payment("daily reaches ceiling", 2 * USDC, Ok(()));
-    f.payment("daily over ceiling", 1, core_denied(error));
+    f.payment("daily over ceiling", 1, policy_denied());
 
     f.svm.sysvars.clock.unix_timestamp += DAY_SECONDS;
     f.payment("daily rollover allows spending", 3 * USDC, Ok(()));
@@ -45,12 +46,12 @@ fn check_daily_limit(index: u8, error: u32) {
 
 #[test]
 fn standard_daily_spending_limit() {
-    check_daily_limit(2, 104);
+    check_daily_limit(2);
 }
 
 #[test]
 fn standard_daily_volume_limit() {
-    check_daily_limit(3, 105);
+    check_daily_limit(3);
 }
 
 #[test]
@@ -58,7 +59,7 @@ fn standard_call_limit() {
     let mut f = standard(4, Param::Count(2));
     f.payment("call number one", USDC, Ok(()));
     f.payment("call number two", USDC, Ok(()));
-    f.payment("call number three", USDC, core_denied(106));
+    f.payment("call number three", USDC, policy_denied());
     assert_eq!(f.vault().figures.calls, 2);
 }
 
@@ -68,7 +69,7 @@ fn standard_destinations() {
     f.payment("destination owner listed", USDC, Ok(()));
     let mut ix = f.execute(USDC, 1, 0, NOW + 1);
     ix.accounts[5] = rw(OWNER_DESTINATION, false);
-    f.run("destination owner absent", &ix, core_denied(107));
+    f.run("destination owner absent", &ix, policy_denied());
 }
 
 #[test]
@@ -82,7 +83,7 @@ fn standard_tokens_rejects_unlisted_vault_mint() {
     let mut f = Fixture::with_mint(ALT_MINT);
     f.initialize(STANDARD, vec![6], vec![addresses(&[MINT])]);
     f.fund();
-    f.payment("vault mint absent", USDC, core_denied(108));
+    f.payment("vault mint absent", USDC, policy_denied());
     assert_eq!(f.balance(f.ata), DEPOSIT);
 }
 
@@ -92,11 +93,7 @@ fn standard_expires_at() {
     let mut f = standard(7, Param::Expiry(end));
     f.payment("policy unexpired", USDC, Ok(()));
     f.svm.sysvars.clock.unix_timestamp = end;
-    f.payment(
-        "policy expired with a fresh request",
-        USDC,
-        core_denied(109),
-    );
+    f.payment("policy expired with a fresh request", USDC, policy_denied());
 }
 
 #[test]
@@ -109,7 +106,7 @@ fn standard_operations() {
         vec![Param::Operations(Operations::Names(vec!["deposit".into()]))],
     );
     f.run("install operations list", &ix, Ok(()));
-    f.payment("transfer absent from operations", USDC, core_denied(115));
+    f.payment("transfer absent from operations", USDC, policy_denied());
 }
 
 #[test]
@@ -194,7 +191,11 @@ fn owner_update_policy_grows_and_refunds_rent() {
         denied(VaultError::StaleRequest),
     );
     let invalid = f.update(3, vec![0], vec![Param::Amount(-1)]);
-    f.run("update rejects negative limit", &invalid, core_denied(111));
+    f.run(
+        "update rejects negative limit",
+        &invalid,
+        denied(VaultError::InvalidParam),
+    );
 
     let shrink = f.update(3, vec![5], vec![addresses(&[RECIPIENT])]);
     f.run("update destinations five to one", &shrink, Ok(()));
@@ -358,19 +359,19 @@ fn security_initialize_rejects_invalid_standard_params() {
             "initialize missing value",
             vec![0],
             vec![],
-            core_denied(101),
+            denied(VaultError::InvalidParam),
         ),
         (
             "initialize wrong value type",
             vec![0],
             vec![Param::Count(1)],
-            core_denied(111),
+            denied(VaultError::InvalidParam),
         ),
         (
             "initialize negative amount",
             vec![0],
             vec![Param::Amount(-1)],
-            core_denied(111),
+            denied(VaultError::InvalidParam),
         ),
         (
             "initialize duplicate rule",
@@ -389,4 +390,98 @@ fn security_initialize_rejects_invalid_standard_params() {
         let ix = f.initialize_instruction(STANDARD, rules, params);
         f.run(label, &ix, expected);
     }
+}
+
+#[test]
+fn security_close_is_refused_in_the_creation_slot() {
+    let mut f = Fixture::simple();
+    let ix = f.close(1);
+    f.run(
+        "close in the creation slot",
+        &ix,
+        denied(VaultError::InvalidState),
+    );
+    assert_eq!(f.balance(f.ata), DEPOSIT);
+    f.svm.sysvars.clock.slot = SLOT + 1;
+    f.run("close in the next slot", &ix, Ok(()));
+    assert_eq!(f.balance(OWNER_DESTINATION), DEPOSIT);
+}
+
+/// Every program that the vault calls is the one that it pins: SPL Token on each transfer and
+/// close, System and Associated Token at creation, and the state's check program for Custom.
+#[test]
+fn security_every_cpi_program_is_pinned() {
+    let foreign = || Account {
+        executable: true,
+        owner: native_loader::ID,
+        ..Account::default()
+    };
+    let mut f = Fixture::new();
+    f.accounts.insert(FOREIGN_PROGRAM, foreign());
+    for (label, at, expected) in [
+        (
+            "initialize with another System program",
+            4,
+            Err(ProgramError::IncorrectProgramId),
+        ),
+        (
+            "initialize with another Token program",
+            5,
+            denied(VaultError::UnsupportedAsset),
+        ),
+        (
+            "initialize with another Associated Token program",
+            6,
+            Err(ProgramError::IncorrectProgramId),
+        ),
+    ] {
+        let mut ix = f.initialize_instruction(SIMPLE, vec![], vec![]);
+        ix.accounts[at] = ro(FOREIGN_PROGRAM, false);
+        f.run(label, &ix, expected);
+    }
+    f.initialize(SIMPLE, vec![], vec![]);
+    f.fund();
+    f.svm.sysvars.clock.slot = SLOT + 1;
+    let mut ix = f.execute(USDC, 0, 0, NOW + 1);
+    ix.accounts[6] = ro(FOREIGN_PROGRAM, false);
+    f.run(
+        "execute with another Token program",
+        &ix,
+        denied(VaultError::UnsupportedAsset),
+    );
+    for (label, instruction) in [
+        (
+            "stop with another Token program",
+            VaultInstruction::Stop { version: 1 },
+        ),
+        (
+            "recover with another Token program",
+            VaultInstruction::Recover { amount: USDC },
+        ),
+        (
+            "close with another Token program",
+            VaultInstruction::Close { version: 1 },
+        ),
+    ] {
+        let mut ix = f.owner_transfer(instruction, OWNER_DESTINATION);
+        ix.accounts[5] = ro(FOREIGN_PROGRAM, false);
+        f.run(label, &ix, denied(VaultError::UnsupportedAsset));
+    }
+    assert_eq!(f.balance(f.ata), DEPOSIT);
+
+    let mut f = Fixture::new();
+    f.initialize(CUSTOM, vec![], vec![]);
+    f.fund();
+    f.add_check();
+    f.accounts.insert(FOREIGN_PROGRAM, foreign());
+    let mut ix = f.execute(USDC, 0, 0, NOW + 1);
+    ix.accounts.push(ro(FOREIGN_PROGRAM, false));
+    f.run(
+        "custom execute with another check program",
+        &ix,
+        Err(ProgramError::IncorrectProgramId),
+    );
+    let mut ix = f.execute(USDC, 0, 0, NOW + 1);
+    ix.accounts.push(ro(CHECK_PROGRAM, false));
+    f.run("custom execute with its check program", &ix, Ok(()));
 }

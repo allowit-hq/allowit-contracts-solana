@@ -107,6 +107,15 @@ fn address(key: &Pubkey) -> Address {
     Address::new(key.to_string())
 }
 
+/// As the Stellar wallet maps them: rule denials collapse to `PolicyDenied`; invalid owner
+/// configuration, state and overflow stay distinct.
 fn core_error(error: AllowitError) -> ProgramError {
-    ProgramError::Custom(1000 + error as u32)
+    match error {
+        AllowitError::MissingParam | AllowitError::InvalidParam => VaultError::InvalidParam,
+        AllowitError::InvalidState => VaultError::InvalidState,
+        AllowitError::Overflow => VaultError::Overflow,
+        AllowitError::Unsupported => VaultError::UnsupportedOperation,
+        _ => VaultError::PolicyDenied,
+    }
+    .into()
 }
