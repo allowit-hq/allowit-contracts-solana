@@ -29,6 +29,7 @@ pub mod proof;
 pub mod rpc;
 pub mod runtime;
 pub mod server;
+pub mod settlement_service;
 pub mod x402;
 
 pub use keys::{KEY_TYPE, KEYS, KeySigner, signer_identity};

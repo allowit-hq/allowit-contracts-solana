@@ -428,10 +428,14 @@ impl RailPlugin for Plugin {
     fn paid_service(&self) -> Option<&'static dyn PaidServiceProvider> {
         Some(&PAID_SERVICE)
     }
-    // No settlement service yet. The facilitator of this crate pays the fee of a transaction
-    // that fails after its simulation, at a priority fee that its caller chooses, and settles
-    // an offer past its `expiresAt` (review notes on its pull request). The plugin offers the
-    // service once those are closed and a ledger read gives a blockhash's last valid height.
+    /// The Allowit facilitator for x402 `exact` on Solana Devnet. A fee within the host's
+    /// ceiling and the hourly budget bounds a transaction that fails after its simulation; an
+    /// offer past its `expiresAt` is refused; the ledger bounds a blockhash's last valid height.
+    fn settlement_service(
+        &self,
+    ) -> Option<&'static dyn allowit_core::vendor::settlement_service::SettlementProvider> {
+        Some(&crate::settlement_service::SERVICE)
+    }
 }
 
 /// The agent's key as the signer of the rail's own documents: its identity is its address, and
@@ -1024,11 +1028,11 @@ mod tests {
     }
 
     #[test]
-    fn the_plugin_reads_x402_challenges_and_offers_no_settlement_service() {
+    fn the_plugin_reads_x402_challenges_and_offers_its_settlement_service() {
         use allowit_core::vendor::paid_service::SellerReply;
         let hook = PLUGIN.paid_service().unwrap();
         assert!(PLUGIN.test_support().skip(Feature::PaidService).is_none());
-        assert!(PLUGIN.settlement_service().is_none());
+        assert!(PLUGIN.settlement_service().is_some());
         // A reply that offers no payment that the rail can settle is refused, not guessed.
         let reply = SellerReply {
             status: 402,
