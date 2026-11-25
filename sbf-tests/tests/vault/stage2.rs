@@ -13,7 +13,7 @@ fn addresses(keys: &[Pubkey]) -> Param {
     Param::Addresses(keys.iter().map(Pubkey::to_bytes).collect())
 }
 
-/// As on Stellar, a standard rule's denial collapses to `PolicyDenied`.
+/// As in every Allowit wallet, a standard rule's denial collapses to `PolicyDenied`.
 fn policy_denied() -> Result<(), ProgramError> {
     denied(VaultError::PolicyDenied)
 }

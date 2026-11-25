@@ -110,9 +110,9 @@ pub enum VaultInstruction {
     Close { version: u32 },
 }
 
-/// Vault error codes, all below 100, with the numbers and meanings of the Stellar wallet's
-/// `AllowitWalletError`. As on Stellar, a denial by a standard rule collapses to `PolicyDenied`; a
-/// Core error about owner params, state, overflow or an unsupported operation keeps its own code.
+/// Vault error codes, all below 100: Allowit's wallet error codes, the same on every rail. A
+/// denial by a standard rule collapses to `PolicyDenied`; a Core error about owner params, state,
+/// overflow or an unsupported operation keeps its own code.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u32)]
 pub enum VaultError {

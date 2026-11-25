@@ -54,10 +54,8 @@ impl Fixture {
     }
 
     fn with_mint(mint: Pubkey) -> Self {
-        assert!(
-            std::env::var_os("SBF_OUT_DIR").is_some(),
-            "SBF_OUT_DIR must name the actual SBF output directory"
-        );
+        // Mollusk reads the program from `SBF_OUT_DIR`.
+        std::env::set_var("SBF_OUT_DIR", program("allowit_vault.so").parent().unwrap());
         let mut svm = Mollusk::new(&PROGRAM, "allowit_vault");
         token::add_program(&mut svm);
         associated_token::add_program(&mut svm);
@@ -245,8 +243,7 @@ impl Fixture {
     }
 
     fn add_check(&mut self) {
-        let dir = std::env::var_os("SBF_OUT_DIR").unwrap();
-        let file = std::path::Path::new(&dir).join("allowit_vault_test_check.so");
+        let file = program("allowit_vault_test_check.so");
         let elf = std::fs::read(file).expect("build the test-check SBF program first");
         self.svm.add_program_with_loader_and_elf(
             &CHECK_PROGRAM,
@@ -297,6 +294,27 @@ impl Fixture {
             .unwrap()
             .amount
     }
+}
+
+/// A built SBF program: the file `name` in `SBF_OUT_DIR` when it is set, else in the `deploy`
+/// folder of `CARGO_TARGET_DIR`, else in the repository's `target/deploy`, where `cargo build-sbf`
+/// puts it. The first folder that holds the file is used.
+fn program(name: &str) -> std::path::PathBuf {
+    use std::path::PathBuf;
+    let repository = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
+    let candidates: Vec<PathBuf> = [
+        std::env::var_os("SBF_OUT_DIR").map(PathBuf::from),
+        std::env::var_os("CARGO_TARGET_DIR").map(|dir| PathBuf::from(dir).join("deploy")),
+        Some(repository.join("target").join("deploy")),
+    ]
+    .into_iter()
+    .flatten()
+    .collect();
+    candidates
+        .iter()
+        .map(|dir| dir.join(name))
+        .find(|file| file.is_file())
+        .unwrap_or_else(|| panic!("build the SBF programs first: no {name} in {candidates:?}"))
 }
 
 fn ro(key: Pubkey, signer: bool) -> AccountMeta {

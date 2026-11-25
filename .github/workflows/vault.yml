@@ -1,0 +1,30 @@
+name: Vault program
+# Builds the vault program and the test check program in the pinned verifiable-build image of
+# scripts/build-sbf.sh, then runs the Mollusk tests of sbf-tests against those bytes.
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  vault:
+    name: Vault build and Mollusk tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: dtolnay/rust-toolchain@5059963b1731bf1580991b5f3b1eecfb5da406c0 # 1.98.0
+        with:
+          components: rustfmt, clippy
+      - name: Build the programs in the verifiable-build image
+        run: scripts/build-sbf.sh
+      - name: Format and lints of the tests
+        working-directory: sbf-tests
+        run: |
+          cargo fmt --all --check
+          (cd programs/test-check && cargo fmt --all --check)
+          cargo clippy --locked --all-targets -- -D warnings
+      - name: Mollusk tests
+        working-directory: sbf-tests
+        run: cargo test --locked --test vault -- --test-threads=1

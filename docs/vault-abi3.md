@@ -64,7 +64,7 @@ for the first would then run on the second. Close is therefore refused in the cr
 instance has another `created_slot`.
 
 ## Request lifetime
-A request names `expires_at`, and the vault refuses it from that time on, as the Stellar wallet does. The vault
+A request names `expires_at`, and the vault refuses it from that time on, as every Allowit wallet does. The vault
 also refuses an `expires_at` more than 600 seconds ahead, an outer bound: the rail signs a request for at most
 60 seconds (`MAX_VALIDITY_SECS`), and the transaction's blockhash lapses after 150 slots. The rail uses no
 durable nonces.
@@ -80,8 +80,8 @@ Each value follows the type of its rule in Core: amounts and counts as i128 or u
 `destinations` and `tokens` as lists of 32-byte addresses, `operations` as `*` or a list of names.
 
 ## Errors
-A refusal is `ProgramError::Custom(code)` with the code and meaning of the Stellar wallet's `AllowitWalletError`.
-As on Stellar, a standard rule's denial collapses to `PolicyDenied`; a Core error about owner params, state,
+A refusal is `ProgramError::Custom(code)` with Allowit's wallet error code and meaning, the same on every rail.
+As in every Allowit wallet, a standard rule's denial collapses to `PolicyDenied`; a Core error about owner params, state,
 overflow or an unsupported operation keeps its own code. A Custom check program refuses with its own error.
 
 | Code | Name | Meaning |
@@ -104,6 +104,23 @@ overflow or an unsupported operation keeps its own code. A Custom check program 
 The runtime's own errors stay as they are: `MissingRequiredSignature`, `IncorrectProgramId` (another System,
 Associated Token or check program) and `InvalidInstructionData`.
 
+## Build
+`scripts/build-sbf.sh` builds the vault program and the test check program in the verifiable-build image
+`solanafoundation/solana-verifiable-build:4.3.0`, pinned by its digest
+(`sha256:12fd4c0a0790f0fc41ef74b0cdb6bccc167ba6137eb1adb749bac649481c86bd`, linux/amd64), with platform tools
+v1.57:
+
+```bash
+scripts/build-sbf.sh   # needs Docker; writes target/deploy and prints the SHA-256 of allowit_vault.so
+(cd sbf-tests && cargo test --locked --test vault -- --test-threads=1)
+```
+
+The image fixes the operating system, the tools and the paths inside the program, so every host gives the same
+bytes. A build outside the image (another OS, another `cargo-build-sbf`, another path to the Cargo registry)
+gives other bytes. The Mollusk tests read the programs from `SBF_OUT_DIR`, else from the `deploy` folder of
+`CARGO_TARGET_DIR`, else from `target/deploy`. The `Vault program` workflow runs both commands on every pull
+request.
+
 ## Devnet deployment
 Deployed immutable (upgrade authority none) on 2026-11-25 from commit `a58bf18`:
 
@@ -114,10 +131,11 @@ Deployed immutable (upgrade authority none) on 2026-11-25 from commit `a58bf18`:
 | ProgramData | `BrYLVC3kz3Yr2wG9LAQwQnCT8iJqP9WvwekLDWgtkoVC` |
 | Deployed in slot | 526234170, transaction `34r37DMSY66bdUQpMw6YoUe2nkthsuqnyp73NYmjAqZUAV5o4vD1MyZFTiaHEEgGdjPEbvL98RHx8kES5ujvHjvC` |
 | ELF | 190,032 bytes, SHA-256 `4d3dd61dad875131f39329c94e7e3165ac487be5c2322a40e82a4f1461eeea7b` |
-| Build | `cargo build-sbf --manifest-path programs/vault/Cargo.toml --arch v3 --optimize-size --tools-version v1.57 -- --locked` (cargo-build-sbf 4.5.0, platform-tools v1.57) |
+| Build | `scripts/build-sbf.sh` (section "Build") gives these bytes. The deployed file came from the same command outside the image, on Ubuntu 24.04 with cargo-build-sbf 4.5.0 and platform tools v1.57, and has the same SHA-256 |
 
-`solana program dump` of the program ID gives the same SHA-256. A change to the program is a new deployment
-under a new program ID.
+`solana program dump` of the program ID gives the same SHA-256. To check the deployment, run
+`scripts/build-sbf.sh` on the commit and compare the printed SHA-256 with the one above. A change to the program
+is a new deployment under a new program ID.
 
 ## Operations
 ABI 3 runs transfers. Deposit and redeem in a tokenized vault, which scenarios 4 to 6 need, come with the Devnet
