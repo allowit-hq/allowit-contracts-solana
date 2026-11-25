@@ -437,8 +437,8 @@ fn transaction(network: &str, action: &str, signature: &[u8; 64], status: Status
     })
 }
 
-/// A step that failed on the ledger: rejected (code 4), as the Stellar rail's failed owner step
-/// is, and as `policy owner-status` exits for it. The step is over: a new request ID starts
+/// A step that failed on the ledger: rejected (code 4), as the hosts read a failed owner step
+/// and as `policy owner-status` exits for it. The step is over: a new request ID starts
 /// again. The details name its transaction.
 fn failed(
     network: &str,
