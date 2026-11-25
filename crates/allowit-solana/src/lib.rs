@@ -25,6 +25,7 @@ pub mod owner_runtime;
 pub mod packets;
 pub mod payment;
 pub mod plugin;
+pub mod price;
 pub mod proof;
 pub mod rpc;
 pub mod runtime;

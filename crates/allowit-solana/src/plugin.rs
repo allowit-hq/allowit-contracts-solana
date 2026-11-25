@@ -423,6 +423,13 @@ impl RailPlugin for Plugin {
     fn message_signature(&self) -> Option<&'static dyn MessageSignature> {
         Some(&MESSAGES)
     }
+    /// The price observation of a server policy and of `allowit price VAULT`: the share price
+    /// of a Devnet test vault ([`crate::price`]).
+    fn policy_functions(
+        &self,
+    ) -> &'static [(&'static str, allowit_core::vendor::plugin::PolicyFunction)] {
+        &[(crate::price::FUNCTION, crate::price::price)]
+    }
     /// The x402 `exact` scheme: the seller's challenge that this rail reads and the proof that
     /// it builds. The payment itself is an operation of the wallet.
     fn paid_service(&self) -> Option<&'static dyn PaidServiceProvider> {
