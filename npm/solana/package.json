@@ -1,0 +1,33 @@
+{
+  "name": "@allowit/solana",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./*": {
+      "types": "./dist/*.d.ts",
+      "import": "./dist/*.js"
+    }
+  },
+  "dependencies": {
+    "@allowit/core": "github:allowit-hq/allowit-core#463c244aec5111c36d0cb09db6de312c6bd737f4",
+    "@noble/curves": "1.9.7",
+    "@noble/hashes": "1.8.0"
+  },
+  "scripts": {
+    "build:browser": "tsc -p tsconfig.json",
+    "test:browser": "node --test tests/*.test.mjs"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.2"
+  },
+  "packageManager": "pnpm@12.11.2"
+}

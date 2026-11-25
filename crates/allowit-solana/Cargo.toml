@@ -1,0 +1,41 @@
+[package]
+name = "allowit-solana"
+version.workspace = true
+edition = "2024"
+# The toolchain that rust-toolchain.toml pins and that the locked dependencies are built with.
+rust-version = "1.98"
+license = "MIT"
+publish = false
+description = "The Solana rail of Allowit: networks, tokens, explorer links, keys and the Native wallet"
+
+[dependencies]
+allowit-core = { workspace = true }
+base64 = "0.22"
+bs58 = "0.5.1"
+curve25519-dalek = "4.1.3"
+ed25519-dalek = "2.2.0"
+sha2 = "0.10"
+solana-address = { version = "2.7", features = ["std", "sha2", "curve25519"] }
+# Copy: a payment's `Recent` blockhash is a plain value; dev-dependencies would hide its absence.
+solana-hash = { version = "4", features = ["copy"] }
+solana-instruction = "3.5"
+solana-message = { version = "4.6", features = ["wincode"] }
+solana-signature = "3"
+solana-transaction = "4.3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# The request proof signs the canonical form of a request body, as the server reads it.
+serde_json_canonicalizer = "0.3"
+zeroize = "1"
+
+[dev-dependencies]
+# A test keeps x402's list of reserved accounts equal to Agave's.
+agave-reserved-account-keys = { version = "4.3.2", features = ["agave-unstable-api"] }
+# Ledger tests: the SPL Token, System, Compute Budget and Memo programs in process.
+litesvm = "0.18.2"
+solana-account = "4"
+# The ledger tests decode the wire bytes that a facilitator receives.
+solana-transaction = { version = "4.3", features = ["wincode"] }
+wincode = "0.6"
+# solana-keypair (through litesvm) needs five8_core's std errors, which nothing else enables.
+five8_core = { version = "0.1.2", features = ["std"] }
