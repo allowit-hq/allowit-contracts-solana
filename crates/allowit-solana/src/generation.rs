@@ -19,7 +19,6 @@ use allowit_core::{
         plugin::GenerateContext,
     },
 };
-use base64::{Engine as _, engine::general_purpose::STANDARD};
 use serde_json::{Value, json};
 
 /// The source profile and the operation of a generated policy: transfers.
@@ -200,18 +199,8 @@ pub fn generate(cx: &GenerateContext<'_>, r: &GenerateRequest) -> Result<Generat
     let network = preflight(r, cx.signer.network())?;
     let owner = cx.signer.address().to_owned();
     let mut session = owner_session::Client::new(cx.backend, cx.origin, &owner)?;
-    let origin = cx.origin.to_owned();
     session.authenticate("wallet", (cx.clock)()?, |challenge| {
-        if !challenge.message.contains(&owner)
-            || !challenge.message.contains(&origin)
-            || !challenge.message.contains("does not authorize spending")
-            || challenge.message.len() > 2_048
-        {
-            return Err(Error::config(
-                "The server's sign-in message is not a sign-in for this owner and origin",
-            ));
-        }
-        Ok(STANDARD.encode(cx.signer.sign_hash(challenge.message.as_bytes())?))
+        crate::owner_client::sign_in_signature(cx.signer, cx.origin, &challenge.message)
     })?;
     let id = target(r)?;
     let now = (cx.clock)()?;

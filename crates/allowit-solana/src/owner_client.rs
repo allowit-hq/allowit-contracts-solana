@@ -81,23 +81,51 @@ pub(crate) fn network(cx: &Context<'_>) -> Result<&'static str> {
     Ok(network)
 }
 
+/// Whether `message` is the server's sign-in text for `owner` at `origin`: a CAIP-122 text whose
+/// line 1 names the origin's host and line 2 is the owner, as the browser's sign-in element
+/// requires. Any other text that merely contains the owner and the origin, such as a policy
+/// consent, is refused: the owner's signature over it would be a valid signature of that text.
+pub(crate) fn sign_in_message_for(message: &str, owner: &str, origin: &str) -> bool {
+    let host = origin
+        .strip_prefix("https://")
+        .or_else(|| origin.strip_prefix("http://"))
+        .map(|rest| rest.split('/').next().unwrap_or_default())
+        .unwrap_or_default();
+    let mut lines = message.split('\n');
+    let (first, second) = (lines.next().unwrap_or_default(), lines.next());
+    !host.is_empty()
+        && message.len() <= 2_048
+        && lines.next().is_some()
+        && first
+            .strip_prefix(host)
+            .and_then(|rest| rest.strip_prefix(" wants you to sign in with your "))
+            .is_some_and(|rest| rest.ends_with(" account:"))
+        && second == Some(owner)
+        && message.contains(origin)
+        && message.contains("does not authorize spending")
+}
+
+/// The owner's signature over the server's sign-in `message`, or a refusal of any other text.
+pub(crate) fn sign_in_signature(
+    signer: &dyn allowit_core::vendor::wallet::Signer,
+    origin: &str,
+    message: &str,
+) -> Result<String> {
+    if !sign_in_message_for(message, signer.address(), origin) {
+        return Err(Error::config(
+            "The server's sign-in message is not a sign-in for this owner and origin. Nothing was signed",
+        ));
+    }
+    Ok(STANDARD.encode(signer.sign_hash(message.as_bytes())?))
+}
+
 /// Sign the owner in. The message must be the server's sign-in text for this owner and this
 /// origin, and the owner's key signs its exact bytes, as a Solana wallet signs a message.
 pub fn sign_in(cx: &Context<'_>) -> Result<owner_session::Client> {
     let owner = cx.signer.address().to_owned();
-    let origin = cx.origin.to_owned();
     let mut session = owner_session::Client::new(cx.backend, cx.origin, &owner)?;
     session.authenticate("wallet", (cx.clock)()?, |challenge| {
-        if !challenge.message.contains(&owner)
-            || !challenge.message.contains(&origin)
-            || !challenge.message.contains("does not authorize spending")
-            || challenge.message.len() > 2_048
-        {
-            return Err(Error::config(
-                "The server's sign-in message is not a sign-in for this owner and origin",
-            ));
-        }
-        Ok(STANDARD.encode(cx.signer.sign_hash(challenge.message.as_bytes())?))
+        sign_in_signature(cx.signer, cx.origin, &challenge.message)
     })?;
     Ok(session)
 }
@@ -551,6 +579,64 @@ mod tests {
             "asset": USDC_DEVNET, "assetIssuer": USDC_DEVNET, "assetSymbol": "USDC",
             "maxFeeUnits": 20_000, "profiles": [],
             "tiers": {"common": null, "custom": false, "simple": null}}]})
+    }
+
+    #[test]
+    fn only_the_sign_in_text_of_this_site_and_owner_is_a_sign_in() {
+        let owner = key(1).identity().to_owned();
+        let origin = "https://app.example.test";
+        let sign_in = |host: &str, account: &str| {
+            format!(
+                "{host} wants you to sign in with your Solana account:\n{account}\n\nSign in to AllowIt. This does not authorize spending or move funds.\n\nURI: {origin}"
+            )
+        };
+        assert!(sign_in_message_for(
+            &sign_in("app.example.test", &owner),
+            &owner,
+            origin
+        ));
+        assert!(sign_in_message_for(
+            &sign_in("localhost:5173", &owner).replace(origin, "http://localhost:5173"),
+            &owner,
+            "http://localhost:5173"
+        ));
+        // A policy consent whose source names the owner, the origin and the sign-in phrase: the
+        // owner's signature over it would be a valid consent.
+        let consent = crate::runtime::consent_message(&serde_json::json!({
+            "policyId": "policy-1",
+            "source": format!("// {owner} {origin} does not authorize spending"),
+        }))
+        .unwrap();
+        assert!(!sign_in_message_for(&consent, &owner, origin));
+        // Another site, another account, or the owner named elsewhere than line 2.
+        assert!(!sign_in_message_for(
+            &sign_in("evil.example.test", &owner),
+            &owner,
+            origin
+        ));
+        let other = key(2).identity().to_owned();
+        assert!(!sign_in_message_for(
+            &sign_in("app.example.test", &other).replace("URI:", &format!("{owner} URI:")),
+            &owner,
+            origin
+        ));
+        assert!(!sign_in_message_for(
+            &format!(
+                "app.example.test wants you to sign in with your Solana account:\nhello {owner}\n\nThis does not authorize spending.\n{origin}"
+            ),
+            &owner,
+            origin
+        ));
+        // A text too long to be a sign-in.
+        assert!(!sign_in_message_for(
+            &format!(
+                "{}{}",
+                sign_in("app.example.test", &owner),
+                " ".repeat(2_048)
+            ),
+            &owner,
+            origin
+        ));
     }
 
     #[test]
