@@ -320,10 +320,13 @@ pub fn setup(cx: &Context<'_>, r: Setup<'_>) -> Result<Value> {
             ));
         }
         Outcome::Failed { signature } => {
-            return Err(Error::config(format!(
-                "The setup transaction {} failed on the ledger: nothing was set up, and its fee was paid. Use a new request ID after checking the owner's balance.",
-                signature_text(&signature)
-            )));
+            return Err(failed(
+                network,
+                r.request_id,
+                SETUP,
+                &signature,
+                "The setup transaction failed on the ledger: nothing was set up, and its fee was paid. Use a new request ID after checking the owner's balance.",
+            ));
         }
     };
     document["transactions"] = json!([transaction(network, SETUP, &signature, Status::Confirmed)]);
@@ -398,10 +401,13 @@ pub fn fund(
             ));
         }
         Outcome::Failed { signature } => {
-            return Err(Error::config(format!(
-                "The refill transaction {} failed on the ledger: the allowance is unchanged, and its fee was paid. Use a new request ID.",
-                signature_text(&signature)
-            )));
+            return Err(failed(
+                network,
+                request_id,
+                REFILL,
+                &signature,
+                "The refill transaction failed on the ledger: the allowance is unchanged, and its fee was paid. Use a new request ID.",
+            ));
         }
     };
     Ok(json!({
@@ -430,6 +436,32 @@ fn transaction(network: &str, action: &str, signature: &[u8; 64], status: Status
         "explorer": networks::explorer(network, LinkKind::Transaction, &text),
     })
 }
+
+/// A step that failed on the ledger: rejected (code 4), as the Stellar rail's failed owner step
+/// is, and as `policy owner-status` exits for it. The step is over: a new request ID starts
+/// again. The details name its transaction.
+fn failed(
+    network: &str,
+    request_id: &str,
+    action: &str,
+    signature: &[u8; 64],
+    message: &str,
+) -> Error {
+    let mut error = Error::usage(format!(
+        "{message} Transaction: {}.",
+        signature_text(signature)
+    ))
+    .with_details(json!({
+        "requestId": request_id,
+        "network": network,
+        "transactions": [transaction(network, action, signature, Status::Failed)],
+    }));
+    error.code = REJECTED;
+    error
+}
+
+/// The exit code of a rejected step, which Core's errors share with a typed refusal.
+const REJECTED: i32 = 4;
 
 /// A step that is sent and not finalized: uncertain, so a host asks again with the same request
 /// ID and never reports it done. The details name its transaction.
@@ -820,6 +852,18 @@ mod tests {
         assert_eq!(details["requestId"], "fund-1");
         assert_eq!(details["transactions"][0]["status"], "submitted");
         assert_eq!(details["transactions"][0]["action"], "refill");
+        // A step that failed on the ledger is rejected and names its failed transaction.
+        let error = failed(DEVNET, "fund-1", REFILL, &[7; 64], "It failed.");
+        assert_eq!(error.code, 4);
+        assert!(
+            error
+                .message
+                .contains(&bs58::encode([7u8; 64]).into_string())
+        );
+        assert_eq!(
+            error.details.unwrap()["transactions"][0]["status"],
+            "failed"
+        );
     }
 
     #[test]
