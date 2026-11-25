@@ -377,15 +377,24 @@ impl Wallet {
     pub fn owner_steps(&self, steps: &[OwnerStep], blockhash: Hash) -> Result<Prepared> {
         Prepared::new(&self.owner_step_ixs(steps)?, &self.owner, blockhash)
     }
-    /// [`Wallet::owner_steps`] with a UTF-8 `tag` as its memo, as [`Wallet::setup_tagged`].
+    /// [`Wallet::owner_steps`] with a memo that names the wallet's agent and server, then the
+    /// UTF-8 `tag`: `allowit:steps:<agent>:<server>:<tag>`. The owner, the mint, the token account
+    /// and the delegate are in the instructions; with the agent and the server, whoever reads the
+    /// bytes derives the wallet's two addresses and checks that every step acts on them alone.
     pub fn owner_steps_tagged(
         &self,
         steps: &[OwnerStep],
         tag: &str,
         blockhash: Hash,
     ) -> Result<Prepared> {
+        if tag.is_empty() {
+            return Err(Error::usage("A transaction tag has at least 1 byte"));
+        }
         let mut ixs = self.owner_step_ixs(steps)?;
-        ixs.push(tag_ix(tag)?);
+        ixs.push(tag_ix(&format!(
+            "allowit:steps:{}:{}:{tag}",
+            self.agent, self.server
+        ))?);
         Prepared::new(&ixs, &self.owner, blockhash)
     }
     fn owner_step_ixs(&self, steps: &[OwnerStep]) -> Result<Vec<Instruction>> {

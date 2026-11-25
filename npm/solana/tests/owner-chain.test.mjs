@@ -7,7 +7,7 @@ import {readWire, wire} from '../dist/message.js';
 import {checkAsset, messageHash, prepareSetup, sendSetup, signedSetupOf} from '../dist/native-wallet.js';
 import {expiredRecord, ownerChain, transaction} from '../dist/owner-chain.js';
 import {signatureOf} from '../dist/signatures.js';
-import {USDC, node, v} from './helpers.mjs';
+import {USDC, forgedRefill, node, v} from './helpers.mjs';
 
 const secret = Uint8Array.from({length: 32}, (_, i) => i + 1);
 const owner = base58(ed25519.getPublicKey(secret));
@@ -67,6 +67,22 @@ test('the token of signed setup bytes and of a refill step is checked against th
   mismatch(() => checkAsset(v.setups[0].message, v.network, USDC), /neither/);
   mismatch(() => checkAsset('AAAA', v.network, USDC), /neither/);
   mismatch(() => checkAsset(signed, 'solana:other', USDC), /not a token/);
+});
+
+test('a refill step is checked against the wallet that its memo names, and every other approval is refused', async () => {
+  const mismatch = (payload, pattern) => assert.throws(() => checkAsset(payload, v.network, USDC), error => error.code === 'asset_mismatch' && pattern.test(error.message));
+  // The forger makes the crate's refill byte for byte, so the cases below differ from it only where they say.
+  assert.equal(await forgedRefill(), v.refill.message);
+  checkAsset(await forgedRefill(), v.network, USDC);
+  // An approval of another delegate, here a key of the attacker, on the wallet itself.
+  mismatch(await forgedRefill({delegate: v.recipient}), /neither/);
+  // The same approval on another token account of the owner.
+  mismatch(await forgedRefill({account: v.recipient}), /neither/);
+  // A memo that names no roles, or another server, whose delegate the approval does not name.
+  mismatch(await forgedRefill({memo: 'allowit:owner:fund'}), /neither/);
+  mismatch(await forgedRefill({memo: `allowit:steps:${v.agent}:${v.recipient}:allowit:owner:fund`}), /neither/);
+  // A stop, a recovery or a close is no refill.
+  for (const step of v.ownerSteps) mismatch(step.message, /neither/);
 });
 
 /** A node that holds `held` for the setup's signature; `sent` collects what was sent. */

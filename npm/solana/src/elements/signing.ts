@@ -1,7 +1,7 @@
 import {base64, unbase64} from '../bytes.js';
-import {address, canSign, instructionsOf, readMessage, readWire} from '../message.js';
+import {address, canSign, readMessage, readWire} from '../message.js';
 import {assets, canonicalNetwork} from '../networks.js';
-import {APPROVE_POLICY, MEMO_PROGRAM, SET_UP_WALLET, TOKEN_PROGRAM, approvalMessage, messageHash, plainDecimal, policyApproval, setupOf} from '../native-wallet.js';
+import {APPROVE_POLICY, SET_UP_WALLET, approvalMessage, messageHash, ownerStepsOf, plainDecimal, policyApproval, setupOf, type OwnerStepsFacts} from '../native-wallet.js';
 import {reviewAnswer} from '../review-answer.js';
 import {remember} from '../signatures.js';
 import {base, emit, expiry, h, type Data} from './base.js';
@@ -35,23 +35,23 @@ export function stepMessage(step: OwnerStep): {bytes: Uint8Array; owner: string;
   return bytes && parsed && parsed.signers === 1 && messageHash(bytes) === step.hash ? {bytes, owner: parsed.keys[0], parsed} : null;
 }
 
-/** What each instruction of an owner transaction does, in the owner's words. An instruction that the rail never builds is named as unknown. */
-export function describe(parsed: NonNullable<ReturnType<typeof readMessage>>, network: string): string[] {
-  const token = (mint: string) => assets(network).find(a => a.id === mint);
-  const amount = (data: Uint8Array, mint: string) => {
-    const listed = token(mint), value = new DataView(data.buffer, data.byteOffset).getBigUint64(1, true);
-    return listed && listed.decimals === data[9] ? `${plainDecimal(value, listed.decimals)} ${listed.symbol}` : `${value} base units of the token ${mint}`;
-  };
-  return instructionsOf(parsed).map(ix => {
-    const [first, second, third] = ix.accounts.map(a => a.address);
-    if (ix.program === MEMO_PROGRAM) return 'A note that names this request.';
-    if (ix.program !== TOKEN_PROGRAM) return `An instruction of the program ${ix.program} that this page cannot read.`;
-    if (ix.data[0] === 13 && ix.data.length === 10) return `Let the wallet's agent and the server spend up to ${amount(ix.data, second)} from the wallet ${first}. This replaces the earlier allowance and moves no tokens.`;
-    if (ix.data[0] === 5 && ix.data.length === 1) return `Stop the wallet ${first}: the agent and the server can pay nothing until you approve an allowance again.`;
-    if (ix.data[0] === 12 && ix.data.length === 10) return `Move ${amount(ix.data, second)} from the wallet ${first} to your token account ${third}.`;
-    if (ix.data[0] === 9 && ix.data.length === 1) return `Close the empty wallet ${first}. Its deposit returns to your account.`;
-    return 'A token instruction that this page cannot read.';
-  });
+/**
+ * What each owner step does, in the owner's words, for steps that `ownerStepsOf` read: every step acts on the wallet
+ * of the roles that the memo names, and an approval names only that wallet's delegate.
+ */
+export function describe(facts: OwnerStepsFacts, network: string): string[] {
+  const listed = assets(network).find(a => a.id === facts.mint);
+  const amount = (value: bigint, decimals: number) => listed && listed.decimals === decimals
+    ? `${plainDecimal(value, listed.decimals)} ${listed.symbol}` : `${value} base units of the token ${facts.mint}`;
+  return [...facts.steps.map(step => {
+    switch (step.kind) {
+      case 'approve': return `Let the wallet's agent and the server spend up to ${amount(step.allowance, step.decimals)} from the wallet ${facts.wallet}. This replaces the earlier allowance and moves no tokens.`;
+      case 'stop': return `Stop the wallet ${facts.wallet}: the agent and the server can pay nothing until you approve an allowance again.`;
+      // The destination is the one that the request named; this page cannot tell whose account it is.
+      case 'recover': return `Move ${amount(step.amount, step.decimals)} from the wallet ${facts.wallet} to the token account ${step.to}.`;
+      case 'close': return `Close the empty wallet ${facts.wallet}. Its deposit returns to your account.`;
+    }
+  }), 'A note that names this request.'];
 }
 
 /** CAIP-122 sign-in text: the first line names this site, the second line is the signing account. */
@@ -167,7 +167,12 @@ export function ownerSignElement() {
           ? `${sol(setup.deposits)} that the network locks in the accounts that this step opens, and the network fee of ${sol(5_000n)}. Closing the wallet returns the deposit of its token account.`
           : `The network fee of ${sol(5_000n)}. The accounts of this wallet exist already.`));
       } else {
-        rows.push(h('dt', {}, 'What you sign'), h('dd', {}, h('ul', {}, ...describe(tx.parsed, id).map(line => h('li', {}, line)))));
+        // Every other transaction is owner steps on the wallet that its memo names, and nothing else.
+        const steps = ownerStepsOf(tx.bytes, tx.parsed, id);
+        if (!steps) {invalid(); return;}
+        rows.push(h('dt', {}, 'Wallet'), h('dd', {}, link(id, 'address', steps.wallet, steps.wallet)));
+        rows.push(h('dt', {}, 'Agent'), h('dd', {}, link(id, 'address', steps.agent, steps.agent)));
+        rows.push(h('dt', {}, 'What you sign'), h('dd', {}, h('ul', {}, ...describe(steps, id).map(line => h('li', {}, line)))));
         rows.push(h('dt', {}, 'You pay'), h('dd', {}, `The network fee of ${sol(5_000n)}.`));
       }
       rows.push(h('dt', {}, 'Expires'), h('dd', {}, expiry(step.expiresAt)));

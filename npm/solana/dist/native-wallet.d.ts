@@ -95,6 +95,48 @@ export interface SetupFacts extends Roles {
  * was read: the wallet and the delegate are then the addresses of those roles, and the message holds nothing else.
  */
 export declare function setupOf(messageBytesIn: Uint8Array, parsed: Message): SetupFacts | null;
+/** One step that the owner takes alone: the crate's `OwnerStep`. */
+export type OwnerStepFact = 
+/** Approve `allowance` to the wallet's delegate: the refill, which replaces the earlier allowance. */
+{
+    kind: 'approve';
+    allowance: bigint;
+    decimals: number;
+}
+/** Revoke the delegate: no payment can follow. */
+ | {
+    kind: 'stop';
+}
+/** Move `amount` from the wallet to the token account `to`. */
+ | {
+    kind: 'recover';
+    to: string;
+    amount: bigint;
+    decimals: number;
+}
+/** Close the empty wallet; its deposit returns to the owner. */
+ | {
+    kind: 'close';
+};
+/**
+ * The message of owner steps, as the crate's `Wallet::owner_steps_tagged` makes it: each step on the wallet of
+ * `roles`, then a memo that names the agent and the server. Only the owner signs, and the owner pays the fee.
+ */
+export declare function ownerStepsMessage(roles: Roles, steps: readonly OwnerStepFact[], tag: string, blockhash: string): Message;
+/** What an owner-steps message does, read from its bytes. */
+export interface OwnerStepsFacts extends Roles {
+    /** The wallet address: the owner's token account. */
+    wallet: string;
+    delegate: string;
+    steps: OwnerStepFact[];
+}
+/**
+ * Reads the owner steps of a wallet of `network`. The memo names the agent and the server; the fee payer is the owner,
+ * and the mint is the one that a step names or, for steps that name none, the listed token whose wallet the steps act
+ * on. The bytes are owner steps only when `ownerStepsMessage` makes exactly them from what was read: every step then
+ * acts on the wallet of those roles and approves only its delegate, and the message holds nothing else.
+ */
+export declare function ownerStepsOf(messageBytesIn: Uint8Array, parsed: Message, network: string): OwnerStepsFacts | null;
 /** Decimal text of base units as a person writes it: no trailing zeros. */
 export declare function plainDecimal(value: bigint, decimals: number): string;
 /** Whether `data` is the wallet's token account: the mint, the owner, initialized, not frozen, closable by the owner. */
@@ -156,7 +198,8 @@ export declare function signedSetupOf(signedPayload: string, network: string): {
  * Checks the token of a wallet's bytes against `asset`, the token of the reviewed policy: Core's
  * `keypairSetup.checkAsset`. `payload` is signed setup bytes, which must set up a wallet of that token, or the refill
  * step that the server prepared, which must approve it. Throws an error whose `code` is `asset_mismatch` otherwise,
- * for a payload that is neither, and when `asset` is no token that the network lists. The check is of the token only.
+ * for a payload that is neither, and when `asset` is no token that the network lists. A refill step must approve the
+ * delegate of the wallet that its memo names, on that wallet: `ownerStepsOf` reads it.
  */
 export declare function checkAsset(payload: string, network: string, asset?: WalletAsset | null): void;
 /**

@@ -85,6 +85,29 @@ fn vectors() -> Value {
             blockhash,
         )
         .unwrap();
+    // The other owner steps that the server prepares, alone and together.
+    let recipient = address(&key(4));
+    let recover = OwnerStep::Recover {
+        to: recipient,
+        amount: 2_500_000,
+        decimals: 6,
+    };
+    let steps: Vec<Value> = [
+        vec![OwnerStep::Stop],
+        vec![recover],
+        vec![OwnerStep::Close],
+        vec![OwnerStep::Stop, recover, OwnerStep::Close],
+    ]
+    .iter()
+    .map(|steps| {
+        message(
+            wallet
+                .owner_steps_tagged(steps, "allowit:owner:steps", blockhash)
+                .unwrap()
+                .message_bytes(),
+        )
+    })
+    .collect();
     let template = Template {
         mint: USDC_DEVNET.into(),
         symbol: "USDC".into(),
@@ -121,6 +144,8 @@ fn vectors() -> Value {
         "signedSetup": STANDARD.encode(&signed),
         "signedSetupSignature": bs58::encode(&signed[1..65]).into_string(),
         "refill": message(refill.message_bytes()),
+        "recipient": recipient.to_string(),
+        "ownerSteps": steps,
         "configuration": config,
         "consent": {
             "message": consent,

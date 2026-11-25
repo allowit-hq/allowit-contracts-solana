@@ -4,9 +4,9 @@ import test from 'node:test';
 import {ed25519} from '@noble/curves/ed25519';
 import {base58, base64, unbase64, utf8} from '../dist/bytes.js';
 import {compile, messageBytes, readWire, verify, wire} from '../dist/message.js';
-import {approvalStep, canonical, messageHash, prepareSetup} from '../dist/native-wallet.js';
+import {approvalStep, canonical, messageHash, ownerStepsOf, prepareSetup} from '../dist/native-wallet.js';
 import {signatureOf} from '../dist/signatures.js';
-import {USDC, node, v} from './helpers.mjs';
+import {USDC, forgedRefill, node, v} from './helpers.mjs';
 
 class FakeNode extends EventTarget {
   constructor(tag) {
@@ -270,7 +270,7 @@ test('a step that the server prepared is described instruction by instruction', 
   const step = ownerStep({action: 'fund', payload: v.refill.message, hash: v.refill.hash, expiresAt: Math.floor(Date.now() / 1000) + 60});
   const tx = stepMessage(step);
   assert.equal(tx.owner, v.owner);
-  assert.deepEqual(describe(tx.parsed, network), [
+  assert.deepEqual(describe(ownerStepsOf(tx.bytes, tx.parsed, network), network), [
     `Let the wallet's agent and the server spend up to 7 USDC from the wallet ${v.tokenAccount}. This replaces the earlier allowance and moves no tokens.`,
     'A note that names this request.',
   ]);
@@ -281,6 +281,28 @@ test('a step that the server prepared is described instruction by instruction', 
   assert.equal(ownerStep({...step, expiresAt: 0}), null);
   // An approval message is no transaction.
   assert.equal(stepMessage(approvalStep('text')), null);
+});
+
+test('an owner step is shown only when every instruction acts on the wallet that its memo names', async () => {
+  const later = Math.floor(Date.now() / 1000) + 60;
+  const shown = payload => element('owner-sign', {network, step: {action: 'fund', payload, hash: messageHash(unbase64(payload)), expiresAt: later}, summary: [], owner: v.owner}).textContent;
+  const invalid = 'This owner step is invalid.';
+  assert.match(shown(await forgedRefill()), /spend up to 7 USDC/);
+  // An approval of another delegate on the wallet, or of the wallet's delegate on another token account of the owner.
+  assert.equal(shown(await forgedRefill({delegate: v.recipient})), invalid);
+  assert.equal(shown(await forgedRefill({account: v.recipient})), invalid);
+  // A memo that names no roles, or roles whose delegate the approval does not name.
+  assert.equal(shown(await forgedRefill({memo: 'allowit:owner:fund'})), invalid);
+  assert.equal(shown(await forgedRefill({memo: `allowit:steps:${v.agent}:${v.recipient}:allowit:owner:fund`})), invalid);
+  // The crate's other steps are shown with the wallet and its agent; a recovery names its destination without
+  // calling it the owner's.
+  const [stop, recover, close, all] = v.ownerSteps.map(step => shown(step.message));
+  for (const text of [stop, recover, close, all]) assert.ok(text.includes(v.tokenAccount) && text.includes(v.agent), text);
+  assert.match(stop, /Stop the wallet/);
+  assert.match(recover, new RegExp(`Move 2\.5 USDC from the wallet ${v.tokenAccount} to the token account ${v.recipient}\.`));
+  assert.doesNotMatch(recover, /your token account/);
+  assert.match(close, /Close the empty wallet/);
+  assert.match(all, /Stop the wallet.*Move 2\.5 USDC.*Close the empty wallet/);
 });
 
 test('the approval step signs the approval message of the reviewed policy', async () => {

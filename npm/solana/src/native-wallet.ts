@@ -184,6 +184,98 @@ export function setupOf(messageBytesIn: Uint8Array, parsed: Message): SetupFacts
   }
 }
 
+/** One step that the owner takes alone: the crate's `OwnerStep`. */
+export type OwnerStepFact =
+  /** Approve `allowance` to the wallet's delegate: the refill, which replaces the earlier allowance. */
+  | {kind: 'approve'; allowance: bigint; decimals: number}
+  /** Revoke the delegate: no payment can follow. */
+  | {kind: 'stop'}
+  /** Move `amount` from the wallet to the token account `to`. */
+  | {kind: 'recover'; to: string; amount: bigint; decimals: number}
+  /** Close the empty wallet; its deposit returns to the owner. */
+  | {kind: 'close'};
+/** The most owner steps in one transaction. */
+const MAX_OWNER_STEPS = 4;
+/** The memo of owner steps: it names the agent and the server of the wallet, then the step's own tag. */
+const STEPS_TAG = /^allowit:steps:([1-9A-HJ-NP-Za-km-z]{32,44}):([1-9A-HJ-NP-Za-km-z]{32,44}):([\s\S]+)$/;
+
+/**
+ * The message of owner steps, as the crate's `Wallet::owner_steps_tagged` makes it: each step on the wallet of
+ * `roles`, then a memo that names the agent and the server. Only the owner signs, and the owner pays the fee.
+ */
+export function ownerStepsMessage(roles: Roles, steps: readonly OwnerStepFact[], tag: string, blockhash: string): Message {
+  const own = walletOf(roles);
+  if (steps.length === 0 || steps.length > MAX_OWNER_STEPS) throw new Error(`An owner transaction has 1 to ${MAX_OWNER_STEPS} steps.`);
+  const checked = (value: bigint, decimals: number) => {
+    if (value < 0n || value > MAX_ALLOWANCE || !Number.isInteger(decimals) || decimals < 0 || decimals > 255) throw new Error('The amount is out of range.');
+    return concat(u64(value), [decimals]);
+  };
+  const ixs = steps.map((step): Instruction => {
+    switch (step.kind) {
+      case 'approve': return token(13, [w(own.tokenAccount), r(roles.mint), r(own.delegate), rs(roles.owner)], checked(step.allowance, step.decimals));
+      case 'stop': return token(5, [w(own.tokenAccount), rs(roles.owner)]);
+      case 'recover':
+        if (!address(step.to) || step.to === own.tokenAccount) throw new Error("A recovery goes to another account than the wallet's own.");
+        if (step.amount <= 0n) throw new Error('A recovery moves a positive amount.');
+        return token(12, [w(own.tokenAccount), r(roles.mint), w(step.to), rs(roles.owner)], checked(step.amount, step.decimals));
+      case 'close': return token(9, [w(own.tokenAccount), w(roles.owner), rs(roles.owner)]);
+    }
+  });
+  const memo = utf8(`allowit:steps:${roles.agent}:${roles.server}:${tag}`);
+  if (tag.length === 0 || memo.length > 256) throw new Error('A transaction tag has 1 to 256 bytes.');
+  ixs.push({program: MEMO_PROGRAM, accounts: [], data: memo});
+  return compile(ixs, roles.owner, blockhash);
+}
+
+/** What an owner-steps message does, read from its bytes. */
+export interface OwnerStepsFacts extends Roles {
+  /** The wallet address: the owner's token account. */
+  wallet: string;
+  delegate: string;
+  steps: OwnerStepFact[];
+}
+
+/**
+ * Reads the owner steps of a wallet of `network`. The memo names the agent and the server; the fee payer is the owner,
+ * and the mint is the one that a step names or, for steps that name none, the listed token whose wallet the steps act
+ * on. The bytes are owner steps only when `ownerStepsMessage` makes exactly them from what was read: every step then
+ * acts on the wallet of those roles and approves only its delegate, and the message holds nothing else.
+ */
+export function ownerStepsOf(messageBytesIn: Uint8Array, parsed: Message, network: string): OwnerStepsFacts | null {
+  try {
+    const id = canonicalNetwork(network);
+    const ixs = instructionsOf(parsed);
+    const memo = ixs.at(-1), body = ixs.slice(0, -1);
+    if (!id || parsed.signers !== 1 || !memo || memo.program !== MEMO_PROGRAM || memo.accounts.length !== 0
+      || body.length === 0 || body.some(ix => ix.program !== TOKEN_PROGRAM || ix.accounts.length === 0)) return null;
+    const named = STEPS_TAG.exec(new TextDecoder('utf-8', {fatal: true}).decode(memo.data));
+    if (!named) return null;
+    const [, agent, server, tag] = named;
+    const owner = parsed.keys[0];
+    const steps = body.map((ix): OwnerStepFact | null => {
+      const [kind, length] = [ix.data[0], ix.data.length];
+      if (kind === 13 && length === 10) return {kind: 'approve', allowance: readU64(ix.data, 1), decimals: ix.data[9]};
+      if (kind === 5 && length === 1) return {kind: 'stop'};
+      if (kind === 12 && length === 10 && ix.accounts.length === 4) return {kind: 'recover', to: ix.accounts[2].address, amount: readU64(ix.data, 1), decimals: ix.data[9]};
+      if (kind === 9 && length === 1) return {kind: 'close'};
+      return null;
+    });
+    if (steps.some(step => step === null)) return null;
+    // The mint that a step names, or the listed token whose wallet the first step acts on.
+    const naming = body.find(ix => ix.data[0] === 13 || ix.data[0] === 12);
+    const mint = naming ? naming.accounts[1]?.address
+      : assets(id).find(item => item.symbol !== 'SOL' && walletOf({owner, mint: item.id, agent, server}).tokenAccount === body[0].accounts[0].address)?.id;
+    if (!mint) return null;
+    const roles = {owner, mint, agent, server};
+    const rebuilt = ownerStepsMessage(roles, steps as OwnerStepFact[], tag, parsed.blockhash);
+    if (!equal(messageBytes(rebuilt), messageBytesIn)) return null;
+    const own = walletOf(roles);
+    return {...roles, wallet: own.tokenAccount, delegate: own.delegate, steps: steps as OwnerStepFact[]};
+  } catch {
+    return null;
+  }
+}
+
 /** The token of a wallet as the rail lists it for `network`: an asset with an issuer, which is its mint. SOL is none. */
 function listedToken(network: string, asset: WalletAsset | null | undefined): {mint: string; symbol: string; decimals: number} {
   const listed = object(asset) && typeof asset.symbol === 'string' && typeof asset.issuer === 'string'
@@ -303,17 +395,15 @@ export function signedSetupOf(signedPayload: string, network: string): {hash: st
 }
 
 /**
- * The token of the refill step of a wallet, as the server builds it: an unsigned transaction of the owner with one
- * `ApproveChecked` and a memo. Null for any other payload. The payload is the base64 text of the message.
+ * The token of the refill step of a wallet, as the server builds it: owner steps of one approval of the wallet's own
+ * delegate, on the wallet that the memo's roles name. Null for any other payload, an approval of another delegate or of
+ * another token account among them. The payload is the base64 text of the message.
  */
-function refillMintOf(payload: string): string | null {
+function refillMintOf(payload: string, network: string): string | null {
   const bytes = unbase64(payload);
   const parsed = bytes ? readMessage(bytes) : null;
-  if (!parsed || parsed.signers !== 1) return null;
-  const ixs = instructionsOf(parsed);
-  const [approve, memo] = ixs;
-  return ixs.length === 2 && approve.program === TOKEN_PROGRAM && approve.data.length === 10 && approve.data[0] === 13 && approve.accounts.length === 4
-    && approve.accounts[3].address === parsed.keys[0] && memo.program === MEMO_PROGRAM && memo.accounts.length === 0 ? approve.accounts[1].address : null;
+  const facts = bytes && parsed ? ownerStepsOf(bytes, parsed, network) : null;
+  return facts && facts.steps.length === 1 && facts.steps[0].kind === 'approve' ? facts.mint : null;
 }
 const assetLabel = (asset: {symbol: string; issuer: string | null}) => asset.issuer === null ? asset.symbol : `${asset.symbol} (mint ${asset.issuer})`;
 
@@ -321,7 +411,8 @@ const assetLabel = (asset: {symbol: string; issuer: string | null}) => asset.iss
  * Checks the token of a wallet's bytes against `asset`, the token of the reviewed policy: Core's
  * `keypairSetup.checkAsset`. `payload` is signed setup bytes, which must set up a wallet of that token, or the refill
  * step that the server prepared, which must approve it. Throws an error whose `code` is `asset_mismatch` otherwise,
- * for a payload that is neither, and when `asset` is no token that the network lists. The check is of the token only.
+ * for a payload that is neither, and when `asset` is no token that the network lists. A refill step must approve the
+ * delegate of the wallet that its memo names, on that wallet: `ownerStepsOf` reads it.
  */
 export function checkAsset(payload: string, network: string, asset?: WalletAsset | null): void {
   const refused = (message: string) => Object.assign(new Error(message), {code: 'asset_mismatch'});
@@ -340,7 +431,7 @@ export function checkAsset(payload: string, network: string, asset?: WalletAsset
       throw refused(`The signed wallet setup is for ${assetLabel(setup.asset)}, and the reviewed policy pays in ${assetLabel(want)}. It stays saved; resume the policy of that setup.`);
     return;
   }
-  const mint = refillMintOf(payload);
+  const mint = refillMintOf(payload, network);
   if (!mint) throw refused('These bytes are neither a signed wallet setup nor a wallet refill step of this network, so their token cannot be read. Nothing was signed; a saved setup stays saved.');
   if (mint !== expected.mint) throw refused(`The refill step approves the token ${mint}, and the reviewed policy pays in ${assetLabel(want)}. Nothing was signed.`);
 }

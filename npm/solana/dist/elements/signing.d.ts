@@ -1,5 +1,6 @@
 import { base64 } from '../bytes.js';
 import { readMessage } from '../message.js';
+import { type OwnerStepsFacts } from '../native-wallet.js';
 import { type Data } from './base.js';
 /**
  * An owner step. For a transaction, `payload` is the base64 text of its message and `hash` the SHA-256 of that
@@ -22,8 +23,11 @@ export declare function stepMessage(step: OwnerStep): {
     owner: string;
     parsed: NonNullable<ReturnType<typeof readMessage>>;
 } | null;
-/** What each instruction of an owner transaction does, in the owner's words. An instruction that the rail never builds is named as unknown. */
-export declare function describe(parsed: NonNullable<ReturnType<typeof readMessage>>, network: string): string[];
+/**
+ * What each owner step does, in the owner's words, for steps that `ownerStepsOf` read: every step acts on the wallet
+ * of the roles that the memo names, and an approval names only that wallet's delegate.
+ */
+export declare function describe(facts: OwnerStepsFacts, network: string): string[];
 /** CAIP-122 sign-in text: the first line names this site, the second line is the signing account. */
 export declare function signInMessageFor(message: string, account: string, host: string): boolean;
 export declare function walletSignInElement(): {
