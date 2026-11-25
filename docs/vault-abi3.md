@@ -104,6 +104,21 @@ overflow or an unsupported operation keeps its own code. A Custom check program 
 The runtime's own errors stay as they are: `MissingRequiredSignature`, `IncorrectProgramId` (another System,
 Associated Token or check program) and `InvalidInstructionData`.
 
+## Devnet deployment
+Deployed immutable (upgrade authority none) on 2026-11-25 from commit `a58bf18`:
+
+| Item | Value |
+| --- | --- |
+| Network | `solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1` (Devnet) |
+| Program ID | `4DndpzM9r5svGVEUzBWEgVVu6mvn9hb7L4woy48Q98qc` |
+| ProgramData | `BrYLVC3kz3Yr2wG9LAQwQnCT8iJqP9WvwekLDWgtkoVC` |
+| Deployed in slot | 526234170, transaction `34r37DMSY66bdUQpMw6YoUe2nkthsuqnyp73NYmjAqZUAV5o4vD1MyZFTiaHEEgGdjPEbvL98RHx8kES5ujvHjvC` |
+| ELF | 190,032 bytes, SHA-256 `4d3dd61dad875131f39329c94e7e3165ac487be5c2322a40e82a4f1461eeea7b` |
+| Build | `cargo build-sbf --manifest-path programs/vault/Cargo.toml --arch v3 --optimize-size --tools-version v1.57 -- --locked` (cargo-build-sbf 4.5.0, platform-tools v1.57) |
+
+`solana program dump` of the program ID gives the same SHA-256. A change to the program is a new deployment
+under a new program ID.
+
 ## Operations
 ABI 3 runs transfers. Deposit and redeem in a tokenized vault, which scenarios 4 to 6 need, come with the Devnet
 test vault (plan task T13), as typed operations with their own checked effects, not as a general call.
