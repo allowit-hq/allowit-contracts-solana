@@ -26,7 +26,7 @@ use allowit_core::{
         owner::{Context, NativeWalletAsset, Setup},
         owner_session,
         plugin::LinkKind,
-        runtime::Signer,
+        runtime::{Signer, Status},
     },
 };
 use base64::{Engine as _, engine::general_purpose::STANDARD};
@@ -299,6 +299,7 @@ pub fn setup(cx: &Context<'_>, r: Setup<'_>) -> Result<Value> {
     let mut document = json!({
         "requestId": r.request_id,
         "network": network,
+        "action": SETUP,
         "wallet": config.wallet,
         "delegate": wallet.delegate().to_string(),
         "asset": {"symbol": found.symbol, "mint": found.mint},
@@ -310,11 +311,13 @@ pub fn setup(cx: &Context<'_>, r: Setup<'_>) -> Result<Value> {
     let signature = match outcome {
         Outcome::Settled { signature } => signature,
         Outcome::Pending { signature } => {
-            document["status"] = "pending".into();
-            document["signature"] = signature_text(&signature).into();
-            document["next"] =
-                "The setup is sent and not finalized yet. Run the setup again with the same request ID.".into();
-            return Ok(document);
+            return Err(unfinished(
+                network,
+                r.request_id,
+                SETUP,
+                &signature,
+                "The setup is sent and not finalized yet. Run the setup again with the same request ID: nothing is signed again while it can still settle.",
+            ));
         }
         Outcome::Failed { signature } => {
             return Err(Error::config(format!(
@@ -323,10 +326,7 @@ pub fn setup(cx: &Context<'_>, r: Setup<'_>) -> Result<Value> {
             )));
         }
     };
-    let text = signature_text(&signature);
-    document["status"] = "settled".into();
-    document["explorer"] = json!(networks::explorer(network, LinkKind::Transaction, &text));
-    document["signature"] = text.into();
+    document["transactions"] = json!([transaction(network, SETUP, &signature, Status::Confirmed)]);
     // The ledger holds the wallet: the server registers it from the ledger. A refusal leaves
     // the wallet set up, and the same request ID asks again and signs nothing.
     match session.owner_request::<Value>(
@@ -346,8 +346,16 @@ pub fn setup(cx: &Context<'_>, r: Setup<'_>) -> Result<Value> {
 
 /// Add `amount` to what the wallet of `document` may still spend: the owner's own approval,
 /// which also resumes a stopped wallet. The server is not asked: it reads the allowance from
-/// the ledger. No tokens move; the wallet spends what its account holds.
-pub fn fund(cx: &Context<'_>, document: &[u8], request_id: &str, amount: &str) -> Result<Value> {
+/// the ledger. No tokens move; the wallet spends what its account holds. `fee_limit` bounds the
+/// network fee in lamports and is checked before the owner signs.
+pub fn fund(
+    cx: &Context<'_>,
+    document: &[u8],
+    request_id: &str,
+    amount: &str,
+    fee_limit: &str,
+) -> Result<Value> {
+    owner::check_fee_limit(fee_limit)?;
     let network = network(cx)?;
     let config = WalletConfig::decode(document)?;
     if config.network != network {
@@ -378,9 +386,17 @@ pub fn fund(cx: &Context<'_>, document: &[u8], request_id: &str, amount: &str) -
             },
         )?
     };
-    let (status, signature) = match outcome {
-        Outcome::Settled { signature } => ("settled", signature),
-        Outcome::Pending { signature } => ("pending", signature),
+    let signature = match outcome {
+        Outcome::Settled { signature } => signature,
+        Outcome::Pending { signature } => {
+            return Err(unfinished(
+                network,
+                request_id,
+                REFILL,
+                &signature,
+                "The refill is sent and not finalized yet. Run it again with the same request ID: nothing is signed again while it can still settle.",
+            ));
+        }
         Outcome::Failed { signature } => {
             return Err(Error::config(format!(
                 "The refill transaction {} failed on the ledger: the allowance is unchanged, and its fee was paid. Use a new request ID.",
@@ -388,24 +404,47 @@ pub fn fund(cx: &Context<'_>, document: &[u8], request_id: &str, amount: &str) -
             )));
         }
     };
-    let text = signature_text(&signature);
-    let mut document = json!({
+    Ok(json!({
         "requestId": request_id,
         "network": network,
+        "action": REFILL,
         "wallet": config.wallet,
         "added": units.to_string(),
+        "allowance": owner::remaining(&chain, &wallet)?.to_string(),
+        "transactions": [transaction(network, REFILL, &signature, Status::Confirmed)],
+    }))
+}
+
+/// The action of a setup and of a refill, as an owner document names it.
+const SETUP: &str = "native_setup";
+const REFILL: &str = "refill";
+
+/// One transaction of an owner document, as every host reads it: its action, its hash, Core's
+/// status of it and its explorer link. Core's `confirmed` is the rail's finalized result.
+fn transaction(network: &str, action: &str, signature: &[u8; 64], status: Status) -> Value {
+    let text = signature_text(signature);
+    json!({
+        "action": action,
+        "transactionHash": text,
         "status": status,
         "explorer": networks::explorer(network, LinkKind::Transaction, &text),
-        "signature": text,
-    });
-    if status == "pending" {
-        document["next"] =
-            "The refill is sent and not finalized yet. Run it again with the same request ID."
-                .into();
-    } else {
-        document["allowance"] = owner::remaining(&chain, &wallet)?.to_string().into();
-    }
-    Ok(document)
+    })
+}
+
+/// A step that is sent and not finalized: uncertain, so a host asks again with the same request
+/// ID and never reports it done. The details name its transaction.
+fn unfinished(
+    network: &str,
+    request_id: &str,
+    action: &str,
+    signature: &[u8; 64],
+    next: &str,
+) -> Error {
+    Error::uncertain(next).with_details(json!({
+        "requestId": request_id,
+        "network": network,
+        "transactions": [transaction(network, action, signature, Status::Submitted)],
+    }))
 }
 
 /// Where the owner's transaction of `request_id` stands, from the journal and one read of the
@@ -429,43 +468,48 @@ pub fn status(
     ))
 }
 
-/// The status document of a retained owner transaction.
+/// The status document of a retained owner transaction. Its transaction carries Core's status:
+/// `confirmed` once finalized, `failed` once finalized with an error, `submitted` while the
+/// ledger holds it unfinalized, and `submissionUnknown` while the ledger does not show it, as
+/// after a lapse. `resolution` keeps the rail's own word, and `next` says what the owner does.
 pub fn status_document(
     network: &str,
     request_id: &str,
     signature: &[u8; 64],
     resolution: Resolution,
 ) -> Value {
-    let (status, next) = match resolution {
-        Resolution::Settled => ("settled", None),
+    let (word, status, next) = match resolution {
+        Resolution::Settled => ("settled", Status::Confirmed, None),
         Resolution::Failed => (
             "failed",
+            Status::Failed,
             Some("Nothing of the request took effect, and its fee was paid. Use a new request ID."),
         ),
         Resolution::Pending => (
             "pending",
+            Status::Submitted,
             Some("The transaction is on the ledger and not finalized yet. Ask again."),
         ),
         Resolution::Unsent => (
             "uncertain",
+            Status::SubmissionUnknown,
             Some(
                 "The ledger does not show the transaction, and it can still settle. Run the same request again with the same request ID: the identical transaction is sent again.",
             ),
         ),
         Resolution::Lapsed => (
             "lapsed",
+            Status::SubmissionUnknown,
             Some(
                 "The transaction never ran and can no longer run. Run the same request again with the same request ID: a new transaction is signed.",
             ),
         ),
     };
-    let text = signature_text(signature);
     let mut document = json!({
         "requestId": request_id,
         "network": network,
-        "status": status,
-        "explorer": networks::explorer(network, LinkKind::Transaction, &text),
-        "signature": text,
+        "resolution": word,
+        "transactions": [transaction(network, "owner_step", signature, status)],
     });
     if let Some(next) = next {
         document["next"] = next.into();
@@ -738,17 +782,44 @@ mod tests {
     #[test]
     fn a_status_names_what_the_owner_does_next_and_never_calls_an_unseen_transaction_lost() {
         let status = |resolution| status_document(DEVNET, "step-1", &[7; 64], resolution);
+        // The hosts read Core's status of each transaction: only a finalized one is confirmed.
+        let core = |document: &Value| document["transactions"][0]["status"].clone();
         let settled = status(Resolution::Settled);
-        assert_eq!(settled["status"], "settled");
+        assert_eq!(settled["resolution"], "settled");
+        assert_eq!(core(&settled), "confirmed");
         assert!(settled.get("next").is_none());
-        assert_eq!(settled["signature"], bs58::encode([7u8; 64]).into_string());
+        assert_eq!(
+            settled["transactions"][0]["transactionHash"],
+            bs58::encode([7u8; 64]).into_string()
+        );
+        assert!(
+            settled["transactions"][0]["explorer"]
+                .as_str()
+                .unwrap()
+                .contains("devnet")
+        );
         // Not seen while its blockhash is valid is uncertain, not failed: it can still settle.
         let unsent = status(Resolution::Unsent);
-        assert_eq!(unsent["status"], "uncertain");
+        assert_eq!(unsent["resolution"], "uncertain");
+        assert_eq!(core(&unsent), "submissionUnknown");
         assert!(unsent["next"].as_str().unwrap().contains("identical"));
-        assert_eq!(status(Resolution::Lapsed)["status"], "lapsed");
-        assert_eq!(status(Resolution::Pending)["status"], "pending");
-        assert_eq!(status(Resolution::Failed)["status"], "failed");
+        let lapsed = status(Resolution::Lapsed);
+        assert_eq!(lapsed["resolution"], "lapsed");
+        assert_eq!(core(&lapsed), "submissionUnknown");
+        assert_eq!(core(&status(Resolution::Pending)), "submitted");
+        assert_eq!(core(&status(Resolution::Failed)), "failed");
+    }
+
+    /// A step that is sent and not finalized is an uncertain error, never a finished document,
+    /// and its details name the transaction to ask about.
+    #[test]
+    fn an_unfinished_step_is_uncertain_and_names_its_transaction() {
+        let error = unfinished(DEVNET, "fund-1", REFILL, &[7; 64], "Run it again.");
+        assert_eq!(error.code, 5, "uncertain");
+        let details = error.details.unwrap();
+        assert_eq!(details["requestId"], "fund-1");
+        assert_eq!(details["transactions"][0]["status"], "submitted");
+        assert_eq!(details["transactions"][0]["action"], "refill");
     }
 
     #[test]

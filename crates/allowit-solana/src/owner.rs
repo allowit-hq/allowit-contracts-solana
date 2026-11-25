@@ -248,6 +248,24 @@ fn prepare(
     }
 }
 
+/// The network fee of every owner transaction: one signature, the owner's, and no
+/// compute-budget price. The owner's transactions name no compute-budget instruction, so the fee
+/// is known before the owner signs, and a replacement after a lapse costs the same.
+pub const OWNER_FEE_LAMPORTS: u64 = crate::native::LAMPORTS_PER_SIGNATURE;
+
+/// Refuse an owner transaction whose fee is above `limit`, in lamports, before anything is signed.
+pub fn check_fee_limit(limit: &str) -> Result<()> {
+    let limit: u64 = limit
+        .parse()
+        .map_err(|_| Error::usage("The fee limit is a whole number of lamports"))?;
+    if OWNER_FEE_LAMPORTS > limit {
+        return Err(Error::usage(format!(
+            "The owner's transaction costs {OWNER_FEE_LAMPORTS} lamports in network fees, above the fee limit of {limit}: nothing was signed. Raise the fee limit to at least {OWNER_FEE_LAMPORTS}."
+        )));
+    }
+    Ok(())
+}
+
 /// Where a retained transaction stands on the ledger.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Resolution {
@@ -457,6 +475,38 @@ mod tests {
         // One signature, the owner's, in front of the message.
         assert_eq!(retained.wire[0], 1);
         assert_eq!(retained.wire[1..65], signature);
+    }
+
+    /// Each owner transaction costs what the fee limit is checked against: the owner's one
+    /// signature, with no compute-budget instruction that would add a priority fee.
+    #[test]
+    fn an_owner_transaction_costs_one_signature_and_no_priority_fee() {
+        let budget: Address = "ComputeBudget111111111111111111111111111111"
+            .parse()
+            .unwrap();
+        // A refill is the transaction of one `Approve` step, which this ledger needs no account
+        // to build.
+        let refill = Request::Steps(vec![OwnerStep::Approve {
+            allowance: 1,
+            decimals: 6,
+        }]);
+        let steps = Request::Steps(vec![OwnerStep::Stop]);
+        for (id, request) in [("setup", &SETUP), ("refill", &refill), ("stop", &steps)] {
+            let (book, owner) = (Book::default(), signer(1));
+            let chain = Chain::new(&book);
+            pending(send(&chain, &book, &owner, &wallet(&owner), id, request).unwrap());
+            let wire = book.load(id).unwrap().unwrap().wire;
+            assert_eq!(wire[0], 1, "{id}: one signature");
+            assert!(
+                !wire.windows(32).any(|w| w == budget.to_bytes()),
+                "{id}: no compute-budget instruction"
+            );
+        }
+        assert_eq!(OWNER_FEE_LAMPORTS, 5_000);
+        check_fee_limit("5000").unwrap();
+        assert!(check_fee_limit("4999").is_err());
+        assert!(check_fee_limit("-1").is_err());
+        assert!(check_fee_limit("1.5").is_err());
     }
 
     #[test]
