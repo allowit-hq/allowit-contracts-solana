@@ -86,10 +86,14 @@ its bytes. Keep build output out of the repository: point `CARGO_TARGET_DIR` out
 cd programs/test-vault
 cargo build-sbf --sbf-out-dir "$CARGO_TARGET_DIR/deploy" -- --locked
 cargo test --locked                        # host unit tests: conversions, bytes
-cd sbf-tests && cargo test --locked -- --nocapture   # LiteSVM: the built program
+cd sbf-tests && SBF_OUT_DIR="$CARGO_TARGET_DIR/deploy" CARGO_TARGET_DIR="$CARGO_TARGET_DIR-sbf-tests" \
+  cargo test --locked -- --nocapture       # LiteSVM: the built program
 ```
 
 `sbf-tests` loads `allowit_test_vault.so` from `SBF_OUT_DIR`, else from `$CARGO_TARGET_DIR/deploy`.
+Give `sbf-tests` a target folder of its own, as above. It has its own lock file, and in the program's
+folder Cargo can take the program's library as it was built with the program's lock; the test then
+fails to compile with two versions of `solana-address` in its graph.
 Its run also checks the recorded state that the rail's price-read test reads; `RECORD_FIXTURE=1`
 writes it again after a deliberate change.
 
