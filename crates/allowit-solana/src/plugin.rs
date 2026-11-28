@@ -781,6 +781,9 @@ impl OwnerProvider for Owner {
     fn native_wallet_asset(&self, cx: &owner::Context<'_>) -> Result<owner::NativeWalletAsset> {
         crate::owner_client::native_wallet_asset(cx)
     }
+    fn question(&self, network: &str, step: owner::Question<'_>) -> Option<String> {
+        crate::owner_client::question(network, step)
+    }
     fn status(
         &self,
         store: &allowit_core::client::store::Store,

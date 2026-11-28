@@ -472,6 +472,24 @@ fn installation_of(document: &[u8]) -> Result<WalletConfig> {
     }
 }
 
+/// What the owner confirms before this rail signs `step`: the owner's transaction approves an
+/// allowance of the wallet's delegate, the agent and the server together, over the wallet's
+/// token account. It moves no tokens. A deployment is none of this rail's steps.
+pub fn question(network: &str, step: allowit_core::vendor::owner::Question<'_>) -> Option<String> {
+    use allowit_core::vendor::owner::Question;
+    let label = networks::network(network).ok()?.label;
+    match step {
+        Question::Setup { amount } => Some(format!(
+            "Set up this agent's wallet on {label} from the owner's account: open its token account and its delegate (the agent and the server sign together), and approve that delegate to spend up to {} of the wallet's asset. No tokens move: send the asset to the wallet afterwards",
+            amount.unwrap_or("0")
+        )),
+        Question::Fund { amount } => Some(format!(
+            "Approve the wallet's delegate (the agent and the server sign together) to spend {amount} more of the wallet's asset on {label}. No tokens move: the wallet spends what its token account holds"
+        )),
+        _ => None,
+    }
+}
+
 /// The action of a setup and of a refill, as an owner document names it.
 pub(crate) const SETUP: &str = "native_setup";
 const REFILL: &str = "refill";
@@ -930,6 +948,36 @@ mod tests {
         assert_eq!(
             error.details.unwrap()["transactions"][0]["status"],
             "failed"
+        );
+    }
+
+    /// The owner confirms what the step signs: an allowance approval, never a transfer.
+    #[test]
+    fn the_owner_confirms_an_allowance_approval_and_no_transfer() {
+        use allowit_core::vendor::owner::Question;
+        let fund = question(DEVNET, Question::Fund { amount: "2.5" }).unwrap();
+        assert!(fund.contains("Approve") && fund.contains("2.5"), "{fund}");
+        assert!(fund.contains("No tokens move"), "{fund}");
+        assert!(!fund.to_lowercase().contains("transfer"), "{fund}");
+        let setup = question(DEVNET, Question::Setup { amount: Some("10") }).unwrap();
+        assert!(
+            setup.contains("up to 10") && setup.contains("Solana Devnet"),
+            "{setup}"
+        );
+        assert!(setup.contains("No tokens move"), "{setup}");
+        assert!(
+            question(DEVNET, Question::Setup { amount: None })
+                .unwrap()
+                .contains("up to 0")
+        );
+        // No deployment of this rail, and no question on another network.
+        assert_eq!(
+            question(DEVNET, Question::NativeDeploy { amount: None }),
+            None
+        );
+        assert_eq!(
+            question("unknown:none", Question::Fund { amount: "1" }),
+            None
         );
     }
 
