@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Solana Devnet wallet checks</title>
+<style>
+  body { max-width: 48rem; margin: 3rem auto; padding: 0 1rem; font: 1rem/1.5 system-ui; color: #172538; }
+  button, select { font: inherit; padding: .35rem .65rem; margin: .2rem; }
+  pre { background: #edf2f7; padding: 1rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+</style>
+<h1>Solana Devnet wallet checks</h1>
+<p>Use a disposable Devnet owner account. The page requests signatures and reads the ledger without submitting transactions. Enable one wallet extension per browser profile.</p>
+<p><button id="connect">Connect wallet</button> <span id="owner">Disconnected</span></p>
+<label for="step">Owner step</label>
+<select id="step">
+  <option value="setup">Setup</option>
+  <option value="refill">Refill</option>
+  <option value="stop">Stop</option>
+  <option value="recover">Recover</option>
+  <option value="close">Close</option>
+</select>
+<button id="transaction">Sign owner transaction</button>
+<button id="approval">Sign policy approval</button>
+<p><button id="partial">Sign a partially signed memo</button>
+<button id="expiry">Check last owner transaction for expiry</button></p>
+<pre id="log" role="log" aria-label="Wallet check results"></pre>
+<script type="module" src="./bundle.js"></script>
+</html>
