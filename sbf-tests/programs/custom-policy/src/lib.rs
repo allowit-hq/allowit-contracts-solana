@@ -8,27 +8,27 @@ use solana_program_error::{ProgramError, ProgramResult};
 use solana_pubkey::Pubkey;
 
 #[cfg(not(any(
-    feature = "paper-sample",
+    feature = "paper-transfer",
     feature = "destination-list",
     feature = "daily-limits"
 )))]
 compile_error!("select one policy fixture");
 #[cfg(any(
-    all(feature = "paper-sample", feature = "destination-list"),
-    all(feature = "paper-sample", feature = "daily-limits"),
+    all(feature = "paper-transfer", feature = "destination-list"),
+    all(feature = "paper-transfer", feature = "daily-limits"),
     all(feature = "destination-list", feature = "daily-limits")
 ))]
 compile_error!("select only one policy fixture");
 
 const ABI: u8 = 3;
-#[cfg(any(feature = "paper-sample", feature = "daily-limits"))]
+#[cfg(any(feature = "paper-transfer", feature = "daily-limits"))]
 const USDC: i128 = 1_000_000;
 const VAULT_SEED: &[u8] = b"allowit-vault-v3";
 const TEST_VAULT: Pubkey = Pubkey::new_from_array([10; 32]);
 const DEVNET_VAULT: Pubkey = Pubkey::from_str_const("4DndpzM9r5svGVEUzBWEgVVu6mvn9hb7L4woy48Q98qc");
-#[cfg(any(feature = "paper-sample", feature = "destination-list"))]
+#[cfg(any(feature = "paper-transfer", feature = "destination-list"))]
 const DESTINATION: Pubkey = Pubkey::new_from_array([16; 32]);
-#[cfg(feature = "paper-sample")]
+#[cfg(feature = "paper-transfer")]
 const MINT: Pubkey = Pubkey::new_from_array([14; 32]);
 const POLICY_DENIED: u32 = 3001;
 
@@ -125,12 +125,12 @@ fn address(key: Pubkey) -> Address {
 
 fn fixture_params() -> AllowitMap {
     let mut params = AllowitMap::new();
-    #[cfg(any(feature = "paper-sample", feature = "destination-list"))]
+    #[cfg(any(feature = "paper-transfer", feature = "destination-list"))]
     params.insert(
         "destinations".into(),
         AllowitValue::List(vec![AllowitValue::Addr(address(DESTINATION))].into()),
     );
-    #[cfg(feature = "paper-sample")]
+    #[cfg(feature = "paper-transfer")]
     {
         params.insert(
             "operations".into(),
@@ -147,7 +147,7 @@ fn fixture_params() -> AllowitMap {
         );
         params.insert("payment_limit".into(), AllowitValue::Int(3 * USDC));
     }
-    #[cfg(any(feature = "paper-sample", feature = "daily-limits"))]
+    #[cfg(any(feature = "paper-transfer", feature = "daily-limits"))]
     {
         params.insert("daily_spending_limit".into(), AllowitValue::Int(5 * USDC));
         params.insert("daily_volume_limit".into(), AllowitValue::Int(6 * USDC));
@@ -160,7 +160,7 @@ fn execute(ctx: &AllowitContext) -> allowit_core::Result {
     // The derived expression uses the Core host's thread-local failure latch
     // via .ok(). SBF cannot link it, so measure the same transfer rules using
     // the typed Core entry point already used by vault ABI 3.
-    #[cfg(feature = "paper-sample")]
+    #[cfg(feature = "paper-transfer")]
     const RULES: &[AllowitRule] = &[
         operations,
         tokens,

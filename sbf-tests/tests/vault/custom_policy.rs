@@ -6,12 +6,11 @@ use solana_loader_v3_interface::{
 use solana_message::legacy::Message;
 
 #[test]
-#[ignore = "build the three S2 programs first"]
 fn custom_policy_creation_packet_fits() {
     let fixture = Fixture::new();
     let buffer = Pubkey::new_from_array([25; 32]);
     let initialize = fixture.initialize_instruction(allowit_vault::CUSTOM, vec![], vec![]);
-    for name in ["paper_sample", "destination_list", "daily_limits"] {
+    for name in ["paper_transfer", "destination_list", "daily_limits"] {
         let elf_len = std::fs::metadata(program(&format!("{name}.so")))
             .unwrap()
             .len() as usize;
@@ -60,9 +59,8 @@ fn custom_policy_creation_packet_fits() {
 }
 
 #[test]
-#[ignore = "build the three S2 programs first"]
 fn custom_policy_spike() {
-    for name in ["paper_sample", "destination_list", "daily_limits"] {
+    for name in ["paper_transfer", "destination_list", "daily_limits"] {
         let mut fixture = Fixture::funded(allowit_vault::CUSTOM, vec![], vec![]);
         let file = program(&format!("{name}.so"));
         let elf = std::fs::read(file).unwrap();
@@ -88,7 +86,7 @@ fn custom_policy_spike() {
                 token_destination(Pubkey::new_from_array([24; 32]), MINT),
             );
         }
-        let denied_amount = if name == "paper_sample" {
+        let denied_amount = if name == "paper_transfer" {
             3 * USDC + 1
         } else {
             3 * USDC

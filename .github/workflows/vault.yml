@@ -1,6 +1,6 @@
 name: Vault program
-# Builds the vault program and the test check program in the pinned verifiable-build image of
-# scripts/build-sbf.sh, then runs the Mollusk tests of sbf-tests against those bytes.
+# Builds the vault program, the test check program and the Custom check fixtures in the pinned
+# verifiable-build image of scripts/build-sbf.sh, then runs the Mollusk tests of sbf-tests against those bytes.
 on:
   pull_request:
   push:
@@ -24,6 +24,7 @@ jobs:
         run: |
           cargo fmt --all --check
           (cd programs/test-check && cargo fmt --all --check)
+          (cd programs/custom-policy && cargo fmt --all --check)
           cargo clippy --locked --all-targets -- -D warnings
       - name: Mollusk tests
         working-directory: sbf-tests

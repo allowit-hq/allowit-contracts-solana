@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Builds the vault program and the test check program in a pinned verifiable-build image, so that
+# Builds the vault program, the test check program and the three Custom check fixtures of
+# sbf-tests/programs/custom-policy in a pinned verifiable-build image, so that
 # every host gives the same bytes: the image fixes the operating system, the tools and the paths.
 # The programs go to target/deploy; the SHA-256 of the vault program is printed last.
 #
@@ -21,5 +22,14 @@ docker run --rm --platform linux/amd64 -v "$PWD:/build" -w /build "${cache[@]}" 
     for manifest in programs/vault/Cargo.toml sbf-tests/programs/test-check/Cargo.toml; do
       cargo build-sbf --manifest-path \$manifest --arch v3 --optimize-size --tools-version $TOOLS \
         --sbf-out-dir target/deploy -- --locked
+    done
+    # The Custom check fixtures of sbf-tests: one program per policy feature.
+    for policy in paper-transfer destination-list daily-limits; do
+      cargo build-sbf --manifest-path sbf-tests/programs/custom-policy/Cargo.toml --arch v3 \
+        --optimize-size --tools-version $TOOLS --sbf-out-dir target/custom-policy/\$policy -- \
+        --locked --features \$policy
+      cp target/custom-policy/\$policy/allowit_custom_policy_spike.so \
+        target/deploy/\${policy//-/_}.so
     done"
+sha256sum target/deploy/{paper_transfer,destination_list,daily_limits}.so
 sha256sum target/deploy/allowit_vault.so

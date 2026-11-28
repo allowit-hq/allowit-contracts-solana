@@ -12,7 +12,7 @@ crate-type = ["cdylib"]
 [features]
 custom-heap = []
 custom-panic = []
-paper-sample = []
+paper-transfer = []
 destination-list = []
 daily-limits = []
 
