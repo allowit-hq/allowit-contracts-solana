@@ -95,14 +95,26 @@ impl Ledger for Rpc {
     }
 
     /// The node checks the transaction against its finalized bank and does not send it again by
-    /// itself: the rail sends the identical bytes again while they are valid.
+    /// itself: the rail sends the identical bytes again while they are valid. The node
+    /// acknowledges the transaction by its first signature; any other answer is no
+    /// acknowledgment.
     fn submit(&self, wire: &[u8]) -> Result<()> {
-        self.call(
+        let answer = self.call(
             "sendTransaction",
             json!([STANDARD.encode(wire), {"encoding":"base64","skipPreflight":false,
                 "preflightCommitment":"finalized","maxRetries":0}]),
-        )
-        .map(|_| ())
+        )?;
+        let signature = (wire.first() == Some(&1))
+            .then(|| wire.get(1..65))
+            .flatten()
+            .map(|signature| bs58::encode(signature).into_string());
+        if signature.is_some() && answer.as_str() == signature.as_deref() {
+            Ok(())
+        } else {
+            Err(Error::config(
+                "The Solana RPC did not acknowledge the transaction by its signature",
+            ))
+        }
     }
 
     fn observe(&self, signature: &[u8; 64]) -> Result<Observation> {
@@ -465,10 +477,28 @@ mod tests {
 
     #[test]
     fn a_submission_sends_the_exact_bytes_once() {
-        let (ledger, node) = rpc(vec![("sendTransaction", json!("signature"))]);
-        ledger.submit(&[1, 2, 3]).unwrap();
+        // One signature, then the message.
+        let mut wire = vec![1];
+        wire.extend([7; 64]);
+        wire.extend([1, 2, 3]);
+        let signature = bs58::encode([7; 64]).into_string();
+        let (ledger, node) = rpc(vec![("sendTransaction", json!(signature))]);
+        ledger.submit(&wire).unwrap();
+        // An answer that is not the transaction's signature acknowledges nothing.
+        for answer in [
+            json!(null),
+            json!("other"),
+            json!(bs58::encode([8; 64]).into_string()),
+        ] {
+            assert!(
+                rpc(vec![("sendTransaction", answer)])
+                    .0
+                    .submit(&wire)
+                    .is_err()
+            );
+        }
         let asked = node.asked.lock().unwrap();
-        assert_eq!(asked[0].1[0], STANDARD.encode([1, 2, 3]));
+        assert_eq!(asked[0].1[0], STANDARD.encode(&wire));
         assert_eq!(asked[0].1[1]["maxRetries"], 0);
         assert_eq!(asked[0].1[1]["skipPreflight"], false);
         assert!(rpc(vec![]).0.submit(&[1]).is_err());

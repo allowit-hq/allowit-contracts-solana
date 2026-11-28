@@ -352,23 +352,32 @@ pub fn setup(cx: &Context<'_>, r: Setup<'_>) -> Result<Value> {
     Ok(document)
 }
 
-/// The server did not register a wallet that the ledger holds: a refusal that the same setup
-/// asks again, signing no transaction, as on every rail. The server's own code and status are
-/// kept, and the details name the setup's transaction and the installation that a refill reads.
+/// The server did not register a wallet that the ledger holds, as on every rail: a refusal
+/// that the server answered keeps its own code and status; a reply that never came leaves the
+/// registration unknown (uncertain), since the server may have registered the wallet. Either
+/// way the same setup asks again and signs no transaction, and the details name the setup's
+/// transaction and the installation that a refill reads.
 fn not_registered(document: &Value, error: Error) -> Error {
     let wallet = document["wallet"].as_str().unwrap_or_default();
-    let mut refused = Error::api(
-        error.status.unwrap_or(409),
-        format!(
-            "The wallet account {wallet} is set up on the ledger, but the server did not register it: {}. Run the same setup again with the same request ID: it signs in and asks the server again, and signs no transaction.",
-            error.message
+    let again = "Run the same setup again with the same request ID: it signs in and asks the server again, and signs no transaction.";
+    let mut refused = match error.status {
+        Some(status) => Error::api(
+            status,
+            format!(
+                "The wallet account {wallet} is set up on the ledger, but the server did not register it: {}. {again}",
+                error.message
+            ),
         ),
-    )
+        None => Error::uncertain(format!(
+            "The wallet account {wallet} is set up on the ledger, and the registration of it is unknown: {}. {again}",
+            error.message
+        )),
+    }
     .with_details(json!({
         "requestId": document["requestId"],
         "network": document["network"],
         "wallet": wallet,
-        "registered": false,
+        "registered": error.status.map(|_| false),
         "configuration": document["configuration"],
         "transactions": document["transactions"],
     }));
@@ -895,6 +904,23 @@ mod tests {
         assert_eq!(core(&lapsed), "submissionUnknown");
         assert_eq!(core(&status(Resolution::Pending)), "submitted");
         assert_eq!(core(&status(Resolution::Failed)), "failed");
+    }
+
+    /// A refusal that the server answered keeps its status; a lost reply leaves the
+    /// registration unknown, never refused.
+    #[test]
+    fn a_lost_registration_reply_is_unknown_and_a_refusal_keeps_its_status() {
+        let document = json!({"requestId": "setup-1", "network": DEVNET, "wallet": "W",
+            "configuration": {}, "transactions": []});
+        let refused = not_registered(&document, Error::refused(403, "not_allowed", "No."));
+        assert_eq!(refused.status, Some(403));
+        assert_eq!(refused.api_code.as_deref(), Some("not_allowed"));
+        assert_eq!(refused.details.unwrap()["registered"], false);
+        let lost = not_registered(&document, Error::uncertain("timed out"));
+        assert_eq!(lost.code, 5, "uncertain");
+        assert_eq!(lost.status, None);
+        assert!(lost.message.contains("unknown"), "{}", lost.message);
+        assert!(lost.details.unwrap()["registered"].is_null());
     }
 
     /// A step that is sent and not finalized is an uncertain error, never a finished document,
