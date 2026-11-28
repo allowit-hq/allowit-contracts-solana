@@ -19,6 +19,10 @@ jobs:
           components: rustfmt, clippy
       - name: Build the programs in the verifiable-build image
         run: scripts/build-sbf.sh
+      - name: The vault program is the one deployed on Devnet
+        # docs/vault-abi3.md, "Devnet deployment". A change to the program is a new deployment:
+        # update this hash and that section together.
+        run: echo "4d3dd61dad875131f39329c94e7e3165ac487be5c2322a40e82a4f1461eeea7b  target/deploy/allowit_vault.so" | sha256sum -c -
       - name: Format and lints of the tests
         working-directory: sbf-tests
         run: |

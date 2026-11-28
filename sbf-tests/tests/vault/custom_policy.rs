@@ -58,26 +58,56 @@ fn custom_policy_creation_packet_fits() {
     }
 }
 
+/// A funded Custom vault whose check program is the fixture `name`, and the fixture's ELF.
+fn custom_fixture(name: &str) -> (Fixture, Vec<u8>) {
+    let mut fixture = Fixture::funded(allowit_vault::CUSTOM, vec![], vec![]);
+    let elf = std::fs::read(program(&format!("{name}.so"))).unwrap();
+    fixture.svm.add_program_with_loader_and_elf(
+        &CHECK_PROGRAM,
+        &mollusk_svm::program::loader_keys::LOADER_V2,
+        &elf,
+    );
+    fixture.accounts.insert(
+        CHECK_PROGRAM,
+        mollusk_svm::program::create_program_account_loader_v2(&elf),
+    );
+    (fixture, elf)
+}
+
+fn invoke(
+    fixture: &mut Fixture,
+    label: &str,
+    amount: u64,
+    nonce: u64,
+    expected: Result<(), ProgramError>,
+) -> u64 {
+    let mut ix = fixture.execute(amount, nonce, 0, NOW + 5);
+    ix.accounts.push(ro(CHECK_PROGRAM, false));
+    fixture.run(label, &ix, expected)
+}
+
+/// The paper fixture's `payment_limit` (3 USDC) refuses a first payment above it, which every
+/// other rule of the fixture allows: no daily, lifetime or volume figure has moved yet.
+#[test]
+fn custom_policy_paper_payment_limit() {
+    let (mut fixture, _) = custom_fixture("paper_transfer");
+    invoke(
+        &mut fixture,
+        "paper_transfer payment limit",
+        3 * USDC + 1,
+        0,
+        Err(ProgramError::Custom(3001)),
+    );
+    assert_eq!(fixture.balance(DESTINATION), 0);
+    assert_eq!(fixture.vault().nonce, 0);
+}
+
 #[test]
 fn custom_policy_spike() {
     for name in ["paper_transfer", "destination_list", "daily_limits"] {
-        let mut fixture = Fixture::funded(allowit_vault::CUSTOM, vec![], vec![]);
-        let file = program(&format!("{name}.so"));
-        let elf = std::fs::read(file).unwrap();
-        fixture.svm.add_program_with_loader_and_elf(
-            &CHECK_PROGRAM,
-            &mollusk_svm::program::loader_keys::LOADER_V2,
-            &elf,
-        );
-        fixture.accounts.insert(
-            CHECK_PROGRAM,
-            mollusk_svm::program::create_program_account_loader_v2(&elf),
-        );
-
+        let (mut fixture, elf) = custom_fixture(name);
         let invoke = |fixture: &mut Fixture, amount, nonce, expected| {
-            let mut ix = fixture.execute(amount, nonce, 0, NOW + 5);
-            ix.accounts.push(ro(CHECK_PROGRAM, false));
-            fixture.run(name, &ix, expected)
+            invoke(fixture, name, amount, nonce, expected)
         };
         let allowed = invoke(&mut fixture, 3 * USDC, 0, Ok(()));
         if name == "destination_list" {

@@ -22,9 +22,15 @@ it:
   values. ABI 3 only runs transfers, so the sample's swap and redeem branches
   are left out.
 
-The ELF sizes and compute units of these fixtures therefore bound a typed check
-program, not a generated one. T14 still needs a format that binds an owner's
-approved values and source to the deployed ELF or to authenticated check state.
+The ELF sizes and compute units therefore describe a typed check program, not a
+generated one, and only the paths that the tests run: a refusal stops at the
+first rule that fails, so a refused call's compute units are not an upper bound.
+`paper-transfer` uses test keys for its mint and recipient. For transfers the
+daily volume and spending figures grow together, so `daily_volume_limit` (6
+USDC) cannot refuse before `daily_spending_limit` (5 USDC) does.
+
+T14 still needs a format that binds an owner's approved values and source to
+the deployed ELF or to authenticated check state.
 
 The vault passes the transaction facts and counters over CPI. Each fixture
 confirms that the caller is a Custom vault state of the test or Devnet vault
