@@ -104,9 +104,11 @@ impl Ledger for Rpc {
             json!([STANDARD.encode(wire), {"encoding":"base64","skipPreflight":false,
                 "preflightCommitment":"finalized","maxRetries":0}]),
         )?;
-        let signature = (wire.first() == Some(&1))
-            .then(|| wire.get(1..65))
-            .flatten()
+        // The wire starts with the count of signatures (one byte below 128), then the first one.
+        let signature = wire
+            .first()
+            .filter(|count| (1..128).contains(*count))
+            .and_then(|_| wire.get(1..65))
             .map(|signature| bs58::encode(signature).into_string());
         if signature.is_some() && answer.as_str() == signature.as_deref() {
             Ok(())
@@ -484,6 +486,15 @@ mod tests {
         let signature = bs58::encode([7; 64]).into_string();
         let (ledger, node) = rpc(vec![("sendTransaction", json!(signature))]);
         ledger.submit(&wire).unwrap();
+        // A transaction of two signatures is acknowledged by its first one.
+        let mut two = vec![2];
+        two.extend([7; 64]);
+        two.extend([9; 64]);
+        two.extend([1, 2, 3]);
+        rpc(vec![("sendTransaction", json!(signature))])
+            .0
+            .submit(&two)
+            .unwrap();
         // An answer that is not the transaction's signature acknowledges nothing.
         for answer in [
             json!(null),

@@ -360,7 +360,12 @@ pub fn setup(cx: &Context<'_>, r: Setup<'_>) -> Result<Value> {
 fn not_registered(document: &Value, error: Error) -> Error {
     let wallet = document["wallet"].as_str().unwrap_or_default();
     let again = "Run the same setup again with the same request ID: it signs in and asks the server again, and signs no transaction.";
-    let mut refused = match error.status {
+    // A refusal is a client error that the server answered; a server or gateway error, a
+    // timeout or a rate limit proves nothing about the registration.
+    let answered = error
+        .status
+        .filter(|status| (400..500).contains(status) && ![408, 429].contains(status));
+    let mut refused = match answered {
         Some(status) => Error::api(
             status,
             format!(
@@ -377,11 +382,14 @@ fn not_registered(document: &Value, error: Error) -> Error {
         "requestId": document["requestId"],
         "network": document["network"],
         "wallet": wallet,
-        "registered": error.status.map(|_| false),
+        "registered": answered.map(|_| false),
         "configuration": document["configuration"],
         "transactions": document["transactions"],
     }));
     refused.api_code = error.api_code;
+    // The status stays, also on an uncertain answer: a rate limit, a gateway error and a lost
+    // reply read apart.
+    refused.status = error.status;
     refused
 }
 
@@ -916,6 +924,12 @@ mod tests {
         assert_eq!(refused.status, Some(403));
         assert_eq!(refused.api_code.as_deref(), Some("not_allowed"));
         assert_eq!(refused.details.unwrap()["registered"], false);
+        for status in [502, 504, 500, 408, 429] {
+            let unknown = not_registered(&document, Error::api(status, "upstream"));
+            assert_eq!(unknown.code, 5, "{status} is no answer");
+            assert_eq!(unknown.status, Some(status));
+            assert!(unknown.details.unwrap()["registered"].is_null());
+        }
         let lost = not_registered(&document, Error::uncertain("timed out"));
         assert_eq!(lost.code, 5, "uncertain");
         assert_eq!(lost.status, None);
