@@ -489,6 +489,43 @@ fn installation_of(document: &[u8]) -> Result<WalletConfig> {
     }
 }
 
+/// What the owner confirms before this rail signs `step`: the owner's transaction approves an
+/// allowance of the wallet's delegate, the agent and the server together, over the wallet's
+/// token account. It moves no tokens. A deployment is none of this rail's steps.
+pub fn question(network: &str, step: allowit_core::vendor::owner::Question<'_>) -> Option<String> {
+    use allowit_core::vendor::owner::Question;
+    let label = networks::network(network).ok()?.label;
+    // The typed amount is shown only as a plain decimal: any other text is refused before
+    // anything is signed, and it never reaches the terminal.
+    let shown = |amount: &str| {
+        let mut parts = amount.split('.');
+        let whole = parts.next().unwrap_or_default();
+        let fraction = parts.next();
+        let digits = |text: &str| !text.is_empty() && text.bytes().all(|b| b.is_ascii_digit());
+        if amount.len() <= 40
+            && digits(whole)
+            && (whole == "0" || !whole.starts_with('0'))
+            && fraction.is_none_or(digits)
+            && parts.next().is_none()
+        {
+            amount.to_owned()
+        } else {
+            "the given amount".to_owned()
+        }
+    };
+    match step {
+        Question::Setup { amount } => Some(format!(
+            "Set up this agent's wallet on {label} from the owner's account: open its token account and its delegate (the agent and the server sign together) where they do not exist yet, and set that delegate's allowance to {} of the wallet's asset, replacing any allowance that it has. The owner's account pays the SOL deposits of new accounts and the network fee; no wallet asset moves: send the asset to the wallet afterwards",
+            amount.map_or_else(|| "0".to_owned(), shown)
+        )),
+        Question::Fund { amount } => Some(format!(
+            "Set the on-chain allowance of the wallet's delegate (the agent and the server sign together) on {label} to its allowance as read when this refill is prepared, plus {} of the wallet's asset. A retry with the same request ID sends the same approval while it can still land; after it lapses, the approval is prepared again from the allowance then. The owner's account pays the network fee; no wallet asset moves: the wallet spends what its token account holds",
+            shown(amount)
+        )),
+        _ => None,
+    }
+}
+
 /// The action of a setup and of a refill, as an owner document names it.
 pub(crate) const SETUP: &str = "native_setup";
 const REFILL: &str = "refill";
@@ -970,6 +1007,57 @@ mod tests {
         assert_eq!(
             error.details.unwrap()["transactions"][0]["status"],
             "failed"
+        );
+    }
+
+    /// The owner confirms what the step signs: an allowance approval, never a transfer.
+    #[test]
+    fn the_owner_confirms_an_allowance_approval_and_no_transfer() {
+        use allowit_core::vendor::owner::Question;
+        let fund = question(DEVNET, Question::Fund { amount: "2.5" }).unwrap();
+        // The approval replaces the on-chain allowance read when it is prepared: no increment.
+        assert!(
+            fund.contains("on-chain allowance") && fund.contains("is prepared, plus 2.5"),
+            "{fund}"
+        );
+        assert!(fund.contains("no wallet asset moves"), "{fund}");
+        assert!(!fund.to_lowercase().contains("transfer"), "{fund}");
+        // A typed amount that is no plain decimal never reaches the terminal.
+        for typed in [
+            "1\nYes",
+            "2\u{1b}[2J",
+            "",
+            "1e9",
+            "1.2.3",
+            ".5",
+            "1.",
+            "01",
+            "00.5",
+        ] {
+            let asked = question(DEVNET, Question::Fund { amount: typed }).unwrap();
+            assert!(asked.contains("the given amount"), "{asked}");
+            assert!(!asked.chars().any(char::is_control), "{asked}");
+        }
+        let setup = question(DEVNET, Question::Setup { amount: Some("10") }).unwrap();
+        assert!(
+            setup.contains("allowance to 10") && setup.contains("replacing any allowance"),
+            "{setup}"
+        );
+        assert!(setup.contains("pays the SOL deposits"), "{setup}");
+        assert!(setup.contains("no wallet asset moves"), "{setup}");
+        assert!(
+            question(DEVNET, Question::Setup { amount: None })
+                .unwrap()
+                .contains("allowance to 0")
+        );
+        // No deployment of this rail, and no question on another network.
+        assert_eq!(
+            question(DEVNET, Question::NativeDeploy { amount: None }),
+            None
+        );
+        assert_eq!(
+            question("unknown:none", Question::Fund { amount: "1" }),
+            None
         );
     }
 
