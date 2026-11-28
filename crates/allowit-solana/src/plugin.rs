@@ -1247,6 +1247,23 @@ mod tests {
             "USDC"
         );
         assert!(PLUGIN.draft_params(DEVNET, &json!({})).is_err());
+        // An installation, alone as a refill reads it or in the document that the setup prints,
+        // holds its params and its token: a fresh setup's are none, in USDC.
+        let installed = serde_json::to_value(&fixture_bundle().config).unwrap();
+        let alone = PLUGIN.draft_params(DEVNET, &installed).unwrap();
+        assert_eq!(alone.asset.symbol, "USDC");
+        assert_eq!(alone.params.len(), fixture_bundle().config.params.len());
+        let setup = json!({"action": "native_setup", "configuration": installed});
+        assert_eq!(PLUGIN.draft_params(DEVNET, &setup).unwrap(), alone);
+        let mut fresh = installed.clone();
+        fresh["params"] = json!({});
+        assert!(
+            PLUGIN
+                .draft_params(DEVNET, &fresh)
+                .unwrap()
+                .params
+                .is_empty()
+        );
         assert!(
             PLUGIN
                 .draft_params("unknown:none", &fx.owner_generation)

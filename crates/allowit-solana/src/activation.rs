@@ -180,15 +180,27 @@ pub fn approval(
     })
 }
 
-/// The params of a policy document, a generation reply (its `policy`) or a public profile of
-/// this rail, with the token that their amounts count. The SDK prints them.
+/// The params of a policy document, a generation reply (its `policy`), a public profile of this
+/// rail, or an installation (alone, as a refill reads it, or under `configuration` in the
+/// document that `wallet setup` prints), with the token that their amounts count. The SDK
+/// prints them.
 pub fn draft_params(
     network: &str,
     document: &Value,
 ) -> Result<allowit_core::vendor::plugin::DraftParams> {
     let network = crate::networks::network(network)?.id;
     let document = document.get("policy").unwrap_or(document);
-    let config = &document["config"];
+    let document = match document.get("configuration") {
+        Some(installed) if document["action"] == crate::owner_client::SETUP => installed,
+        _ => document,
+    };
+    // An installation holds its params and its token itself.
+    let installed = document["route"] == "native" && document["params"].is_object();
+    let config = if installed {
+        document
+    } else {
+        &document["config"]
+    };
     let binding = &document["runtime"]["instanceBinding"];
     let (params, mint, symbol) = if config.is_object() {
         (

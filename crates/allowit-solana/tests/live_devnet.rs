@@ -83,7 +83,9 @@ fn settle(
             Outcome::Failed { signature } => {
                 panic!("{id} failed on the ledger: {}", tx_link(&signature))
             }
-            Outcome::Pending { .. } => std::thread::sleep(Duration::from_secs(2)),
+            Outcome::Pending { .. } | Outcome::Unconfirmed { .. } => {
+                std::thread::sleep(Duration::from_secs(2))
+            }
         }
     }
     panic!("{id} was not finalized within two minutes");

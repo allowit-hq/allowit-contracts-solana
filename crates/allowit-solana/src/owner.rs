@@ -110,8 +110,21 @@ pub enum Outcome {
     Settled { signature: [u8; 64] },
     /// Finalized with an error: nothing of the request took effect, and the fee was paid.
     Failed { signature: [u8; 64] },
-    /// Sent, or sent again, and not finalized yet. Ask again with the same request id.
+    /// The ledger holds it, or the RPC accepted its submission, and it is not finalized yet. Ask
+    /// again with the same request id.
     Pending { signature: [u8; 64] },
+    /// Sent, or sent again, and neither the ledger shows it nor did the RPC accept it: it can
+    /// still settle, and nothing proves that it was submitted. Ask again with the same request id.
+    Unconfirmed { signature: [u8; 64] },
+}
+
+/// The outcome of a submission of `signature`: pending once the RPC accepted it, unconfirmed
+/// otherwise. A refusal proves nothing: the retained bytes may still settle.
+fn submitted(ledger: &dyn Ledger, wire: &[u8], signature: [u8; 64]) -> Outcome {
+    match ledger.submit(wire) {
+        Ok(()) => Outcome::Pending { signature },
+        Err(_) => Outcome::Unconfirmed { signature },
+    }
 }
 
 /// The identity of a request: a repeat of `request_id` must ask for the same thing.
@@ -331,11 +344,8 @@ pub fn send(
             Resolution::Settled => return Ok(Outcome::Settled { signature }),
             Resolution::Failed => return Ok(Outcome::Failed { signature }),
             Resolution::Pending => return Ok(Outcome::Pending { signature }),
-            Resolution::Unsent => {
-                // The identical bytes may still settle. A refusal here proves nothing.
-                let _ = ledger.submit(&retained.wire);
-                return Ok(Outcome::Pending { signature });
-            }
+            // The identical bytes may still settle. A refusal here proves nothing.
+            Resolution::Unsent => return Ok(submitted(ledger, &retained.wire, signature)),
             // The retained bytes never ran and can no longer run.
             Resolution::Lapsed => {}
         }
@@ -355,8 +365,7 @@ pub fn send(
         },
     )?;
     // The bytes are retained: whatever the submission answers, the id resolves them later.
-    let _ = ledger.submit(&wire);
-    Ok(Outcome::Pending { signature })
+    Ok(submitted(ledger, &wire, signature))
 }
 
 #[cfg(test)]
@@ -459,6 +468,12 @@ mod tests {
             other => panic!("not pending: {other:?}"),
         }
     }
+    fn unconfirmed(outcome: Outcome) -> [u8; 64] {
+        match outcome {
+            Outcome::Unconfirmed { signature } => signature,
+            other => panic!("not unconfirmed: {other:?}"),
+        }
+    }
 
     #[test]
     fn the_signed_bytes_are_retained_before_they_are_sent() {
@@ -514,15 +529,23 @@ mod tests {
         let (book, owner) = (Book::default(), signer(1));
         let chain = Chain::new(&book);
         chain.refuse.set(true);
-        let first = pending(send(&chain, &book, &owner, &wallet(&owner), "a", &SETUP).unwrap());
+        // The RPC refused it and the ledger does not show it: unconfirmed, never pending.
+        let first = unconfirmed(send(&chain, &book, &owner, &wallet(&owner), "a", &SETUP).unwrap());
         // A newer blockhash is on offer; the retained bytes are still valid, so it is not used.
         chain.blockhash.set(2);
         chain.height.set(250);
-        let again = pending(send(&chain, &book, &owner, &wallet(&owner), "a", &SETUP).unwrap());
+        let again = unconfirmed(send(&chain, &book, &owner, &wallet(&owner), "a", &SETUP).unwrap());
         assert_eq!(first, again);
+        // Once the RPC accepts the identical bytes, they are pending.
+        chain.refuse.set(false);
+        assert_eq!(
+            pending(send(&chain, &book, &owner, &wallet(&owner), "a", &SETUP).unwrap()),
+            first
+        );
+        // Three submissions of the identical bytes.
         let sent = chain.sent.borrow();
-        assert_eq!(sent.len(), 2);
-        assert_eq!(sent[0].0, sent[1].0);
+        assert_eq!(sent.len(), 3);
+        assert!(sent.iter().all(|(wire, _)| *wire == sent[0].0));
     }
 
     #[test]

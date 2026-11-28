@@ -310,13 +310,13 @@ pub fn setup(cx: &Context<'_>, r: Setup<'_>) -> Result<Value> {
     });
     let signature = match outcome {
         Outcome::Settled { signature } => signature,
-        Outcome::Pending { signature } => {
+        Outcome::Pending { .. } | Outcome::Unconfirmed { .. } => {
             return Err(unfinished(
                 network,
                 r.request_id,
                 SETUP,
-                &signature,
-                "The setup is sent and not finalized yet. Run the setup again with the same request ID: nothing is signed again while it can still settle.",
+                &outcome,
+                "The setup is sent and not finalized yet. Run the setup again with the same request ID: the owner signs in again, and the setup transaction is not signed again while it can still settle.",
             ));
         }
         Outcome::Failed { signature } => {
@@ -332,19 +332,48 @@ pub fn setup(cx: &Context<'_>, r: Setup<'_>) -> Result<Value> {
     document["transactions"] = json!([transaction(network, SETUP, &signature, Status::Confirmed)]);
     // The ledger holds the wallet: the server registers it from the ledger. A refusal leaves
     // the wallet set up, and the same request ID asks again and signs nothing.
-    match session.owner_request::<Value>(
-        Method::Post,
-        &format!("/api/native/register?network={network}"),
-        Some(&json!({"configuration": config})),
-        (cx.clock)()?,
-        false,
-    ) {
-        Ok(registration) => document["registration"] = registration,
-        Err(error) => {
-            document["registration"] = json!({"registered": false, "error": error.message});
-        }
+    let registration = session
+        .owner_request::<Value>(
+            Method::Post,
+            &format!("/api/native/register?network={network}"),
+            Some(&json!({"configuration": config})),
+            (cx.clock)()?,
+            false,
+        )
+        .map_err(|error| not_registered(&document, error))?;
+    if registration["registered"] != true {
+        return Err(not_registered(
+            &document,
+            Error::usage("its reply does not say that the wallet is registered"),
+        ));
     }
+    document["registration"] = registration;
+    document["registered"] = true.into();
     Ok(document)
+}
+
+/// The server did not register a wallet that the ledger holds: a refusal that the same setup
+/// asks again, signing no transaction, as on every rail. The server's own code and status are
+/// kept, and the details name the setup's transaction and the installation that a refill reads.
+fn not_registered(document: &Value, error: Error) -> Error {
+    let wallet = document["wallet"].as_str().unwrap_or_default();
+    let mut refused = Error::api(
+        error.status.unwrap_or(409),
+        format!(
+            "The wallet account {wallet} is set up on the ledger, but the server did not register it: {}. Run the same setup again with the same request ID: it signs in and asks the server again, and signs no transaction.",
+            error.message
+        ),
+    )
+    .with_details(json!({
+        "requestId": document["requestId"],
+        "network": document["network"],
+        "wallet": wallet,
+        "registered": false,
+        "configuration": document["configuration"],
+        "transactions": document["transactions"],
+    }));
+    refused.api_code = error.api_code;
+    refused
 }
 
 /// Add `amount` to what the wallet of `document` may still spend: the owner's own approval,
@@ -360,7 +389,7 @@ pub fn fund(
 ) -> Result<Value> {
     owner::check_fee_limit(fee_limit)?;
     let network = network(cx)?;
-    let config = WalletConfig::decode(document)?;
+    let config = installation_of(document)?;
     if config.network != network {
         return Err(Error::config(
             "The installation belongs to another network than this request",
@@ -369,6 +398,14 @@ pub fn fund(
     let wallet = config.roles()?;
     if config.owner != cx.signer.address() {
         return Err(Error::usage("Only the wallet's owner refills it"));
+    }
+    // The refill approves the allowance of the wallet's delegate, the multisig of the agent and
+    // the server. As at the setup, that server must be the independently configured authority:
+    // a document that names another server key is refused before the owner signs.
+    if config.server != cx.authority.public_key() {
+        return Err(Error::usage(
+            "The wallet's server key differs from the independently configured server authority: nothing was signed",
+        ));
     }
     let units = u64::try_from(decimal_units(amount, config.decimals)?)
         .ok()
@@ -391,13 +428,13 @@ pub fn fund(
     };
     let signature = match outcome {
         Outcome::Settled { signature } => signature,
-        Outcome::Pending { signature } => {
+        Outcome::Pending { .. } | Outcome::Unconfirmed { .. } => {
             return Err(unfinished(
                 network,
                 request_id,
                 REFILL,
-                &signature,
-                "The refill is sent and not finalized yet. Run it again with the same request ID: nothing is signed again while it can still settle.",
+                &outcome,
+                "The refill is sent and not finalized yet. Run it again with the same request ID: the refill transaction is not signed again while it can still settle.",
             ));
         }
         Outcome::Failed { signature } => {
@@ -421,8 +458,22 @@ pub fn fund(
     }))
 }
 
+/// The installation of a refill's `document`: the installation itself, or the document of the
+/// setup that names it under `configuration`, as `wallet setup` prints it.
+fn installation_of(document: &[u8]) -> Result<WalletConfig> {
+    let value: Value = serde_json::from_slice(document)
+        .map_err(|_| Error::usage("The wallet document is not JSON"))?;
+    match value.get("configuration") {
+        Some(configuration) if value["action"] == SETUP => WalletConfig::decode(
+            &serde_json::to_vec(configuration)
+                .map_err(|_| Error::usage("The setup document's configuration is not readable"))?,
+        ),
+        _ => WalletConfig::decode(document),
+    }
+}
+
 /// The action of a setup and of a refill, as an owner document names it.
-const SETUP: &str = "native_setup";
+pub(crate) const SETUP: &str = "native_setup";
 const REFILL: &str = "refill";
 
 /// One transaction of an owner document, as every host reads it: its action, its hash, Core's
@@ -447,35 +498,39 @@ fn failed(
     signature: &[u8; 64],
     message: &str,
 ) -> Error {
-    let mut error = Error::usage(format!(
-        "{message} Transaction: {}.",
-        signature_text(signature)
-    ))
+    // Core's classification of a finalized failure: a typed refusal, code 4.
+    Error::coded(
+        "owner_transaction_failed",
+        format!("{message} Transaction: {}.", signature_text(signature)),
+    )
     .with_details(json!({
         "requestId": request_id,
         "network": network,
         "transactions": [transaction(network, action, signature, Status::Failed)],
-    }));
-    error.code = REJECTED;
-    error
+    }))
 }
 
-/// The exit code of a rejected step, which Core's errors share with a typed refusal.
-const REJECTED: i32 = 4;
-
 /// A step that is sent and not finalized: uncertain, so a host asks again with the same request
-/// ID and never reports it done. The details name its transaction.
+/// ID and never reports it done. The details name its transaction in Core's status:
+/// `submitted` once the ledger holds it or the RPC accepted it, `submissionUnknown` otherwise,
+/// as `owner-status` says of a transaction that the ledger does not show.
 fn unfinished(
     network: &str,
     request_id: &str,
     action: &str,
-    signature: &[u8; 64],
+    outcome: &Outcome,
     next: &str,
 ) -> Error {
+    let (signature, status) = match outcome {
+        Outcome::Pending { signature } => (signature, Status::Submitted),
+        Outcome::Unconfirmed { signature }
+        | Outcome::Settled { signature }
+        | Outcome::Failed { signature } => (signature, Status::SubmissionUnknown),
+    };
     Error::uncertain(next).with_details(json!({
         "requestId": request_id,
         "network": network,
-        "transactions": [transaction(network, action, signature, Status::Submitted)],
+        "transactions": [transaction(network, action, signature, status)],
     }))
 }
 
@@ -846,15 +901,27 @@ mod tests {
     /// and its details name the transaction to ask about.
     #[test]
     fn an_unfinished_step_is_uncertain_and_names_its_transaction() {
-        let error = unfinished(DEVNET, "fund-1", REFILL, &[7; 64], "Run it again.");
+        let pending = Outcome::Pending { signature: [7; 64] };
+        let error = unfinished(DEVNET, "fund-1", REFILL, &pending, "Run it again.");
         assert_eq!(error.code, 5, "uncertain");
         let details = error.details.unwrap();
         assert_eq!(details["requestId"], "fund-1");
         assert_eq!(details["transactions"][0]["status"], "submitted");
         assert_eq!(details["transactions"][0]["action"], "refill");
-        // A step that failed on the ledger is rejected and names its failed transaction.
+        // A submission that the RPC did not accept and the ledger does not show is unknown, as
+        // `owner-status` says of it: never `submitted`.
+        let unconfirmed = Outcome::Unconfirmed { signature: [7; 64] };
+        let error = unfinished(DEVNET, "fund-1", REFILL, &unconfirmed, "Run it again.");
+        assert_eq!(error.code, 5, "uncertain");
+        assert_eq!(
+            error.details.unwrap()["transactions"][0]["status"],
+            "submissionUnknown"
+        );
+        // A step that failed on the ledger is Core's typed `owner_transaction_failed` refusal
+        // and names its failed transaction.
         let error = failed(DEVNET, "fund-1", REFILL, &[7; 64], "It failed.");
         assert_eq!(error.code, 4);
+        assert_eq!(error.api_code.as_deref(), Some("owner_transaction_failed"));
         assert!(
             error
                 .message
@@ -896,5 +963,17 @@ mod tests {
         // The rail's own configuration reads the document that the server will register.
         let document = serde_json::to_vec(&config).unwrap();
         crate::config::configuration(DEVNET, &document).unwrap();
+        // A refill reads the installation alone or the document that the setup prints, with
+        // the installation under `configuration`; any other wrapper is refused.
+        assert_eq!(installation_of(&document).unwrap(), config);
+        let setup = json!({"action": SETUP, "wallet": config.wallet, "configuration": config,
+            "registered": true});
+        assert_eq!(
+            installation_of(&serde_json::to_vec(&setup).unwrap()).unwrap(),
+            config
+        );
+        let other = json!({"action": REFILL, "configuration": config});
+        assert!(installation_of(&serde_json::to_vec(&other).unwrap()).is_err());
+        assert!(installation_of(b"not json").is_err());
     }
 }

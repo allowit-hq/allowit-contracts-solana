@@ -199,8 +199,9 @@ fn a_setup_settles_once_and_its_repeat_signs_nothing() {
 fn a_lost_setup_goes_again_as_the_same_bytes_and_settles() {
     let f = fixture();
     f.ledger.lose.set(true);
-    let Outcome::Pending { signature } = f.send("setup", &SETUP) else {
-        panic!("a lost setup is pending");
+    // The RPC did not accept it: unconfirmed, never pending.
+    let Outcome::Unconfirmed { signature } = f.send("setup", &SETUP) else {
+        panic!("a lost setup is unconfirmed");
     };
     assert_eq!(f.approval(), None);
     f.ledger.lose.set(false);
@@ -214,8 +215,8 @@ fn a_lost_setup_goes_again_as_the_same_bytes_and_settles() {
 fn a_lapsed_setup_is_prepared_again_and_the_old_bytes_cannot_run() {
     let f = fixture();
     f.ledger.lose.set(true);
-    let Outcome::Pending { signature: first } = f.send("setup", &SETUP) else {
-        panic!("a lost setup is pending");
+    let Outcome::Unconfirmed { signature: first } = f.send("setup", &SETUP) else {
+        panic!("a lost setup is unconfirmed");
     };
     let old = f.book.load("setup").unwrap().unwrap().wire;
     // The blockhash expires and the finalized height passes its last valid height.
@@ -304,8 +305,10 @@ fn the_owner_stops_and_a_failed_step_is_final() {
     );
     let submissions = f.ledger.submissions.get();
     let close_twice = Request::Steps(vec![OwnerStep::Close, OwnerStep::Close]);
-    let Outcome::Pending { signature } = f.send("close", &close_twice) else {
-        panic!("a new close is pending");
+    // This ledger answers the submission of a failing transaction with an error and records it
+    // as failed: the submission is unconfirmed, and the ledger's record then decides.
+    let Outcome::Unconfirmed { signature } = f.send("close", &close_twice) else {
+        panic!("a refused close is unconfirmed");
     };
     assert_eq!(f.send("close", &close_twice), Outcome::Failed { signature });
     assert_eq!(f.ledger.submissions.get(), submissions + 1);
