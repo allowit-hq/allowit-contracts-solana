@@ -1,11 +1,11 @@
 # S4: Browser wallet compatibility (TASK-1066)
 
-Run from `npm/solana`. The probe bundles the checked-in browser build and keeps its tools in a temporary directory:
+Run from `npm/solana`. The probe bundles the checked-in browser build and keeps its tools in a temporary directory. Call esbuild through `node_modules/.bin`: on some platforms, macOS among them, esbuild's install script replaces `bin/esbuild` with a native binary that `node` cannot run.
 
 ```sh
 tools="$(mktemp -d)"
 npm install --prefix "$tools" --no-package-lock --no-audit --no-fund esbuild@0.25.12 @noble/curves@1.9.7 @noble/hashes@1.8.0
-NODE_PATH="$tools/node_modules" node "$tools/node_modules/esbuild/bin/esbuild" examples/browser-wallets/probe.mjs --bundle --format=esm --outfile=examples/browser-wallets/bundle.js
+NODE_PATH="$tools/node_modules" "$tools/node_modules/.bin/esbuild" examples/browser-wallets/probe.mjs --bundle --format=esm --outfile=examples/browser-wallets/bundle.js
 python3 -m http.server 8765 --bind 127.0.0.1 --directory examples/browser-wallets
 ```
 
