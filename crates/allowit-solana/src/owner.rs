@@ -110,8 +110,21 @@ pub enum Outcome {
     Settled { signature: [u8; 64] },
     /// Finalized with an error: nothing of the request took effect, and the fee was paid.
     Failed { signature: [u8; 64] },
-    /// Sent, or sent again, and not finalized yet. Ask again with the same request id.
+    /// The ledger holds it, or the RPC accepted its submission, and it is not finalized yet. Ask
+    /// again with the same request id.
     Pending { signature: [u8; 64] },
+    /// Sent, or sent again, and neither the ledger shows it nor did the RPC accept it: it can
+    /// still settle, and nothing proves that it was submitted. Ask again with the same request id.
+    Unconfirmed { signature: [u8; 64] },
+}
+
+/// The outcome of a submission of `signature`: pending once the RPC accepted it, unconfirmed
+/// otherwise. A refusal proves nothing: the retained bytes may still settle.
+fn submitted(ledger: &dyn Ledger, wire: &[u8], signature: [u8; 64]) -> Outcome {
+    match ledger.submit(wire) {
+        Ok(()) => Outcome::Pending { signature },
+        Err(_) => Outcome::Unconfirmed { signature },
+    }
 }
 
 /// The identity of a request: a repeat of `request_id` must ask for the same thing.
@@ -248,6 +261,24 @@ fn prepare(
     }
 }
 
+/// The network fee of every owner transaction: one signature, the owner's, and no
+/// compute-budget price. The owner's transactions name no compute-budget instruction, so the fee
+/// is known before the owner signs, and a replacement after a lapse costs the same.
+pub const OWNER_FEE_LAMPORTS: u64 = crate::native::LAMPORTS_PER_SIGNATURE;
+
+/// Refuse an owner transaction whose fee is above `limit`, in lamports, before anything is signed.
+pub fn check_fee_limit(limit: &str) -> Result<()> {
+    let limit: u64 = limit
+        .parse()
+        .map_err(|_| Error::usage("The fee limit is a whole number of lamports"))?;
+    if OWNER_FEE_LAMPORTS > limit {
+        return Err(Error::usage(format!(
+            "The owner's transaction costs {OWNER_FEE_LAMPORTS} lamports in network fees, above the fee limit of {limit}: nothing was signed. Raise the fee limit to at least {OWNER_FEE_LAMPORTS}."
+        )));
+    }
+    Ok(())
+}
+
 /// Where a retained transaction stands on the ledger.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Resolution {
@@ -313,11 +344,8 @@ pub fn send(
             Resolution::Settled => return Ok(Outcome::Settled { signature }),
             Resolution::Failed => return Ok(Outcome::Failed { signature }),
             Resolution::Pending => return Ok(Outcome::Pending { signature }),
-            Resolution::Unsent => {
-                // The identical bytes may still settle. A refusal here proves nothing.
-                let _ = ledger.submit(&retained.wire);
-                return Ok(Outcome::Pending { signature });
-            }
+            // The identical bytes may still settle. A refusal here proves nothing.
+            Resolution::Unsent => return Ok(submitted(ledger, &retained.wire, signature)),
             // The retained bytes never ran and can no longer run.
             Resolution::Lapsed => {}
         }
@@ -337,8 +365,7 @@ pub fn send(
         },
     )?;
     // The bytes are retained: whatever the submission answers, the id resolves them later.
-    let _ = ledger.submit(&wire);
-    Ok(Outcome::Pending { signature })
+    Ok(submitted(ledger, &wire, signature))
 }
 
 #[cfg(test)]
@@ -441,6 +468,12 @@ mod tests {
             other => panic!("not pending: {other:?}"),
         }
     }
+    fn unconfirmed(outcome: Outcome) -> [u8; 64] {
+        match outcome {
+            Outcome::Unconfirmed { signature } => signature,
+            other => panic!("not unconfirmed: {other:?}"),
+        }
+    }
 
     #[test]
     fn the_signed_bytes_are_retained_before_they_are_sent() {
@@ -459,20 +492,60 @@ mod tests {
         assert_eq!(retained.wire[1..65], signature);
     }
 
+    /// Each owner transaction costs what the fee limit is checked against: the owner's one
+    /// signature, with no compute-budget instruction that would add a priority fee.
+    #[test]
+    fn an_owner_transaction_costs_one_signature_and_no_priority_fee() {
+        let budget: Address = "ComputeBudget111111111111111111111111111111"
+            .parse()
+            .unwrap();
+        // A refill is the transaction of one `Approve` step, which this ledger needs no account
+        // to build.
+        let refill = Request::Steps(vec![OwnerStep::Approve {
+            allowance: 1,
+            decimals: 6,
+        }]);
+        let steps = Request::Steps(vec![OwnerStep::Stop]);
+        for (id, request) in [("setup", &SETUP), ("refill", &refill), ("stop", &steps)] {
+            let (book, owner) = (Book::default(), signer(1));
+            let chain = Chain::new(&book);
+            pending(send(&chain, &book, &owner, &wallet(&owner), id, request).unwrap());
+            let wire = book.load(id).unwrap().unwrap().wire;
+            assert_eq!(wire[0], 1, "{id}: one signature");
+            assert!(
+                !wire.windows(32).any(|w| w == budget.to_bytes()),
+                "{id}: no compute-budget instruction"
+            );
+        }
+        assert_eq!(OWNER_FEE_LAMPORTS, 5_000);
+        check_fee_limit("5000").unwrap();
+        assert!(check_fee_limit("4999").is_err());
+        assert!(check_fee_limit("-1").is_err());
+        assert!(check_fee_limit("1.5").is_err());
+    }
+
     #[test]
     fn a_refused_submission_keeps_the_bytes_and_the_identical_bytes_go_again() {
         let (book, owner) = (Book::default(), signer(1));
         let chain = Chain::new(&book);
         chain.refuse.set(true);
-        let first = pending(send(&chain, &book, &owner, &wallet(&owner), "a", &SETUP).unwrap());
+        // The RPC refused it and the ledger does not show it: unconfirmed, never pending.
+        let first = unconfirmed(send(&chain, &book, &owner, &wallet(&owner), "a", &SETUP).unwrap());
         // A newer blockhash is on offer; the retained bytes are still valid, so it is not used.
         chain.blockhash.set(2);
         chain.height.set(250);
-        let again = pending(send(&chain, &book, &owner, &wallet(&owner), "a", &SETUP).unwrap());
+        let again = unconfirmed(send(&chain, &book, &owner, &wallet(&owner), "a", &SETUP).unwrap());
         assert_eq!(first, again);
+        // Once the RPC accepts the identical bytes, they are pending.
+        chain.refuse.set(false);
+        assert_eq!(
+            pending(send(&chain, &book, &owner, &wallet(&owner), "a", &SETUP).unwrap()),
+            first
+        );
+        // Three submissions of the identical bytes.
         let sent = chain.sent.borrow();
-        assert_eq!(sent.len(), 2);
-        assert_eq!(sent[0].0, sent[1].0);
+        assert_eq!(sent.len(), 3);
+        assert!(sent.iter().all(|(wire, _)| *wire == sent[0].0));
     }
 
     #[test]

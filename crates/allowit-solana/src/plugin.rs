@@ -77,6 +77,21 @@ fn not_yet(what: &str) -> Error {
     ))
 }
 
+/// The verbs of the rail, in the order of the hosts' list.
+const VERBS: &[&str] = &[
+    "wallet setup",
+    "wallet import",
+    "policy fund",
+    "policy activate",
+    "policy export",
+    "policy owner-status",
+    "wallet show",
+    "policy show",
+    "policy generate",
+    "exec",
+    "status",
+];
+
 static TEST_SUPPORT: TestSupport = TestSupport {
     network: DEVNET,
     skips: &[
@@ -277,21 +292,16 @@ impl RailPlugin for Plugin {
     fn networks(&self) -> &'static [RailInfo] {
         networks::NETWORKS
     }
-    /// What a host may ask of this rail today: the read of an imported wallet. The verbs of the
-    /// client workflow join with it.
+    /// What a host may ask of this rail: every verb that its client workflow serves. A Native
+    /// wallet has no code, so `policy deploy` is not one; the Devnet faucet takes no RPC
+    /// request, so `keys fund` is not one either.
     fn capabilities(&self, _: &str) -> Capabilities {
         Capabilities {
             curve: keys::KEY_TYPE,
             address_is_key: true,
             operations: &["transfer"],
             build_only: false,
-            verbs: &[
-                "wallet import",
-                "wallet show",
-                "policy show",
-                "exec",
-                "status",
-            ],
+            verbs: VERBS,
         }
     }
     fn test_support(&self) -> &'static TestSupport {
@@ -747,9 +757,9 @@ impl OwnerProvider for Owner {
         document: &[u8],
         id: &str,
         amount: &str,
-        _fee: &str,
+        fee_limit: &str,
     ) -> Result<Value> {
-        crate::owner_client::fund(cx, document, id, amount)
+        crate::owner_client::fund(cx, document, id, amount, fee_limit)
     }
     fn activate(&self, cx: &owner::Context<'_>, r: owner::Activate<'_>) -> Result<Value> {
         crate::owner_client::activate(
@@ -770,6 +780,9 @@ impl OwnerProvider for Owner {
     }
     fn native_wallet_asset(&self, cx: &owner::Context<'_>) -> Result<owner::NativeWalletAsset> {
         crate::owner_client::native_wallet_asset(cx)
+    }
+    fn question(&self, network: &str, step: owner::Question<'_>) -> Option<String> {
+        crate::owner_client::question(network, step)
     }
     fn status(
         &self,
@@ -932,6 +945,24 @@ mod tests {
         );
         assert!(PLUGIN.native_asset("solana:devnet").is_err());
         assert_eq!(PLUGIN.capabilities(DEVNET).operations, ["transfer"]);
+        // Every verb of the owner's and the agent's workflow but the two that a Native wallet on
+        // Devnet cannot serve.
+        let verbs = PLUGIN.capabilities(DEVNET).verbs;
+        for verb in [
+            "wallet setup",
+            "policy fund",
+            "policy activate",
+            "policy export",
+            "policy owner-status",
+            "policy generate",
+            "wallet import",
+            "exec",
+            "status",
+        ] {
+            assert!(verbs.contains(&verb), "{verb}");
+        }
+        assert!(!verbs.contains(&"policy deploy"));
+        assert!(!verbs.contains(&"keys fund"));
         assert!(PLUGIN.fund_key(DEVNET, USDC_DEVNET, None).is_err());
     }
 
@@ -1219,6 +1250,23 @@ mod tests {
             "USDC"
         );
         assert!(PLUGIN.draft_params(DEVNET, &json!({})).is_err());
+        // An installation, alone as a refill reads it or in the document that the setup prints,
+        // holds its params and its token: a fresh setup's are none, in USDC.
+        let installed = serde_json::to_value(&fixture_bundle().config).unwrap();
+        let alone = PLUGIN.draft_params(DEVNET, &installed).unwrap();
+        assert_eq!(alone.asset.symbol, "USDC");
+        assert_eq!(alone.params.len(), fixture_bundle().config.params.len());
+        let setup = json!({"action": "native_setup", "configuration": installed});
+        assert_eq!(PLUGIN.draft_params(DEVNET, &setup).unwrap(), alone);
+        let mut fresh = installed.clone();
+        fresh["params"] = json!({});
+        assert!(
+            PLUGIN
+                .draft_params(DEVNET, &fresh)
+                .unwrap()
+                .params
+                .is_empty()
+        );
         assert!(
             PLUGIN
                 .draft_params("unknown:none", &fx.owner_generation)
