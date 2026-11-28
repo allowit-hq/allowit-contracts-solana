@@ -105,7 +105,8 @@ The runtime's own errors stay as they are: `MissingRequiredSignature`, `Incorrec
 Associated Token or check program) and `InvalidInstructionData`.
 
 ## Build
-`scripts/build-sbf.sh` builds the vault program and the test check program in the verifiable-build image
+`scripts/build-sbf.sh` builds the vault program, the test check program and the three Custom check fixtures of
+`sbf-tests/programs/custom-policy` in the verifiable-build image
 `solanafoundation/solana-verifiable-build:4.3.0`, pinned by its digest
 (`sha256:12fd4c0a0790f0fc41ef74b0cdb6bccc167ba6137eb1adb749bac649481c86bd`, linux/amd64), with platform tools
 v1.57:

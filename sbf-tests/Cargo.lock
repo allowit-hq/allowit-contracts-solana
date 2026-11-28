@@ -73,6 +73,8 @@ dependencies = [
  "mollusk-svm-programs-token",
  "solana-account",
  "solana-instruction 3.5.1",
+ "solana-loader-v3-interface",
+ "solana-message",
  "solana-program-error",
  "solana-program-option",
  "solana-program-pack",
@@ -2527,7 +2529,9 @@ dependencies = [
  "solana-instruction 3.5.1",
  "solana-sanitize",
  "solana-sdk-ids",
+ "solana-short-vec",
  "solana-transaction-error",
+ "wincode",
 ]
 
 [[package]]
@@ -2807,6 +2811,15 @@ dependencies = [
  "sha2 0.10.9",
  "solana-define-syscall 5.4.0",
  "solana-hash-512",
+]
+
+[[package]]
+name = "solana-short-vec"
+version = "3.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c75782529cc4521114c1ecd71c7e2cdebd41a6fe9844b5d088fd36ef08c57c36"
+dependencies = [
+ "wincode",
 ]
 
 [[package]]

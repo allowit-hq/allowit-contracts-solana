@@ -22,6 +22,9 @@ use std::collections::BTreeMap;
 #[path = "vault/stage2.rs"]
 mod stage2;
 
+#[path = "vault/custom_policy.rs"]
+mod custom_policy;
+
 const PROGRAM: Pubkey = Pubkey::new_from_array([10; 32]);
 const CHECK_PROGRAM: Pubkey = Pubkey::new_from_array([23; 32]);
 const OWNER: Pubkey = Pubkey::new_from_array([11; 32]);
@@ -256,7 +259,7 @@ impl Fixture {
         );
     }
 
-    fn run(&mut self, label: &str, ix: &Instruction, expected: Result<(), ProgramError>) {
+    fn run(&mut self, label: &str, ix: &Instruction, expected: Result<(), ProgramError>) -> u64 {
         let accounts = self
             .accounts
             .iter()
@@ -283,6 +286,7 @@ impl Fixture {
                 assert_eq!(self.accounts[&key], account, "{label} changed {key}");
             }
         }
+        compute_units_consumed
     }
 
     fn vault(&self) -> VaultState {
