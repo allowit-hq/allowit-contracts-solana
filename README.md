@@ -12,8 +12,9 @@ It holds the rail for Native wallets on Solana Devnet (plan task T9 of TASK-1066
   and the hooks of the owner workflows. Its [README](npm/solana/README.md) describes it.
 
 A Native wallet is the owner's own SPL token account of one mint for one agent. Its delegate is an SPL Token
-multisig of the agent and the server, two of two. No Allowit program runs. Vault programs (Simple, Standard,
-Custom) are not here yet.
+multisig of the agent and the server, two of two. No Allowit program runs. Simple, Standard and Custom wallets
+run the vault program [`programs/vault`](programs/vault) (ABI 3), described with its build and its Devnet
+deployment in [`docs/vault-abi3.md`](docs/vault-abi3.md); [`sbf-tests`](sbf-tests) tests it with Mollusk.
 
 The earlier implementation is in the Git history, last at commit
 [`fd44e94`](https://github.com/allowit-hq/allowit-contracts-solana/tree/fd44e94379560ef242e2d214c0d9832d41ec02cd):

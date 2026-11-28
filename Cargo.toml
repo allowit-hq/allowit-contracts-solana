@@ -1,5 +1,6 @@
 [workspace]
-members = ["crates/allowit-solana"]
+members = ["crates/allowit-solana", "programs/vault"]
+exclude = ["sbf-tests"]
 resolver = "2"
 
 # Every package in this repository builds at this version.
