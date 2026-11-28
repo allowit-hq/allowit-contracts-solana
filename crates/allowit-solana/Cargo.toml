@@ -39,3 +39,8 @@ solana-transaction = { version = "4.3", features = ["wincode"] }
 wincode = "0.6"
 # solana-keypair (through litesvm) needs five8_core's std errors, which nothing else enables.
 five8_core = { version = "0.1.2", features = ["std"] }
+
+# The facilitator host for Devnet tests; its tests run with the package's.
+[[example]]
+name = "devnet_facilitator"
+test = true

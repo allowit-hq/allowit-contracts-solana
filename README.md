@@ -21,6 +21,27 @@ The earlier implementation is in the Git history, last at commit
 the vault program (ABI 2) and its policy helper, the PaySH and mandate programs, the host crates, the native SDK
 and the verification set. That code is not maintained.
 
+## The facilitator on Devnet, for tests
+
+The crate's settlement service is the Allowit facilitator for x402 `exact` payments on Solana Devnet (plan task T12).
+Until the engine serves Solana, the example [`devnet_facilitator`](crates/allowit-solana/examples/devnet_facilitator.rs)
+hosts it for Devnet tests: `GET /facilitator/supported`, `POST /facilitator/verify` and `POST /facilitator/settle` (also
+under `/api/`), with the engine's paths and reply shapes, no authentication and a request rate per minute (HTTP 429,
+code `facilitator_rate_limited`). It listens on 127.0.0.1 and refuses to start unless the RPC's genesis is Devnet's.
+
+```sh
+ALLOWIT_FACILITATOR_SOLANA_KEYPAIR=/path/to/fee-payer.json ALLOWIT_FACILITATOR_PORT=4402 cargo run -p allowit-solana --example devnet_facilitator
+```
+
+- `ALLOWIT_FACILITATOR_SOLANA_KEYPAIR` (required): a Solana CLI keypair file of the fee payer, kept outside any
+  repository. The host never prints it. The fee payer needs Devnet SOL for the network fees of real settlements.
+- `ALLOWIT_FACILITATOR_SOLANA_RPC`: the RPC endpoint, by default `https://api.devnet.solana.com`.
+- `ALLOWIT_FACILITATOR_PORT` (4402), `ALLOWIT_FACILITATOR_REQUESTS_PER_MINUTE` (120),
+  `ALLOWIT_FACILITATOR_MAX_FEE_UNITS` (50000 lamports) and `ALLOWIT_FACILITATOR_HOURLY_FEE_UNITS` (5000000 lamports).
+
+A seller takes `http://127.0.0.1:4402/facilitator` as its facilitator URL; `/supported` names the network
+`solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1`, scheme `exact`, x402 version 2 and the fee payer in `extra.feePayer`.
+
 ## Part of Allowit
 
 A rail owns its native programs, signing and chain semantics. It depends on Core and on no other Allowit
